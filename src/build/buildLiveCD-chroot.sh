@@ -23,7 +23,7 @@ cd $HOME
 #TODO cambiar el hostname y el hosts
 
 
-
+#TODO remake plymouth theme
 
 
 ## TODO generate available locales
@@ -31,6 +31,12 @@ cd $HOME
 #[root@lab9054::ujiVoting]$ less  /etc/locale.gen
 
 ##
+
+##TODO disable apache logs? (or reduce their ttl)
+
+# TODO los cert ssl, buscarlos en la ruta /etc/ssl/ certs/ y private/
+
+#TODO config TLS en postfi. Do we need to secure SSL for postfix?
 
 
 ctell "Running with profile: $*"
@@ -48,7 +54,7 @@ mount -t sysfs sysfs /sys
 
 
 #Perform installs and updates
-if [ $FREEZEDISTRO -eq "0" ]
+if [ $UPDATEPACKAGES -eq "1" ]
     then
 
         ctell "Packages to be installed: $PCKGS"
@@ -68,7 +74,7 @@ if [ $FREEZEDISTRO -eq "0" ]
         ctell "***************** Install packages *******************"
 
 
-        #TODO add presets to avoid as much interactions as possible
+        #Add presets to avoid as much interactions as possible
         echo 'mysql-server mysql-server/root_password password defaultpassword' | debconf-set-selections 
         echo 'mysql-server mysql-server/root_password_again password defaultpassword' | debconf-set-selections
 
@@ -82,7 +88,7 @@ if [ $FREEZEDISTRO -eq "0" ]
         # For the test version, we automatise the most we can the
         # installation. For the release version, default keyboard layout will
         # be prompted
-        echo -e "--------------\nYou will be prompted to choose keyboard type. Please, select qwerty and press RETURN\n--------------)" && read
+        echo -e "----------\nYou will be prompted to choose keyboard type. Please, select qwerty and press RETURN\n----------)" && read
         echo "console-data	console-data/keymap/qwerty/layout	select	US american" | debconf-set-selections
         echo "keyboard-configuration	keyboard-configuration/xkb-keymap	select	en" | debconf-set-selections
         echo "keyboard-configuration	keyboard-configuration/variant	select	English (US)" | debconf-set-selections
@@ -95,73 +101,39 @@ if [ $FREEZEDISTRO -eq "0" ]
         passwd
 
 
-
-
  
-# TODO pensarme si soporto estos modos
-    
+# TODO pensarme si soporto nfs
 #    ctell "CHROOT: Installing conflictive custom package: nfs"
 #    (apt-get -f install -y nfs-common)    
 #    #Si falla la instalación y peta el sub-shell, hacer el reconfigure
-#    [ "$?" -ne 0 ] && dpkg --configure -a
-
-
-#    ctell "CHROOT: Installing conflictive custom package: iscsi"
-#    (apt-get -f install -y open-iscsi)
-#    [ "$?" -ne 0 ] && dpkg --configure -a
-    
-    
-    
-    # TODO creo que voy a eliminar la dependencia con el clauer. O compìlo sólo mi código, si va bien, y escribo el bloque en un fichero, o si me hace falta algo del clauer, reescribo el código y punto. En python, y vomito el bloque de clave a un fichero    
-
-#    ctell "***************** CHROOT: Instalando Clauer *******************"
-#    pushd  /root/src/build/bundles/
-#    tar xzf ClauerLinux-*.tar.gz 
-#    pushd ClauerLinux-*/
-#    ./configure
-#    make
-#    make install    
-#    popd
-#    rm -rf  ClauerLinux-*/ 
-#    popd     
-    
-    
+        #    [ "$?" -ne 0 ] && dpkg --configure -a
+        
 fi  #Fin del modo -r
 
 
 
 
+#Generate DH parameters for the apache SSL
+if [ $GENERATEDHPARAMS -eq "1" ]
+    then
+        ctell "Generating 4096 bit Diffie Helman parameters for SSL"
+        openssl dhparam -out /etc/ssl/dhparams.pem 4096
+fi
 
 
 
-
-#Ya no se compila aquí dentro, por el error del malloc. O es la librt o es la libstdc++
-#Puede ser alguna incongruencia entre la librt que uso para la app y la del clauer?? del la libc??, del compilador?
-#Puede ser que esté enlaazando la librería incorrecta?
-#Hice una prueba de concepto y falla en la LibRT.
-#El caso es que ahora es un ejecutable estático.
-#ctell "***************** CHROOT: compilando aplicación eLectionOps *******************"
-
-##Compiling base app
-#pushd  /root/src/src/
-#
-#make
-#
-#popd
+ctell "***** Building Secret Sharing tool"
+pushd  /root/src/tools/ssss/
+make
+cp ssOperations $BINDIR
+popd
 
 
-#TODO remake theme
+
 #Setting Up Plymouth theme
 ctell "***** Installing plymouth theme"
 
 cp -rf /root/src/sys/plymouth/vtuji    /usr/share/plymouth/themes/
-
-#Add theme path to the alternatives system
-#update-alternatives --install /lib/plymouth/themes/default.plymouth default.plymouth /usr/share/plymouth/themes/vtuji/vtuji.plymouth 10
-
-#Select new theme's path as the current path
-#Manual selection: update-alternatives --config default.plymouth
-#update-alternatives --set default.plymouth /lib/plymouth/themes/vtuji/vtuji.plymouth
 
 /usr/sbin/plymouth-set-default-theme vtuji
 
@@ -173,9 +145,43 @@ cp -rf /root/src/sys/plymouth/vtuji    /usr/share/plymouth/themes/
 #fbcon
 #EOF
 
-
 #Configure initramfs so it loads the new splash
 update-initramfs -u
+
+
+
+
+
+
+ctell "***** Copying utilities"
+
+cp -fv /root/src/mgr/bin/*  $BINDIR
+   
+
+cp -fv /root/src/sys/config/webserver/ssl-config.conf  /etc/apache2/sites-available/
+
+cp -fv /root/src/sys/config/php/timezones              /usr/local/share/
+
+cp -fv /root/src/sys/config/ntpd/ntpd.conf             /etc/openntpd/
+
+
+cp -fv /root/src/data/config/main.cf             /etc/postfix/
+
+
+
+cp -fv /root/src/version                         /etc/vtUJIversion
+
+# Alias de correo, para que el root reciba todas las notificaciones 
+#enviadas a los usuarios específicos de las aplicaciones.
+cp -fv /root/src/data/config/aliases             /etc/
+
+
+
+
+cp -fv /root/src/data/config/misc/sudoers           /etc/
+
+
+
 
 
 #Desmontamos los Fs especiales
@@ -183,35 +189,6 @@ umount /proc
 umount /sys
 #umount /dev
 exit 42
-
-
-
-
-
-
-ctell "***************** CHROOT: Copiando utilidades de VtUJI al sistema de ficheros *******************"
-
-cp -fv /root/src/mgr/bin/*  /usr/local/bin/
-   
-cp -f /root/src/mgr/config/ssl-config.conf     /etc/apache2/sites-available/
-cp -f /root/src/data/config/main.cf             /etc/postfix/
-
-cp -f /root/src/data/config/timezones           /usr/local/share/
-
-cp -f /root/src/version                         /etc/vtUJIversion
-
-# Alias de correo, para que el root reciba todas las notificaciones 
-#enviadas a los usuarios específicos de las aplicaciones.
-cp -f /root/src/data/config/aliases             /etc/
-
-
-
-cp -f /root/src/data/config/ntpd.conf           /etc/openntpd/
-
-cp -f /root/src/data/config/sudoers           /etc/
-
-
-
 
 
 #Aseguramos que el propietario es el root

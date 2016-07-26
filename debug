@@ -7,10 +7,17 @@
 
 
 #Install from scratch, executes deboostrap
-NEWCD=1
+NEWCD=0
 
 #Run the chroot specific script
 RUNCHROOT=1
+
+#Packages are updated every time the system is built or their version is frozen
+UPDATEPACKAGES=1
+
+#Generate new DH parameters for the apache SSL
+$GENERATEDHPARAMS=1
+
 
 #Remove backdoors for a production release
 RELEASE=0
@@ -22,5 +29,4 @@ VERSIONINFO=0
 COMPRESS=1
 
 
-#Packages are updated every time the system is built or their version is frozen
-FREEZEDISTRO=0
+
