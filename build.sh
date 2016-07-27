@@ -112,7 +112,9 @@ then
     tell "Copy voting system tools to the chroot workdir"
     rm -rf target/rootfs/root/src
     mkdir  target/rootfs/root/src
+    mkdir  target/rootfs/root/doc
     cp -rf src/* target/rootfs/root/src/
+    cp -rf doc/*.pdf target/rootfs/root/doc
     
 
     ######## Process scripts to compy with build mode #######

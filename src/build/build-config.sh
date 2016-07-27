@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-export VERSION="0.1"
+export VERSION="2.0"
 
 
 export ARCH=i386
@@ -70,3 +70,7 @@ PCKGS="$PCKGS ""man emacs debconf-utils"
 ###############################
 
 BINDIR="/usr/local/bin"
+
+#List of scripts and executables that can be called by the non-privileged user
+NONPRIVILEGEDSCRIPTS="addslashes combs.py common.sh wizard-setup.sh wizard-maintenance.sh wizard-common.sh genPwd.php separateCerts.py urlencode"
+ #TODO review this list

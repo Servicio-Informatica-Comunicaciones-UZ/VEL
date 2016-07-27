@@ -96,7 +96,12 @@ if [ $UPDATEPACKAGES -eq "1" ]
         
                 
         apt-get -f install -y --force-yes ${PCKGS}
-
+        
+        
+        #Copy the pm-utils package, as it needs to be reconfigured on every boot for hardware dependencies
+        cp -fv /var/cache/apt/archives/pm-utils*.deb   $BINDIR/
+        chmod 444 $BINDIR/pm-utils*.deb
+        
         # TODO remove when we substitute the logon with the management script.
         passwd
 
@@ -108,7 +113,7 @@ if [ $UPDATEPACKAGES -eq "1" ]
 #    #Si falla la instalación y peta el sub-shell, hacer el reconfigure
         #    [ "$?" -ne 0 ] && dpkg --configure -a
         
-fi  #Fin del modo -r
+fi
 
 
 
@@ -125,7 +130,7 @@ fi
 ctell "***** Building Secret Sharing tool"
 pushd  /root/src/tools/ssss/
 make
-cp ssOperations $BINDIR
+cp ssOperations $BINDIR/
 popd
 
 
@@ -153,32 +158,83 @@ update-initramfs -u
 
 
 
-ctell "***** Copying utilities"
+ctell "***** Copying binaries and system configuration files"
 
-cp -fv /root/src/mgr/bin/*  $BINDIR
+echo $VERSION > /etc/vtUJIversion
+
+cp -fv /root/src/mgr/bin/*                             $BINDIR/
    
 
-cp -fv /root/src/sys/config/webserver/ssl-config.conf  /etc/apache2/sites-available/
+cp -fv /root/src/sys/config/webserver/000-default.conf  /etc/apache2/sites-available/
+cp -fv /root/src/sys/config/webserver/default-ssl.conf  /etc/apache2/sites-available/
 
 cp -fv /root/src/sys/config/php/timezones              /usr/local/share/
 
 cp -fv /root/src/sys/config/ntpd/ntpd.conf             /etc/openntpd/
 
+cp -fv /root/src/sys/config/mailer/main.cf             /etc/postfix/
 
-cp -fv /root/src/data/config/main.cf             /etc/postfix/
+#All aliases set to root, so he receives all mail notifications
+#adressed to specific app users
+cp -fv /root/src/sys/config/misc/aliases               /etc/
 
-
-
-cp -fv /root/src/version                         /etc/vtUJIversion
-
-# Alias de correo, para que el root reciba todas las notificaciones 
-#enviadas a los usuarios específicos de las aplicaciones.
-cp -fv /root/src/data/config/aliases             /etc/
-
+#Non-privileged user is allowed to invoke privileged ops scripts
+#acting as root
+cp -fv /root/src/sys/config/misc/sudoers               /etc/
 
 
 
-cp -fv /root/src/data/config/misc/sudoers           /etc/
+#Set owner and permissions
+ctell "***** Setting file owners and permissions of scripts and executables"
+chown root:root $BINDIR/*
+
+pushd $BINDIR/
+chmod 550 ./*
+#Set which tools can be used by the non-privileged user    
+chmod o+rx $NONPRIVILEGEDSCRIPTS
+popd
+
+#Privileges scripts for root only (non-privileged user can use sudo)
+chmod 500 $BINDIR/privileged-ops.sh
+chmod 500 $BINDIR/privileged-setup.sh
+
+#Setuid the sginfo executable for the non-privileged user  #//// TODO Creo que no hace falta. pruebo a ver (he quitado el setuid en al vm).
+#chmod ug+s /usr/bin/sginfo
+
+
+#Copy web application files
+ctell "***** Copy web application installer"
+rm -rf   /var/www/*
+mkdir -pv /var/www/tmp/
+cp -fv /root/src/webapp/bundle/ivot.php          /var/www/tmp/
+cp -fv /root/src/webapp/tools/mkInstaller.php    /var/www/tmp/
+cp -fv /root/src/webapp/tools/markVariables.py   /var/www/tmp/
+
+
+
+#Build bundle with the used sources, so everything can be audited.
+find   /root/src/   -iname ".svn" | xargs rm -rf
+tar czf /root/source-$VERSION.tgz /root/src/  
+
+
+
+
+
+ctell "****** System tuning"
+
+
+#FIREWALL INICIAL
+# Configuración del firewall que se aplicará en cuanto se inicie el sistema de red.
+if $(cat /etc/init.d/networking | grep -e "^\. /.*firewall.sh$")
+    then
+    :
+else
+    #Incluye el script con las reglas
+    sed -i -re "s|(^.*init-functions.*$)|\1\n. $BINDIR/firewall.sh|"  /etc/init.d/networking
+    
+    #Ejecuta la regla
+    sed -i -re "s|(^.*upstart-job.*start.*$)|\1\n        setupFirewall 'ssl'|" /etc/init.d/networking
+fi
 
 
 
@@ -189,112 +245,6 @@ umount /proc
 umount /sys
 #umount /dev
 exit 42
-
-
-#Aseguramos que el propietario es el root
-chown root:root /usr/local/bin/*
-
-
-#Damos permisos de ejecución a los ficheros
-pushd /usr/local/bin/
-
-chmod 550 ./*
-
-#Damos permiso a algunos para que accedan usuarios no privilegiados
-chmod o+rx addslashes combs.py common.sh wizard-setup.sh wizard-maintenance.sh wizard-common.sh genPwd.php separateCerts.py urlencode
-
-chmod 444 pm-utils*.deb
-
-popd
-
-
-#Los scripts privilegiados, sólo puede ejecutarlos el root (vtuji puede con sudo).
-chmod 500 /usr/local/bin/privileged-ops.sh
-chmod 500 /usr/local/bin/privileged-setup.sh
-
-
-
-#Setuid para el ejecutable de sginfo  #//// Creo que no hace falta. pruebo a ver (he quitado el setuid en al vm).
-#chmod ug+s /usr/bin/sginfo
-
-
-
-
-
-
-
-#Copiamos los elementos necesarios para instalar la app web a un directorio temporal
-rm -rf   /var/www/*
-mkdir -p /var/www/tmp/
-cp -f /root/src/build/bundles/ivot.php          /var/www/tmp/
-cp -f /root/src/build/mkInstaller.php           /var/www/tmp/
-cp -f /root/src/build/markVariables.py          /var/www/tmp/
-
-
-
-
-#copiamos las sources del proyecto empleadas al CD, por tansparencia.
-#Borramos los datos del subversion y de trabajo
-find   /root/src/   -iname ".svn" | xargs rm -rf
-rm -rf /root/src/doc/Auditory
-rm -rf /root/src/doc/onWork
-rm -rf /root/src/doc/sources
-rm -f  /root/src/myBuild.sh
-rm -rf /root/src/test-tools
-
-tar czf /vtUJI-$(cat /root/src/version)-source.tgz /root/src/  
-
-
-
-
-
-
-ctell "***************** CHROOT: Realizando ajustes sobre el sistema *******************"
-
-
-#read -p "*** Desea aplicar los ajustes de VtUJI (no generara el LiveCD generico) (Y/n)? " VTUJITUNE
-#if [ "$VTUJITUNE" == "n" ]
-#    then
-#    exit 0;
-#fi
-
-
-
-#ctell "CHROOT: Removing Networking script from init"
-#Remove networking script from init (workaround to avoid hangups during startup)
-#Now we don't remove it, to properly launch firewall, hoping the bug is solved
-#update-rc.d -f networking remove
-
-
-
-
-
-#FIREWALL INICIAL
-# Configuración del firewall que se aplicará en cuanto se inicie el sistema de red.
-if $(cat /etc/init.d/networking | grep -e "^\. /.*firewall.sh$")
-    then
-    :
-else
-    #Incluye el script con las reglas
-    sed -i -re "s|(^.*init-functions.*$)|\1\n. /usr/local/bin/firewall.sh|"  /etc/init.d/networking
-    
-    #Ejecuta la regla
-    sed -i -re "s|(^.*upstart-job.*start.*$)|\1\n        setupFirewall 'ssl'|" /etc/init.d/networking
-fi
-
-
-
-
-
-
-
-
-
-
-#Establecemos la configuración del servidor openntpd
-#cp -f /root/src/data/config/ntpd.conf         /etc/openntpd/  #Esto se hace Arriba
-
-sed -i -re "s/#(DAEMON_OPTS.*)/\1/g" /etc/default/openntpd
 
 
 
@@ -396,56 +346,15 @@ EOF
 
 
 
-#Quitamos el login al root en todos los terminales
+#Remove root login clearance to all terminals
 echo "" > /etc/securetty
 
 
-#Quitamos los privilegios sudo
-sed -i -r -e "/sed.+admin/ s|s/.+?/.+?/'|s/%admin/#%admin/'|"  /usr/share/initramfs-tools/scripts/casper-bottom/10adduser
-sed -i -r -e "s/echo '%admin.*'/echo ''/"  /usr/share/initramfs-tools/scripts/casper-bottom/10adduser
 
-
-#Apache SSL  
-#ctell "Closing port 80"
-#sed -i -re "s/^NameVirtualHost/#NameVirtualHost/g" /etc/apache2/ports.conf
-#sed -i -re "s/^Listen 80/#Listen 80/g" /etc/apache2/ports.conf
-
-
-ctell "Redirecting port 80 to 443"
-#didit=$(grep /etc/apache2/sites-enabled/000-default -e "RewriteEngine")
-#if [ "$didit" == "" ]
-if [ -f /etc/apache2/sites-enabled/000-default.sslredirect ]
-    then
-    :
-else
-    #Sacamos una copia del fichero para cada modalidad (webserver ssl o no.)
-    cp /etc/apache2/sites-enabled/000-default /etc/apache2/sites-available/000-default.sslredirect
-    cp /etc/apache2/sites-enabled/000-default /etc/apache2/sites-available/000-default.noredirect
-    
-    #Añadimos las reglas de redirección a ssl
-    sed -i -re "s/(.*VirtualHost.*:80.*$)/\1\nRewriteEngine On\nRewriteCond %{HTTPS} off\nRewriteRule (.*) https:\/\/%{HTTP_HOST}%{REQUEST_URI} [L,R]\n/" /etc/apache2/sites-available/000-default.sslredirect
-fi
-
-
-
-
-
-
-# Para redirigir automáticamente las peticiones del pto 80 al ssl
-#	RewriteEngine On
-#	RewriteCond %{HTTPS} off
-#	RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [L,R]
-
-
-ctell "Enabling ssl server"
-ln -s /etc/apache2/sites-available/ssl-config.conf /etc/apache2/sites-enabled/
-
-
-
-ctell "Enabling mod rewrite"
-#ln -s /etc/apache2/mods-available/rewrite.load /etc/apache2/mods-enabled/
+ctell "Enabling https server"
+a2enmod ssl
 a2enmod rewrite
-
+a2ensite default-ssl
 
 
 
@@ -489,8 +398,8 @@ done
 
 
 #copy sql file responsible of building database 
-mv buildDB.sql       /usr/local/bin/
-chmod 660 /usr/local/bin/buildDB.sql
+mv buildDB.sql       $BINDIR/
+chmod 660 $BINDIR/buildDB.sql
 
 #Eliminamos todos los ficheros innecesarios
 rm -rf ins/
@@ -632,7 +541,7 @@ fi
 aux=$(cat /etc/crontab | grep firewallWhitelist)
 if [ "$aux" == "" ] 
     then
-    echo -e "\n0 0 * * * root bash /usr/local/bin/firewallWhitelist.sh  >/dev/null 2>/dev/null\n" >> /etc/crontab  
+    echo -e "\n0 0 * * * root bash $BINDIR/firewallWhitelist.sh  >/dev/null 2>/dev/null\n" >> /etc/crontab  
 fi
 
 
@@ -660,14 +569,12 @@ done
 
 
 
-#Copiamos el paquete de pm-utils, para distribuirlo con el cd y reinstalarlo en vivo. Parece ser que en el configure realiza acciones dependientes del hardware de la máquina host. Así que la única forma de que funcione es instalarlo sobre el host
-#Fallará todas las veces excepto cuando el sistema se construya de cero, porque limpio la cache de paquetes
-cp -f /var/cache/apt/archives/pm-utils* /usr/local/bin/
+
 
 
 
 #Crear el usuario vtuji. (El UID será 1000)
-adduser --shell /usr/local/bin/wizard-setup.sh --disabled-password --disabled-login vtuji
+adduser --shell $BINDIR/wizard-setup.sh --disabled-password --disabled-login vtuji
 
 #adduser [options] [--home DIR] [--shell SHELL] [--no-create-home] [--uid ID] [--firstuid ID] [--lastuid ID] [--ingroup GROUP | --gid ID] [--disabled-password] [--disabled-login] [--gecos GECOS] [--add_extra_groups] user
 
