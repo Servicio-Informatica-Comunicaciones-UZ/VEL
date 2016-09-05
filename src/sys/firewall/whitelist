@@ -1,0 +1,2 @@
+# /etc/whitelist
+# Add domains to whitelist at the firewall. One per line, not URLS. Will be automatically sorted and uniq'd

@@ -38,6 +38,8 @@ cd $HOME
 
 #TODO config TLS en postfi. Do we need to secure SSL for postfix?
 
+#Tras el mgr, relanzar el apache, mysql, postfix y smartmontools (verificar), mdadm
+
 
 ctell "Running with profile: $*"
 . "$1"
@@ -88,7 +90,7 @@ if [ $UPDATEPACKAGES -eq "1" ]
         # For the test version, we automatise the most we can the
         # installation. For the release version, default keyboard layout will
         # be prompted
-        echo -e "----------\nYou will be prompted to choose keyboard type. Please, select qwerty and press RETURN\n----------)" && read
+        #echo -e "----------\nYou will be prompted to choose keyboard type. Please, select qwerty and press RETURN\n----------)" && read
         echo "console-data	console-data/keymap/qwerty/layout	select	US american" | debconf-set-selections
         echo "keyboard-configuration	keyboard-configuration/xkb-keymap	select	en" | debconf-set-selections
         echo "keyboard-configuration	keyboard-configuration/variant	select	English (US)" | debconf-set-selections
@@ -182,7 +184,8 @@ cp -fv /root/src/sys/config/misc/aliases               /etc/
 #acting as root
 cp -fv /root/src/sys/config/misc/sudoers               /etc/
 
-
+cp -fv  /root/src/sys/firewall/*.sh       $BINDIR/
+cp -fv  /root/src/sys/firewall/whitelist  /etc/whitelist
 
 #Set owner and permissions
 ctell "***** Setting file owners and permissions of scripts and executables"
@@ -213,31 +216,117 @@ cp -fv /root/src/webapp/tools/markVariables.py   /var/www/tmp/
 
 
 #Build bundle with the used sources, so everything can be audited.
+ctell "***** Build source bundle"
 find   /root/src/   -iname ".svn" | xargs rm -rf
-tar czf /root/source-$VERSION.tgz /root/src/  
+tar czf /root/source-$VERSION.tgz /root/src/
+rm -rf /root/src/
 
 
 
 
 
-ctell "****** System tuning"
-
-
-#FIREWALL INICIAL
-# Configuración del firewall que se aplicará en cuanto se inicie el sistema de red.
-if $(cat /etc/init.d/networking | grep -e "^\. /.*firewall.sh$")
-    then
+ctell "****** Setup firewall on startup"
+if grep --quiet -e "^\. /.*firewall.sh$" /etc/init.d/networking
+then
     :
 else
-    #Incluye el script con las reglas
+    #Include firewall script
     sed -i -re "s|(^.*init-functions.*$)|\1\n. $BINDIR/firewall.sh|"  /etc/init.d/networking
     
-    #Ejecuta la regla
-    sed -i -re "s|(^.*upstart-job.*start.*$)|\1\n        setupFirewall 'ssl'|" /etc/init.d/networking
+    #Execute on "start" (inserts as last line of the start case block)
+    sed -i -re '/^\s*start\)\s*$/,/^\s*;;\s*$/{/^\s*;;\s*$/!b;i\  setupFirewall' -e '}' /etc/init.d/networking
 fi
 
 
 
+#Install PHP file and object cache. # TODO proyecto abandonado. MAntener? sustituír? OPCache? https://blogs.oracle.com/opal/entry/using_php_5_5_s
+ctell "****** Setup PHP cache"
+pecl install apc-3.1.9
+echo $'extension=apc.so\napc.rfc1867 = On\n' >/etc/php5/conf.d/apc.ini
+/etc/init.d/apache2 restart
+
+
+
+ctell "****** Activating smart monitor on startup"
+sed -i -re "s/#(start_smartd)/\1/g" /etc/default/smartmontools
+sed -i -re "s/#(startd_opts)/\1/g"  /etc/default/smartmontools
+
+
+
+
+
+#The necessary ones are launched from the manager after system is
+#setup and loaded, not on startup
+ctell "****** Removing autoload of services"
+update-rc.d -f apache2       remove
+update-rc.d -f postfix       remove
+update-rc.d -f mysql         remove
+
+update-rc.d -f mdadm         remove
+
+update-rc.d -f smbd          remove
+update-rc.d -f nmbd          remove
+update-rc.d -f winbind       remove
+
+# TODO decide if we support nfs
+#update-rc.d -f nfs-common    remove
+#update-rc.d -f rpcbind       remove
+
+
+
+#TODO remove
+echo "echo 'launched wizard and exited'; exit 42"  > $BINDIR/wizard-setup.sh
+
+#Create non-privileged user (UID 1000)
+#adduser [options] [--home DIR] [--shell SHELL] [--no-create-home] [--uid ID] [--firstuid ID] [--lastuid ID] [--ingroup GROUP | --gid ID] [--disabled-password] [--disabled-login] [--gecos GECOS] [--add_extra_groups] user
+ctell "****** Create non-privileges user vtuji"
+adduser --shell $BINDIR/wizard-setup.sh --disabled-password --disabled-login vtuji
+
+
+#TODO try failing the autologin. see what happens. remove login prompt in case of failure
+
+# TODO try return 1 en el rc.local
+# TODO : no va. se mueren los bash al arrancar
+############################ rc.local ##############################
+
+cat > /etc/rc.local  <<EOF
+#!/bin/sh -e
+# This script is executed at the end of each multiuser runlevel.
+
+#<DEBUG>
+#Launch a shell on tty 2-4. DEBUG BUILD ONLY
+/bin/bash </dev/tty2 >/dev/tty2 2>&1 &
+/bin/bash </dev/tty3 >/dev/tty3 2>&1 &
+/bin/bash </dev/tty4 >/dev/tty4 2>&1 &
+#</DEBUG>
+
+#Autologin non-privileged user, launched shell will be the manager script
+exec /bin/login -f vtuji </dev/tty7 >/dev/tty7 2>&1
+exec echo "*** Failed loading voting system management tool ***"
+exit 0
+EOF
+
+
+#####################################################################
+
+
+#Delay login to ensure it is done at the end of the asyncronous boot process
+if grep --quiet -oEe "^\s*#DELAYLOGIN" /etc/default/rcS
+then
+    sed -i -re "s|#DELAYLOGIN=no|DELAYLOGIN=yes|"  /etc/default/rcS
+fi
+
+#Disable tty spawn (to make sure no flaw will leave the system
+#vulnerable to forceful login attacks). Also disable reservation, as
+#tty6 is always reserved and spawned
+if grep --quiet -oEe "^\s*#NAutoVTs" /etc/systemd/logind.conf
+then
+    sed -i -re "s|#NAutoVTs=6|NAutoVTs=0|"  /etc/systemd/logind.conf
+    sed -i -re "s|#ReserveVT=6|ReserveVT=0|"  /etc/systemd/logind.conf
+fi
+
+#Disable tty1 spawn (which is always launched)
+rm -rf /etc/systemd/system/getty.target.wants/getty\@tty1.service
 
 
 #Desmontamos los Fs especiales
@@ -250,63 +339,12 @@ exit 42
 
 
 
-#Instalamos la caché de programas para PHP, para acelerar la ejecución.
-pecl install apc-3.1.7
-echo $'extension=apc.so\napc.rfc1867 = On\n' >/etc/php5/conf.d/apc.ini
-/etc/init.d/apache2 restart
 
 
-
-
-
-# Activando SMARTmonTools
-#Cambiamos los params del defaults para que se lance el daemon
-sed -i -re "s/#(enable_smart)/\1/g" /etc/default/smartmontools
-sed -i -re "s/#(start_smartd)/\1/g" /etc/default/smartmontools
-
-
-
-
-
-#Quitar servicios innecesarios del rc.d
-ctell "Stopping external services"
-update-rc.d -f apache2       remove
-
-update-rc.d -f mysql         remove
-update-rc.d -f mysql-ndb     remove
-update-rc.d -f mysql-ndb-mgm remove
-
-update-rc.d -f open-iscsi    remove
-
-update-rc.d -f portmap       remove
-update-rc.d -f nfs-common    remove
-
-update-rc.d -f postfix       remove
-
-update-rc.d -f mdadm         remove #Lo quito para activar luego el monitor a mi estilo
-
-
-
-
-
-
-#Alterar el script casper para que se incie sesión con el root 
-#sed -i -e "s|login -f \$USERNAME|login -f root|g" /usr/share/initramfs-tools/scripts/casper-bottom/25configure_init
-
-
-#Autorizamos el login de root en una consola por tty 3 (falla porque luego el casper altera el script)
-#sed -i -re 's|^exec.*|exec /bin/login -f root </dev/tty3 >/dev/tty3 2>&1|g' /etc/event.d/tty3
-
-
-#Alterar el autologin para desactivarlo (por si falla el script, que no lance un terminal.)
-ctell "Altering autologin casper script"
-sed -i -re "s|exec[ ]+/bin/login[^|]+|exec /bin/false|g" /usr/share/initramfs-tools/scripts/casper-bottom/25configure_init 
-
-#sed -i -re 's|exec /bin/false|exec /bin/login -f root </dev/tty3 >/dev/tty3 2>\&1|g'  /usr/share/initramfs-tools/scripts/casper-bottom/25configure_init #trash
-
+# TODO: permitirá el autologin que lanza el script de mant? launch setup desde el rc.local?
 
 #Establecemos que se impida el acceso login a cualquiera menos el root
-echo -e "------\nNo one can login\n------" > /var/lib/initscripts/nologin
+echo -e "------\nNo one can login\n------" > /etc/nologin
 
 
 
@@ -319,29 +357,7 @@ sed -i -e "s|passwd/root-password-crypted .*|passwd/root-password-crypted !|" /u
 
 
 
-#Si falla probar con exec /bin/login -f vtuji </dev/tty7 >/dev/tty7 2>&1  #En principio no falla
 
-############################ rc.local ##############################
-
-cat > /etc/rc.local  <<EOF
-#!/bin/sh -e
-# This script is executed at the end of each multiuser runlevel.
-
-
-#Lanzamos un bash en el tty 2 , para debug.
-/bin/bash </dev/tty2 >/dev/tty2 2>&1 & #!!!!
-#Lanzamos un bash en el tty 3 , para debug.
-/bin/bash </dev/tty3 >/dev/tty3 2>&1 & #!!!!
-#Lanzamos un bash en el tty 4 , para debug.
-/bin/bash </dev/tty4 >/dev/tty4 2>&1 & #!!!!
-
-exec /bin/login -f vtuji </dev/tty7 >/dev/tty7 2>&1
-exec echo "*** Failed Loading eSurvey Configuration Script ***"
-exit 0
-EOF
-
-
-#####################################################################
 
 
 
@@ -349,6 +365,8 @@ EOF
 #Remove root login clearance to all terminals
 echo "" > /etc/securetty
 
+
+#TODO: see things at etc/security
 
 
 ctell "Enabling https server"
@@ -573,10 +591,7 @@ done
 
 
 
-#Crear el usuario vtuji. (El UID será 1000)
-adduser --shell $BINDIR/wizard-setup.sh --disabled-password --disabled-login vtuji
 
-#adduser [options] [--home DIR] [--shell SHELL] [--no-create-home] [--uid ID] [--firstuid ID] [--lastuid ID] [--ingroup GROUP | --gid ID] [--disabled-password] [--disabled-login] [--gecos GECOS] [--add_extra_groups] user
 
 
 

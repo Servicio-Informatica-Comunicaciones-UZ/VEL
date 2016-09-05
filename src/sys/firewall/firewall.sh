@@ -2,10 +2,6 @@
 
 
 
-
-
-
-#$1 -> ssl o plain, según si debe abrir 443+80 o sólo 80 #deprecated
 setupFirewall () {
     iptables -F
 
@@ -124,7 +120,8 @@ setupFirewall () {
     #iptables -A INPUT -p tcp -m multiport --dport http,https -m recent --name prebanlist --set -j ACCEPT
     #iptables -A INPUT -m recent --name prebanlist --set -j ACCEPT
     iptables -A INPUT -p tcp  --dport http -m recent --name prebanlist --set -j ACCEPT
-    [ "$1" == "ssl" ] && iptables -A INPUT -p tcp  --dport https -m recent --name prebanlist --set -j ACCEPT
+    iptables -A INPUT -p tcp  --dport https -m recent --name prebanlist --set -j ACCEPT
+    #[ "$1" == "ssl" ] && iptables -A INPUT -p tcp  --dport https -m recent --name prebanlist --set -j ACCEPT
     
     #Si Después de pasar todas las barreras, va a otro puerto, reject
     iptables -A INPUT -j REJECT --reject-with icmp-host-prohibited
