@@ -77,4 +77,4 @@ BINDIR="/usr/local/bin"
 
 #List of scripts and executables that can be called by the non-privileged user
 NONPRIVILEGEDSCRIPTS="addslashes combs.py common.sh wizard-setup.sh wizard-maintenance.sh wizard-common.sh genPwd.php separateCerts.py urlencode"
- #TODO review this list
+

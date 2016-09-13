@@ -198,6 +198,9 @@ popd
 chmod 500 $BINDIR/privileged-ops.sh
 chmod 500 $BINDIR/privileged-setup.sh
 
+#Removing permissions for others on some critical tools
+chmod 750 /sbin/cryptsetup 
+
 #Setuid the sginfo executable for the non-privileged user  #//// TODO Creo que no hace falta. pruebo a ver (he quitado el setuid en al vm).
 #chmod ug+s /usr/bin/sginfo
 
@@ -236,9 +239,8 @@ done
 #Build bundle with the used sources, so everything can be audited.
 ctell "***** Build source bundle"
 find   /root/src/   -iname ".svn" | xargs rm -rf
-tar czf /root/source-$VERSION.tgz /root/src/
+tar czf /source-$VERSION.tgz /root/src/
 rm -rf /root/src/
-
 
 
 
@@ -361,6 +363,9 @@ echo -e "------\nNo one can login to this system\n------" > /etc/nologin
 
 #Remove root login clearance to all terminals
 echo "" > /etc/securetty
+
+#Delete list of valid login shells. Doesn't affect login -f and provides more potential security
+echo "" > /etc/shells
 
 #Lock unprivileged and root user passwords to disable login (set pwd to !)
 sed -i -re "s/^(root:)[^:]*(:.+)$/\1\!\2/g" /etc/shadow
@@ -536,115 +541,47 @@ rm -rf /var/www/tmp/
 
 
 
-
-#Umount special filesystems (/dev is mounted and umounted outside)
-umount /proc
-umount /sys
-exit 42
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#SEGUIR
-
-
-
-#######Preparando el estado final del dirdctorio /root ############
-
-
-ctell "####### Preparando el estado final del dirdctorio /root #########"
+ctell "####### Preparing /root directory for operations #########"
 
 rm -r /root/*
-
-
-#Establecemos el valor por defecto del bloqueo de ejecución de operaciones privilegiadas
-# (porm defecto no verifica la llave, porque está en modo setup)
-LOCKOPSFILE="/root/lockPrivileged"
-echo "*******************$LOCKOPSFILE" 
-touch $LOCKOPSFILE
-echo -n "0" > $LOCKOPSFILE
-chmod 400 $LOCKOPSFILE
 chmod 700 /root/
-echo "****************"
 
-
-
-
-############ Últimos cambios de permisos y del sistema de ficheros ##################
-chmod 750 /sbin/cryptsetup   #////probar
-
-
-#Aunque el chsh pide autenticarse incluso al root (y ninguno tiene pwd válido), me cargo la lista de login shells válidas, porque al login -f no le afecta y así bloqueo cualquier programa que potencialmente lo use. 
-echo "" > /etc/shells
+#Set the initial value for the privileged ops clearance (authorised in setup mode)
+echo "*** setting /root/lockPrivileged"
+touch /root/lockPrivileged
+echo -n "0" > /root/lockPrivileged
+chmod 400 /root/lockPrivileged
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#Determining kernel version
+#Determining effective kernel version
 export kversion=`cd /boot && ls vmlinuz-* | sed 's@vmlinuz-@@'`
-ctell "CHROOT: Kernel version: $kversion"
-
-ctell "CHROOT: Updating initramfs"
-#Updating initramfs (to contain casper init scripts)
+ctell "Kernel version: $kversion"
+ctell "***** Updating initramfs"
 depmod -a ${kversion}
 update-initramfs -u -k ${kversion}
+rm    /boot/*.bak
 
 
 
 
-
-ctell "####### Cleaning system configuration #########"
-
-
-ctell "CHROOT: Deleting useless programs"
-#Removing All unnecessary programs installed to compile others
+#Removing all unnecessary programs installed to compile others
+ctell "***** Cleaning system configuration"
 apt-get remove -y gcc g++ libssl-dev autotools-dev libc-dev-bin libc6-dev libltdl-dev libpcre3-dev php5-dev linux-libc-dev manpages-dev autoconf automake  binutils m4
 apt-get autoremove -y 
-
 
 #Cleaning apt cache
 apt-get clean
 
 
-ctell "CHROOT: Deleting useless files"
-#Deleting potentially interfering files
-for i in "/etc/hosts /etc/hostname /etc/resolv.conf /etc/timezone /etc/fstab /etc/mtab /etc/shadow /etc/shadow- /etc/gshadow  /etc/gshadow- /etc/gdm/gdm-cdd.conf /etc/gdm/gdm.conf-custom /etc/X11/xorg.conf /boot/grub/menu.lst /boot/grub/device.map"
+
+#Clean useless or potentially dangerous files or interfering files
+ctell "***** Deleting useless files"
+rm -f /root/.bash_history
+rm -r /tmp/*
+for i in "/etc/hosts /etc/hostname /etc/resolv.conf /etc/timezone /etc/fstab /etc/mtab /etc/shadow /etc/shadow- /etc/gshadow  /etc/gshadow-"
 do
 	rm $i
 done
@@ -652,32 +589,10 @@ done
 
 
 
-#Limpiamos Los ficheros inservibles
-ctell "####### Cleaning files #########"
-
-rm -f /root/.bash_history
-rm -rf /root/src
-
-
-#Cleaning useless or potentially dangerous data
-rm -r /tmp/*
-rm  /boot/*.bak
-
-
-
-ctell "####### Closing LiveCD chrooted construction #######"
-
-
-
-
-#Desmontamos los Fs especiales
+#Umount special filesystems (/dev is mounted and umounted outside)
 umount /proc
 umount /sys
-umount /dev
 
 
-
-ctell "CHROOT: Leaving chroot"
-#Leaving chroot
+ctell "***** Leaving chroot"
 exit
-
