@@ -12,7 +12,7 @@ export LANG=""
 
 cd $HOME
 
-# TODO: in prod, apache logs go to null, at least during elections.
+# TODO: in prod, apache logs should go to null, at least during elections, if any info can be extracted from there. check.
 
 
 ##TODO: Prompt del keymap: ver si puede saltarse, prompt del mysql?  separar los prompts insalvables. intentar automatizar. si no, dar instrucciones con read antes de proceder.
@@ -103,10 +103,6 @@ if [ $UPDATEPACKAGES -eq "1" ]
         #Copy the pm-utils package, as it needs to be reconfigured on every boot for hardware dependencies
         cp -fv /var/cache/apt/archives/pm-utils*.deb   $BINDIR/
         chmod 444 $BINDIR/pm-utils*.deb
-        
-        # TODO remove when we substitute the logon with the management script.
-        passwd
-
 
  
 # TODO pensarme si soporto nfs
@@ -165,10 +161,11 @@ ctell "***** Copying binaries and system configuration files"
 echo $VERSION > /etc/vtUJIversion
 
 cp -fv /root/src/mgr/bin/*                             $BINDIR/
-   
+cp -fv /root/src/tools/misc/*                          $BINDIR/
 
 cp -fv /root/src/sys/config/webserver/000-default.conf  /etc/apache2/sites-available/
 cp -fv /root/src/sys/config/webserver/default-ssl.conf  /etc/apache2/sites-available/
+cp -fv /root/src/sys/config/webserver/security.conf     /etc/apache2/conf-available/
 
 cp -fv /root/src/sys/config/php/timezones              /usr/local/share/
 
@@ -178,7 +175,7 @@ cp -fv /root/src/sys/config/mailer/main.cf             /etc/postfix/
 
 #All aliases set to root, so he receives all mail notifications
 #adressed to specific app users
-cp -fv /root/src/sys/config/misc/aliases               /etc/
+cp -fv /root/src/sys/config/mailer/aliases             /etc/
 
 #Non-privileged user is allowed to invoke privileged ops scripts
 #acting as root
@@ -215,6 +212,27 @@ cp -fv /root/src/webapp/tools/markVariables.py   /var/www/tmp/
 
 
 
+ctell "***** Installing localization for our tools *****"
+#For each available language
+langs=$(ls -p /root/src/mgr/localization/ | grep  -oEe "[^/]+/$" | sed -re "s|(.*)/$|\1|g")
+for la in $langs
+  do
+  #Copy compiled locales to the system locale path
+  cp -f /root/src/mgr/localization/$la/*.mo  /usr/share/locale/$la/LC_MESSAGES/
+  
+  #copiamos las licencias al directorio, con la extension de su idioma
+  cp -f /root/src/mgr/localization/$la/License  /usr/share/doc/License.$la
+  
+  #copiamos el Readme de la firma del cert al directorio, con la extension de su idioma
+  cp -f /root/src/mgr/localization/$la/eLectionLiveCD-README.txt   /usr/share/doc/sslcert-README.txt.$la
+  
+done
+
+
+# TODO invocar al compilador de i18n para asegurar que se aplica la última traducción? probar primero una ejecución manual, a ver cómo era
+
+
+
 #Build bundle with the used sources, so everything can be audited.
 ctell "***** Build source bundle"
 find   /root/src/   -iname ".svn" | xargs rm -rf
@@ -237,19 +255,20 @@ else
     sed -i -re '/^\s*start\)\s*$/,/^\s*;;\s*$/{/^\s*;;\s*$/!b;i\  setupFirewall' -e '}' /etc/init.d/networking
 fi
 
+#Daily update the LCN servers list on the whitelist # TODO decide what we do with the eSurvey LCN
+#On error (if there's output) an e-mail will be sent to the root
+aux=$(cat /etc/crontab | grep whitelistLCN)
+if [ "$aux" == "" ] 
+    then
+    echo -e "\n0 0 * * * root bash $BINDIR/whitelistLCN.sh; bash $BINDIR/updateWhitelist.sh  >/dev/null 2>/dev/null \n" >> /etc/crontab
+fi
 
-
-#Install PHP file and object cache. # TODO proyecto abandonado. MAntener? sustituír? OPCache? https://blogs.oracle.com/opal/entry/using_php_5_5_s
-ctell "****** Setup PHP cache"
-pecl install apc-3.1.9
-echo $'extension=apc.so\napc.rfc1867 = On\n' >/etc/php5/conf.d/apc.ini
-/etc/init.d/apache2 restart
 
 
 
 ctell "****** Activating smart monitor on startup"
 sed -i -re "s/#(start_smartd)/\1/g" /etc/default/smartmontools
-sed -i -re "s/#(startd_opts)/\1/g"  /etc/default/smartmontools
+sed -i -re "s/#(smartd_opts)/\1/g"  /etc/default/smartmontools
 
 
 
@@ -273,40 +292,48 @@ update-rc.d -f winbind       remove
 #update-rc.d -f rpcbind       remove
 
 
-
-#TODO remove
-echo "echo 'launched wizard and exited'; exit 42"  > $BINDIR/wizard-setup.sh
-
 #Create non-privileged user (UID 1000)
 #adduser [options] [--home DIR] [--shell SHELL] [--no-create-home] [--uid ID] [--firstuid ID] [--lastuid ID] [--ingroup GROUP | --gid ID] [--disabled-password] [--disabled-login] [--gecos GECOS] [--add_extra_groups] user
-ctell "****** Create non-privileges user vtuji"
-adduser --shell $BINDIR/wizard-setup.sh --disabled-password --disabled-login vtuji
+ctell "****** Create non-privileged user vtuji"
+adduser --shell $BINDIR/wizard-bootstrap.sh --disabled-password --disabled-login vtuji
 
 
-#TODO try failing the autologin. see what happens. remove login prompt in case of failure
 
-# TODO try return 1 en el rc.local
-# TODO : no va. se mueren los bash al arrancar
+#Launch a shell on tty 2-4. DEBUG BUILD ONLY (removes the file every time for the proper build)
+rm $BINDIR/launch-debug-console.sh
+#<DEBUG>
+#Setup debug console script
+echo "/bin/bash </dev/tty2 >/dev/tty2 2>&1 &"  >> $BINDIR/launch-debug-console.sh
+echo "/bin/bash </dev/tty3 >/dev/tty3 2>&1 &"  >> $BINDIR/launch-debug-console.sh
+echo "/bin/bash </dev/tty4 >/dev/tty4 2>&1 &"  >> $BINDIR/launch-debug-console.sh
+chmod 550       $BINDIR/launch-debug-console.sh
+chown root:root $BINDIR/launch-debug-console.sh
+#Authorise sudo on debug console script (we alter the sudoers file every time as it is previously overwritten on every build)
+sed -i -re "s|(vtuji\s+ALL=.*)$|\1,/usr/local/bin/launch-debug-console.sh|g" /etc/sudoers
+#</DEBUG>
+# TODO check that on no-debug, these blocks have dissapeared
+
+#Create the wizard setup bootstrapper script (will launch some debug options and then the proper wizard script)
+echo "echo 'Launching wizard'"  > $BINDIR/wizard-bootstrap.sh
+#<DEBUG>
+echo "sudo /usr/local/bin/launch-debug-console.sh" >> $BINDIR/wizard-bootstrap.sh
+#<DEBUG>
+echo "exec /usr/local/bin/wizard-setup.sh"  >> $BINDIR/wizard-bootstrap.sh
+
+
 ############################ rc.local ##############################
-
+#Add the forced autologin (all users disallowed to login otherwise) of
+#the unprivileged user, launched 'shell' will be the management
+#script, with limited interactivity
 cat > /etc/rc.local  <<EOF
 #!/bin/sh -e
 # This script is executed at the end of each multiuser runlevel.
-
-#<DEBUG>
-#Launch a shell on tty 2-4. DEBUG BUILD ONLY
-/bin/bash </dev/tty2 >/dev/tty2 2>&1 &
-/bin/bash </dev/tty3 >/dev/tty3 2>&1 &
-/bin/bash </dev/tty4 >/dev/tty4 2>&1 &
-#</DEBUG>
 
 #Autologin non-privileged user, launched shell will be the manager script
 exec /bin/login -f vtuji </dev/tty7 >/dev/tty7 2>&1
 exec echo "*** Failed loading voting system management tool ***"
 exit 0
 EOF
-
-
 #####################################################################
 
 
@@ -316,7 +343,7 @@ then
     sed -i -re "s|#DELAYLOGIN=no|DELAYLOGIN=yes|"  /etc/default/rcS
 fi
 
-#Disable tty spawn (to make sure no flaw will leave the system
+#Disable systemd tty spawn (to make sure no flaw will leave the system
 #vulnerable to forceful login attacks). Also disable reservation, as
 #tty6 is always reserved and spawned
 if grep --quiet -oEe "^\s*#NAutoVTs" /etc/systemd/logind.conf
@@ -325,101 +352,161 @@ then
     sed -i -re "s|#ReserveVT=6|ReserveVT=0|"  /etc/systemd/logind.conf
 fi
 
-#Disable tty1 spawn (which is always launched)
+#Disable systemd tty1 spawn (which is always launched)
 rm -rf /etc/systemd/system/getty.target.wants/getty\@tty1.service
 
 
-#Desmontamos los Fs especiales
-umount /proc
-umount /sys
-#umount /dev
-exit 42
-
-
-
-
-
-
-
-# TODO: permitirá el autologin que lanza el script de mant? launch setup desde el rc.local?
-
-#Establecemos que se impida el acceso login a cualquiera menos el root
-echo -e "------\nNo one can login\n------" > /etc/nologin
-
-
-
-#Quitamos el login al usuario ubuntu y al root
-sed -i -e "s|passwd/user-password-crypted .*|passwd/user-password-crypted !|" /usr/share/initramfs-tools/scripts/casper-bottom/10adduser
-sed -i -e "s|passwd/root-password-crypted .*|passwd/root-password-crypted !|" /usr/share/initramfs-tools/scripts/casper-bottom/10adduser
-
-
-
-
-
-
-
-
-
-
+#Prevent user login (excepting root)
+echo -e "------\nNo one can login to this system\n------" > /etc/nologin
 
 #Remove root login clearance to all terminals
 echo "" > /etc/securetty
 
+#Lock unprivileged and root user passwords to disable login (set pwd to !)
+sed -i -re "s/^(root:)[^:]*(:.+)$/\1\!\2/g" /etc/shadow
+sed -i -re "s/^(vtuji:)[^:]*(:.+)$/\1\!\2/g" /etc/shadow
+
 
 #TODO: see things at etc/security
 
+#Disable nfs autoload  // TODO if we suport it
+#mv /etc/network/if-up.d/mountnfs /trash/mountnfs 
 
-ctell "Enabling https server"
+
+
+
+ctell "Configure web server and PHP"
 a2enmod ssl
 a2enmod rewrite
+a2enmod headers
+a2disconf apache2-doc
+a2disconf serve-cgi-bin
 a2ensite default-ssl
 
 
-
-#Deshabilitamos el auto-arranque del iscsi y el nfs
-rm /etc/network/if-up.d/open-iscsi
-rm /etc/network/if-down.d/open-iscsi
-
-mv /etc/network/if-up.d/mountnfs /trash/mountnfs 
-
+#Install PHP file and object cache. # TODO proyecto abandonado. MAntener? sustituír? OPCache? https://blogs.oracle.com/opal/entry/using_php_5_5_s
+ctell "****** Setup PHP cache"
+pecl install apc-3.1.9
+echo $'extension=apc.so\napc.rfc1867 = On\n' >/etc/php5/conf.d/apc.ini
+/etc/init.d/apache2 restart
 
 
 
+#Securing PHP:
+
+#Don't exist anymore
+#sed -i -e "/magic_quotes_gpc/ s|On|Off|g"   /etc/php5/apache2/php.ini
+#sed -i -e "/register_globals/ s|On|Off|g"   /etc/php5/apache2/php.ini
+#Current default value fits our needs: E_ALL & ~E_NOTICE & ~E_STRICT & ~E_DEPRECATED
+#sed -i -re "s/(error_reporting = ).+$/\1E_ALL \& ~E_NOTICE/g"   /etc/php5/apache2/php.ini
+
+#Hide PHP presence and version on banners
+sed -i -e "/expose_php/ s|On|Off|g"   /etc/php5/apache2/php.ini
+
+
+#Logging and error showing
+sed -i -e "/display_errors/ s|On|Off|g"   /etc/php5/apache2/php.ini
+sed -i -e "/log_errors/ s|Off|On|g"       /etc/php5/apache2/php.ini
+
+#Security against remote file inclusion
+sed -i -e "/allow_url_fopen/ s|On|Off|g"       /etc/php5/apache2/php.ini
+sed -i -e "/allow_url_include/ s|On|Off|g"     /etc/php5/apache2/php.ini
+
+
+#Set required PHP parameters for security and performance
+sed -i -re "s/(max_input_time = )[0-9]+/\1600/g" /etc/php5/apache2/php.ini #max_input_time 600
+
+sed -i -re "s/(max_execution_time = )[0-9]+/\1800/g" /etc/php5/apache2/php.ini #max_execution_time 800
+
+sed -i -re "s/(post_max_size = )[0-9]+/\1800/g" /etc/php5/apache2/php.ini #post_max_size 800M
+
+sed -i -re "s/(upload_max_filesize = )[0-9]+/\1200/g" /etc/php5/apache2/php.ini #upload_max_filesize 200M
+
+sed -i -re "s/(memory_limit = )[0-9]+/\11280/g" /etc/php5/apache2/php.ini #memory_limit 1280M
+
+
+#Set required mysql parameters
+sed -i -re "s/(max_allowed_packet\s+=\s+)[0-9]+/\11300/g" /etc/mysql/my.cnf #max_allowed_packet 1300M
+
+sed -i -re "s/(max_binlog_size\s+=\s+)[0-9]+/\11300/g" /etc/mysql/my.cnf #max_binlog_size 1300M
+    
+
+#To be able to do the empty subject hack when mailing from PHP:
+sed -i -re "s/(mail.add_x_header = )On/\1Off/gi" /etc/php5/apache2/php.ini 
+
+
+#Set open_basedir to limit file access from the apps (can't do now, as /usr/share/fonts is accessed)
+#open_basedir="/var/www/"
+
+
+#Avoid symlinking of resources at the virtual host
+#sed -i -re 's/FollowSymLinks//g'  /etc/apache2/sites-available/000-default.*
+#sed -i -re 's/^\s*Options\s*$//g' /etc/apache2/sites-available/000-default.*
+
+#Activate extended statistics on apache
+aux=$(cat /etc/apache2/apache2.conf | grep -e "ExtendedStatus On")
+if [ "$aux" == ""  ]
+    then
+    echo "ExtendedStatus On" >> /etc/apache2/apache2.conf
+fi
+
+#Hide stats page from public access
+aux=$(cat /etc/apache2/apache2.conf | grep -e "Location /server-status")
+if [ "$aux" == ""  ]
+    then
+    echo -e "<Location /server-status>\n    SetHandler server-status\n    Order Deny,Allow \n    Deny from all \n    Allow from localhost ip6-localhost\n</Location>" >> /etc/apache2/apache2.conf
+fi
+
+#Activate language negotiation (for the static application pages)
+aux=$(cat /etc/apache2/apache2.conf | grep -e "MultiViews")
+if [ "$aux" == ""  ]
+    then
+    echo -e "\n\nAddLanguage es .es\nAddLanguage en .en\nAddLanguage ca .ca\n\nLanguagePriority es en ca\nForceLanguagePriority Fallback\n\n\n<Directory /var/www>\n    Options MultiViews\n</Directory>\n" >> /etc/apache2/apache2.conf
+fi
+
+#Remove alias module configuration to reduce exposure
+sed -i -re '/<Directory "\/usr/,/\/Directory/ d' /etc/apache2/mods-enabled/alias.conf
+sed -i -re 's/^.*Alias \/icons.*$//g' /etc/apache2/mods-enabled/alias.conf
+
+
+#Override default error pages (to avoid leaking server information. Also, redirect to index on error.
+aux=$(cat /etc/apache2/conf-available/localized-error-pages.conf | grep -Ee "^\s*ErrorDocument")
+if [ "$aux" == ""  ]
+    then
+    echo  'ErrorDocument 400 "<head><meta http-equiv=\"refresh\" content=\"2;URL=/index.php\"></head><h1>Bad Request</h1>"' >> /etc/apache2/conf-available/localized-error-pages.conf
+    echo  'ErrorDocument 403 "<head><meta http-equiv=\"refresh\" content=\"2;URL=/index.php\"></head><h1>Forbidden</h1>"' >> /etc/apache2/conf-available/localized-error-pages.conf
+    echo  'ErrorDocument 404 "<head><meta http-equiv=\"refresh\" content=\"2;URL=/index.php\"></head><h1>Not Found</h1>"' >> /etc/apache2/conf-available/localized-error-pages.conf
+    echo  'ErrorDocument 405 "<head><meta http-equiv=\"refresh\" content=\"2;URL=/index.php\"></head><h1>Method Not Allowed</h1>"' >> /etc/apache2/conf-available/localized-error-pages.conf
+    echo  'ErrorDocument 500 "<h1>Internal Server Error</h1>"' >> /etc/apache2/conf-available/localized-error-pages.conf
+    echo  'ErrorDocument 503 "<h1>Service Unavailable</h1>"' >> /etc/apache2/conf-available/localized-error-pages.conf
+fi
 
 
 
 
-### Instalación de la aplicación de voto ###
-ctell "installing voting app"
+
+ 
+### voting app installation ###
+ctell "***** Installing voting webapp *****"
 chown www-data:www-data /var/www/tmp
+pushd /var/www/tmp
 
-cd /var/www/tmp
-
-#Descomprimimos el instalador
+#Extract installer
 php mkInstaller.php -r ./ ivot.php
 
-
+#Move SQL file responsible of building database (will be built when installed)
 mv dump*.sql buildDB.sql
+mv buildDB.sql       $BINDIR/
+chmod 660 $BINDIR/buildDB.sql
 
-
-# Funciona el language negotiation del apache. El problema era el poltergeist de que el directorio /var/www 
-#  no se podía listar por www-data a pesar de tener permisos.
-
-
-#Parseamos los ficheros necesarios  (atención: NO parseamos los scripts de login, Eso lo haremos en run time)
+#Parse necessary files to add app config  (login scripts are parsed on runtime)
 for i in $(ls *.php)
   do 
   cat $i | python ./markVariables.py > aux
   mv aux $i
 done
 
-
-
-#copy sql file responsible of building database 
-mv buildDB.sql       $BINDIR/
-chmod 660 $BINDIR/buildDB.sql
-
-#Eliminamos todos los ficheros innecesarios
+#Remove all files not needed
 rm -rf ins/
 rm autorun*
 rm eVotingBdd.html
@@ -429,160 +516,33 @@ rm vars-*.php
 rm markVariables.py
 rm jmp*
 
-#Movemos los ficheros restantes al directorio raiz
+#Move all remaining files to the webserver root
 mv * /var/www/
 
 
-#Arreglamos los permisos
-
-chown -R root:www-data /var/www/  #////Probar(el subdr aps y aps/lib deberian tener todo con el root como prop., y la raiz tb)
-
-#Perm de fichers y perm de dirs
+#Fix permissions (read for files, access for dirs) and ownership
+chown -R root:www-data /var/www/
 setPerm /var/www 440 110
-
-#Cambiamos permisos del directorio web (para permitir el listado del directorio a www-data) #por el multiviews
+#www-data must be allowed to list webserver root dir. Needed by multiviews
 chmod 550 /var/www/
 
-cd -
 
-rm -rf /var/www/tmp/ 
-
-
-
-
-
-
-
-#Cambiamos la config de seguridad del php.
-sed -i -e "/magic_quotes_gpc/ s|On|Off|g"   /etc/php5/apache2/php.ini
-sed -i -e "/register_globals/ s|On|Off|g"   /etc/php5/apache2/php.ini
-
-
-sed -i -re "s/(error_reporting = ).+$/\1E_ALL \& ~E_NOTICE/g"   /etc/php5/apache2/php.ini
-
-
-#Activamos la recogida extendida de estadísticas en el apache
-aux=$(cat /etc/apache2/apache2.conf | grep -e "ExtendedStatus On")
-if [ "$aux" == ""  ]
-    then
-    echo "ExtendedStatus On" >> /etc/apache2/apache2.conf
-fi
-
-#Evitamos el acceso externo libre a las estadísticas
-aux=$(cat /etc/apache2/httpd.conf | grep -e "Location /server-status")
-if [ "$aux" == ""  ]
-    then
-    echo -e "<Location /server-status>\n    SetHandler server-status\n    Order Deny,Allow \n    Deny from all \n    Allow from localhost ip6-localhost\n</Location>" >> /etc/apache2/httpd.conf
-fi
-
-
-
-
-#Cambiamos los parámetros del php:
-sed -i -re "s/(max_input_time = )[0-9]+/\1600/g" /etc/php5/apache2/php.ini #max_input_time 600
-
-sed -i -re "s/(post_max_size = )[0-9]+/\1800/g" /etc/php5/apache2/php.ini #post_max_size 800M
-
-sed -i -re "s/(upload_max_filesize = )[0-9]+/\1200/g" /etc/php5/apache2/php.ini #upload_max_filesize 200M
-
-sed -i -re "s/(memory_limit = )[0-9]+/\11280/g" /etc/php5/apache2/php.ini #memory_limit 1280M
-
-
-
-#Para ocultar la versión del php
-sed -i -re "s/(expose_php = )On/\1Off/gi" /etc/php5/apache2/php.ini 
-
-
-
-
-#Cambiamos los parámetros del mysql
-sed -i -re "s/(max_allowed_packet\s+=\s+)[0-9]+/\11300/g" /etc/mysql/my.cnf #max_allowed_packet 1300M
-
-sed -i -re "s/(max_binlog_size\s+=\s+)[0-9]+/\11300/g" /etc/mysql/my.cnf #max_binlog_size 1300M
-    
-
-
-#Para poder hacer el hack del subject vacio en php:
-sed -i -re "s/(mail.add_x_header = )On/\1Off/gi" /etc/php5/apache2/php.ini 
+# TODO pre-install uji skin
+popd
+rm -rf /var/www/tmp/
 
 
 
 
 
-#Activamos el language negotiation para la página de ayuda, etc.
-aux=$(cat /etc/apache2/httpd.conf | grep -e "MultiViews")
-if [ "$aux" == ""  ]
-    then
-    echo -e "\n\nAddLanguage es .es\nAddLanguage en .en\nAddLanguage ca .ca\n\nLanguagePriority es en ca\nForceLanguagePriority Fallback\n\n\n<Directory /var/www>\n    Options MultiViews\n</Directory>\n" >> /etc/apache2/httpd.conf
-fi
 
 
-#Reduce la info proporcionada por el apache en las cabeceras http
-sed -i -re "s/(^\s*ServerTokens ).+$/\1Prod/g" /etc/apache2/conf.d/security
-
-
-
-#Quitamos los directorios inútiles del servidor web.
-sed -i -re '/<Directory "\/usr/,/\/Directory/ d' /etc/apache2/sites-available/000-default.*
-sed -i -re 's/^.*Alias \/cgi.*$//g' /etc/apache2/sites-available/000-default.*
-sed -i -re 's/^.*Alias \/doc.*$//g' /etc/apache2/sites-available/000-default.*
-
-sed -i -re '/<Directory "\/usr/,/\/Directory/ d' /etc/apache2/mods-enabled/alias.conf
-sed -i -re 's/^.*Alias \/icons.*$//g' /etc/apache2/mods-enabled/alias.conf
-
-
-#Evitamos que se puedan publicar enlaces en el servidor web.
-sed -i -re 's/FollowSymLinks//g'  /etc/apache2/sites-available/000-default.*
-sed -i -re 's/^\s*Options\s*$//g' /etc/apache2/sites-available/000-default.*
-
-
-
-#Ocultamos la página de error estándar. Además redirige a la principal.
-aux=$(cat /etc/apache2/httpd.conf | grep -e "ErrorDocument")
-if [ "$aux" == ""  ]
-    then
-    echo  '';
-    echo  'ErrorDocument 400 "<head><meta http-equiv=\"refresh\" content=\"2;URL=/index.php\"></head><h1>Bad Request</h1>"' >> /etc/apache2/httpd.conf
-    echo  'ErrorDocument 403 "<head><meta http-equiv=\"refresh\" content=\"2;URL=/index.php\"></head><h1>Forbidden</h1>"' >> /etc/apache2/httpd.conf
-    echo  'ErrorDocument 404 "<head><meta http-equiv=\"refresh\" content=\"2;URL=/index.php\"></head><h1>Not Found</h1>"' >> /etc/apache2/httpd.conf
-    echo  'ErrorDocument 405 "<head><meta http-equiv=\"refresh\" content=\"2;URL=/index.php\"></head><h1>Method Not Allowed</h1>"' >> /etc/apache2/httpd.conf
-    echo  'ErrorDocument 500 "<h1>Internal Server Error</h1>"' >> /etc/apache2/httpd.conf
-    echo  'ErrorDocument 503 "<h1>Service Unavailable</h1>"' >> /etc/apache2/httpd.conf
-fi
+#Umount special filesystems (/dev is mounted and umounted outside)
+umount /proc
+umount /sys
+exit 42
 
  
- 
- 
-
-
-# Instalamos el script que actualiza la whitelist de la LCN en el firewall cada día a las 0:00
-aux=$(cat /etc/crontab | grep firewallWhitelist)
-if [ "$aux" == "" ] 
-    then
-    echo -e "\n0 0 * * * root bash $BINDIR/firewallWhitelist.sh  >/dev/null 2>/dev/null\n" >> /etc/crontab  
-fi
-
-
-
-
-
-#Instalamos las locales en un idioma cualquiera, puesto que hace falta para poder usar las locales de mi script (esta func sólo está en ubuntu)
-/usr/share/locales/install-language-pack es_ES
-
-#Para cada idioma disponible,
-langs=$(ls -p /root/src/localization/ | grep  -oEe "[^/]+/$" | sed -re "s|(.*)/$|\1|g")
-for la in $langs
-  do
-  #copiamos el fichero de locales compilado a su ubicación en el sistema
-  cp -f /root/src/localization/$la/*.mo  /usr/share/locale/$la/LC_MESSAGES/
-  
-  #copiamos las licencias al directorio, con la extension de su idioma
-  cp -f /root/src/localization/$la/License  /usr/share/doc/License.$la
-  
-  #copiamos el Readme de la firma del cert al directorio, con la extension de su idioma
-  cp -f /root/src/localization/$la/eLectionLiveCD-README.txt   /usr/share/doc/eLectionLiveCD-README.txt.$la
-  
-done
 
 
 
@@ -593,6 +553,20 @@ done
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+#SEGUIR
 
 
 

@@ -152,12 +152,12 @@ EOF
     
     
     #Map special filesystems on the chroot
-    #tell "Mapping special filesystems to the chroot"
-    #mount --bind /dev target/rootfs/dev
+    tell "Mapping special filesystems to the chroot"
+    mount --bind /dev target/rootfs/dev
     
 
     #Setup a policy to prevent daemons from starting and locking the
-    #mounted special filesystems
+    #mounted special filesystems  #TODO see if mounting /dev causes issues, to the moment everything worked fine without it
     tell "Setting up policy to prevent daemons from starting"
     cat > target/rootfs/usr/sbin/policy-rc.d  <<EOF
 #!/bin/sh
@@ -175,7 +175,7 @@ EOF
     rm -vf target/rootfs/usr/sbin/policy-rc.d
     
     #Unmounting chroot bound special filesystems
-    #umount target/rootfs/dev
+    umount target/rootfs/dev
     
     
 fi
@@ -232,18 +232,6 @@ fi
 
 
 
-# TODO (esto es viejo?) lo del layoutcode y el layout-code es pq en los scripts de tratamiento del kbd (19kerboard), lo espera sin guión, pero en el man del casper lo lista con guión.
-
-
-# TODO adapt
-#tell "Calculating hash for CD files"
-##Calculating md5 for every file inside the LiveCD
-#pushd ${CD} && find . -type f -print0 | xargs -0 md5sum | tee ./md5sum.txt && popd
-
-
-
-
-
 #If activated, name will be completed with -version-build-build_tag
 if [ "$VERSIONINFO" -eq 1 ] ; then
     tell "Adding version info to the image name"
@@ -258,4 +246,4 @@ genisoimage -b isolinux/isolinux.bin -rational-rock -volid "$IMGCDTAG" -cache-in
 
 
 ##TODO detect if up, then shutdown and up
-VBoxManage startvm "votUJI-dev"
+VBoxManage startvm $VBOXVMNAME

@@ -20,6 +20,10 @@ export PRODTAG="RELEASE"
 export IMGCDTAG="votUJI LiveCD"
 export IMGNAME=votUJI.iso
 
+
+#Name of the VirtualBox VM used to test the LiveCD
+export VBOXVMNAME="votUJI-dev"
+
 #Generic pae kernel
 export KERNELVERS="686-pae"
 #export KERNELVERS="3.16.0-4-686-pae"
@@ -35,7 +39,7 @@ export KERNELVERS="686-pae"
 PCKGS="linux-image-$KERNELVERS linux-headers-$KERNELVERS live-boot memtest86+ syslinux isolinux syslinux-utils plymouth plymouth-themes"
 
 #System packages
-PCKGS="$PCKGS ""dbus eject rsyslog openssl libnss3 libnspr4"
+PCKGS="$PCKGS ""dbus eject rsyslog openssl libnss3 libnspr4 sysvinit-utils"
 
 #IO and locales
 PCKGS="$PCKGS ""gpm  locales console-data kbd"
@@ -44,7 +48,7 @@ PCKGS="$PCKGS ""gpm  locales console-data kbd"
 PCKGS="$PCKGS ""net-tools iputils-ping iptables rsync smbclient openntpd cifs-utils"
 
 #System setup utils
-PCKGS="$PCKGS ""cryptsetup randomsound smbnetfs pcregrep wipe pm-utils zip unzip mdadm "
+PCKGS="$PCKGS ""cryptsetup randomsound smbnetfs pcregrep wipe pm-utils zip unzip mdadm sudo"
 
 #Voting management ui
 PCKGS="$PCKGS ""dialog sg3-utils usbutils postfix mailutils sysstat statgrab lm-sensors acpi rrdtool smartmontools hddtemp"
