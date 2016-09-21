@@ -1,5 +1,9 @@
 #!/bin/bash
 
+echo 'TERMINAL isnide w-s 1: '$TERM
+
+export TERM=linux
+
 
 
 ##############
@@ -9,6 +13,10 @@
 . /usr/local/bin/common.sh
 
 . /usr/local/bin/wizard-common.sh
+
+echo 'TERMINAL isnide w-s 2: '$TERM
+locale
+read
 
 
 ###############
@@ -1141,9 +1149,14 @@ if [ "$1" == "" ]
 
     export TEXTDOMAINDIR=/usr/share/locale
     export TEXTDOMAIN=wizard-setup.sh  #//// ver si es factible invocar a los otros scripts con cadenas localizadas. Si no, separar las funcs y devolver valores para que las acdenas se impriman en este (y considerarlo tb por seguridad una vez funcione todo)
-        
-    exec  "$0" "$lan"
 
+    #TODO descomentar
+#    exec  "$0" "$lan"
+
+#TODO borrar
+    exec /bin/bash
+
+    
 fi #Fin Bloque que se ejecuta una sola vez al inicio
 
 echo "selected language: $LANGUAGE"  >>$LOGFILE 2>>$LOGFILE

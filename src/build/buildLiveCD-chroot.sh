@@ -7,8 +7,8 @@
 
 #Default env to allow proper parsing
 export HOME=/root
-export LC_ALL=C
-export LANG=""
+#export LC_ALL=C #See if there's any problem with commenting this TODO
+#export LANG=""
 
 cd $HOME
 
@@ -29,6 +29,8 @@ cd $HOME
 ## TODO generate available locales
 # locale-gen
 #[root@lab9054::ujiVoting]$ less  /etc/locale.gen
+
+
 
 ##
 
@@ -95,6 +97,12 @@ if [ $UPDATEPACKAGES -eq "1" ]
         echo "keyboard-configuration	keyboard-configuration/xkb-keymap	select	en" | debconf-set-selections
         echo "keyboard-configuration	keyboard-configuration/variant	select	English (US)" | debconf-set-selections
         #</DEBUG>
+
+        #On the last install, it prompted for the charset. selected utf8 should we prdefine it or allow configuration? is it a cause of the issues? #TODO
+
+        # TODO maybe, te issue is caused by the strings on the scripts being iso and we selecting UTF  # TODO
+        
+        #Commented. May be the source of issues for the terminal not showing utf characters # TODO
         
                 
         apt-get -f install -y --force-yes ${PCKGS}
@@ -133,6 +141,8 @@ popd
 
 
 
+
+
 #Setting Up Plymouth theme
 ctell "***** Installing plymouth theme"
 
@@ -150,7 +160,6 @@ cp -rf /root/src/sys/plymouth/vtuji    /usr/share/plymouth/themes/
 
 #Configure initramfs so it loads the new splash
 update-initramfs -u
-
 
 
 
@@ -180,6 +189,11 @@ cp -fv /root/src/sys/config/mailer/aliases             /etc/
 #Non-privileged user is allowed to invoke privileged ops scripts
 #acting as root
 cp -fv /root/src/sys/config/misc/sudoers               /etc/
+
+#Locales to be generated
+cp -fv /root/src/sys/config/misc/locale.gen            /etc/
+
+cp -fv /root/src/sys/config/misc/.bashrc               /root/
 
 cp -fv  /root/src/sys/firewall/*.sh       $BINDIR/
 cp -fv  /root/src/sys/firewall/whitelist  /etc/whitelist
@@ -212,6 +226,53 @@ mkdir -pv /var/www/tmp/
 cp -fv /root/src/webapp/bundle/ivot.php          /var/www/tmp/
 cp -fv /root/src/webapp/tools/mkInstaller.php    /var/www/tmp/
 cp -fv /root/src/webapp/tools/markVariables.py   /var/www/tmp/
+
+
+
+
+
+
+#Build locales
+ctell "***** Generating locales"
+read
+#These seem not to work (deprecated?)
+localedef -f UTF-8 -i es_ES es_ES.UTF-8
+localedef -f UTF-8 -i en_US en_US.UTF-8
+
+#This should work TODO
+locale-gen
+
+ctell "Generated locales (locale -a):"
+locale -a
+
+ctell "Generated locales (localectl list-locales):"
+localectl list-locales
+
+
+
+#export LC_ALL=C.UTF-8  #TODO should this be commented?
+#export LANG=C.UTF-8
+export LANG=es_ES.UTF-8
+
+cat > /etc/locale.conf <<EOF
+#LANG=C.UTF-8
+LANG=es_ES.UTF-8
+LANGUAGE=es_ES.UTF-8
+EOF
+
+
+#Notice that there is a LANGUAGE="es_ES.UTF-8" at rc.local TODO
+
+#localectl set-locale LANG="es_ES.UTF-8"
+localectl set-locale LANG="C.UTF-8"
+
+
+echo "Press RETURN to continue..."
+read
+
+
+
+
 
 
 
@@ -305,9 +366,10 @@ adduser --shell $BINDIR/wizard-bootstrap.sh --disabled-password --disabled-login
 rm $BINDIR/launch-debug-console.sh
 #<DEBUG>
 #Setup debug console script
-echo "/bin/bash </dev/tty2 >/dev/tty2 2>&1 &"  >> $BINDIR/launch-debug-console.sh
-echo "/bin/bash </dev/tty3 >/dev/tty3 2>&1 &"  >> $BINDIR/launch-debug-console.sh
-echo "/bin/bash </dev/tty4 >/dev/tty4 2>&1 &"  >> $BINDIR/launch-debug-console.sh
+echo "/bin/bash -i </dev/tty2 >/dev/tty2 2>&1 &"  >> $BINDIR/launch-debug-console.sh
+echo "/bin/bash -i </dev/tty3 >/dev/tty3 2>&1 &"  >> $BINDIR/launch-debug-console.sh
+echo "/bin/bash -i </dev/tty4 >/dev/tty4 2>&1 &"  >> $BINDIR/launch-debug-console.sh
+####echo "/sbin/getty -a root tty5 9600 linux &"  >> $BINDIR/launch-debug-console.sh
 chmod 550       $BINDIR/launch-debug-console.sh
 chown root:root $BINDIR/launch-debug-console.sh
 #Authorise sudo on debug console script (we alter the sudoers file every time as it is previously overwritten on every build)
@@ -320,8 +382,31 @@ echo "echo 'Launching wizard'"  > $BINDIR/wizard-bootstrap.sh
 #<DEBUG>
 echo "sudo /usr/local/bin/launch-debug-console.sh" >> $BINDIR/wizard-bootstrap.sh
 #<DEBUG>
+#echo "exec /usr/local/bin/wizard-setup.sh"  >> $BINDIR/wizard-bootstrap.sh
+echo "echo 'TERMINAL: '\$TERM"  >> $BINDIR/wizard-bootstrap.sh
+echo "TERM=linux"  >> $BINDIR/wizard-bootstrap.sh
+echo "export \$TERM"  >> $BINDIR/wizard-bootstrap.sh
+echo "echo 'TERMINAL NOW: '\$TERM"  >> $BINDIR/wizard-bootstrap.sh
+echo "locale" >> $BINDIR/wizard-bootstrap.sh
+echo "read"  >> $BINDIR/wizard-bootstrap.sh
 echo "exec /usr/local/bin/wizard-setup.sh"  >> $BINDIR/wizard-bootstrap.sh
+#echo "/bin/bash"  >> $BINDIR/wizard-bootstrap.sh
+chmod 755       $BINDIR/wizard-bootstrap.sh
 
+
+#TERM variable is needed by curses to determine terminal parameters. During systemd boot, it is set here:
+#
+#/lib/systemd/system/debug-shell.service
+#[Service]
+#Environment=TERM=linux
+#
+#and used by agetty to launch the terminal after login, as set here:
+#
+#target/rootfs/lib/systemd/system/serial-getty@.service
+#[Service]
+#ExecStart=-/sbin/agetty --keep-baud 115200,38400,9600 %I $TERM
+#Somewhere in my hack, this is either skipped or set to 'dumb', which is not accepyted by dialog.
+#WE need to set it to 'linux' before launching dialog
 
 ############################ rc.local ##############################
 #Add the forced autologin (all users disallowed to login otherwise) of
@@ -330,6 +415,10 @@ echo "exec /usr/local/bin/wizard-setup.sh"  >> $BINDIR/wizard-bootstrap.sh
 cat > /etc/rc.local  <<EOF
 #!/bin/sh -e
 # This script is executed at the end of each multiuser runlevel.
+
+#LANG=C.UTF-8
+export LANG=es_ES.UTF-8
+export LANGUAGE=es_ES.UTF-8
 
 #Autologin non-privileged user, launched shell will be the manager script
 exec /bin/login -f vtuji </dev/tty7 >/dev/tty7 2>&1
@@ -365,7 +454,7 @@ echo -e "------\nNo one can login to this system\n------" > /etc/nologin
 echo "" > /etc/securetty
 
 #Delete list of valid login shells. Doesn't affect login -f and provides more potential security
-echo "" > /etc/shells
+#echo "" > /etc/shells  # TODO funciona?
 
 #Lock unprivileged and root user passwords to disable login (set pwd to !)
 sed -i -re "s/^(root:)[^:]*(:.+)$/\1\!\2/g" /etc/shadow
@@ -579,12 +668,12 @@ apt-get clean
 
 #Clean useless or potentially dangerous files or interfering files
 ctell "***** Deleting useless files"
-rm -f /root/.bash_history
-rm -r /tmp/*
-for i in "/etc/hosts /etc/hostname /etc/resolv.conf /etc/timezone /etc/fstab /etc/mtab /etc/shadow /etc/shadow- /etc/gshadow  /etc/gshadow-"
-do
-	rm $i
-done
+#rm -f /root/.bash_history  # TODO see what we uncomment 
+#rm -r /tmp/*
+#for i in "/etc/hosts /etc/hostname /etc/resolv.conf /etc/timezone /etc/fstab /etc/mtab /etc/shadow /etc/shadow- /etc/gshadow  /etc/gshadow#-"
+#do
+#	rm $i
+#done
 
 
 
