@@ -25,7 +25,7 @@ read
 
 
 #Determines if an action on the idle menu doesn't need authorization by key reuilding  
-BYPASSAUTHORIZATION=0 ### //// Esta variable debe desaparecer. El control de autorizaciÛn  pasa por completo al prog priv.
+BYPASSAUTHORIZATION=0 ### //// Esta variable debe desaparecer. El control de autorizaci√≥n  pasa por completo al prog priv.
 
 
 
@@ -40,7 +40,7 @@ hald_present=0
 #Current config file accepted as in use (in case of mismatch)
 CURRINUSE=0
 
-#Para que el panic saque el men˙  #////si lo quito del panic, puedo quitarlod e aquÌ
+#Para que el panic saque el men√∫  #////si lo quito del panic, puedo quitarlod e aqu√≠
 SYSTEMISRUNNING=0
 
 SETAPPADMINPRIVILEGES=''
@@ -52,7 +52,7 @@ SETAPPADMINPRIVILEGES=''
 #############
 
 
-# //// VER si estas 3 funcs las pongo en commons o las dejo aquÌ (dependiendo de cu·ntas variables necesito usar como root), y si el fichero de variables de root debe contener tb las variables del fichero de usuario.
+# //// VER si estas 3 funcs las pongo en commons o las dejo aqu√≠ (dependiendo de cu√°ntas variables necesito usar como root), y si el fichero de variables de root debe contener tb las variables del fichero de usuario.
 
 
 #//// Es posible que estas funciones desaparezcan, si al final todos los params los maneja el root
@@ -61,7 +61,7 @@ SETAPPADMINPRIVILEGES=''
 
 
 
-#//// esta se llama en el setup --> op de setup que la haga. Tb se llama en otros puntos que deber·n pasar a ser op.
+#//// esta se llama en el setup --> op de setup que la haga. Tb se llama en otros puntos que deber√°n pasar a ser op.
 
 
 
@@ -69,10 +69,10 @@ SETAPPADMINPRIVILEGES=''
 choosemaintenanceAction () {
 
     exec 4>&1 
-    selec=$($dlg --no-cancel  --menu $"Seleccione una acciÛn a llevar a cabo:" 0 80  6  \
+    selec=$($dlg --no-cancel  --menu $"Seleccione una acci√≥n a llevar a cabo:" 0 80  6  \
 	1 $"Iniciar el sistema de voto." \
-	2 $"Recuperar una instalaciÛn del sistema de voto." \
-	3 $"Lanzar un terminal de administraciÛn." \
+	2 $"Recuperar una instalaci√≥n del sistema de voto." \
+	3 $"Lanzar un terminal de administraci√≥n." \
 	4 $"Apagar el equipo." \
 	2>&1 >&4)
     
@@ -91,7 +91,7 @@ choosemaintenanceAction () {
         ;;
 	
 	"3" )
-	$dlg --yes-label $"SÌ" --no-label $"No"  --yesno  $"ATENCI”N:\n\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que este sea reiniciado. Aseg˙rese de que no sea operado sin supervisiÛn tÈcnica para verificar que no se realiza ninguna acciÛn ilÌcita. øDesea continuar?" 0 0
+	$dlg --yes-label $"S√≠" --no-label $"No"  --yesno  $"ATENCI√ìN:\n\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que este sea reiniciado. Aseg√∫rese de que no sea operado sin supervisi√≥n t√©cnica para verificar que no se realiza ninguna acci√≥n il√≠cita. ¬øDesea continuar?" 0 0
 	[ "$?" -eq 0 ] && exec $PVOPS rootShell  #//// cambiar todos los sitios en que saque un bas de root por 'exec privops rootsh'
         exec /bin/false
         ;;	
@@ -108,7 +108,7 @@ choosemaintenanceAction () {
 #      done
 #      shutdownServer "h"
 	
-	$dlg --yes-label $"Cancelar"  --no-label $"Apagar" --yesno $"øEst· seguro de que desea apagar el equipo?" 0 0
+	$dlg --yes-label $"Cancelar"  --no-label $"Apagar" --yesno $"¬øEst√° seguro de que desea apagar el equipo?" 0 0
 	ret=$?	
 	[ $ret -eq 1 ] && shutdownServer "h"
 	continue
@@ -135,16 +135,16 @@ choosemaintenanceAction () {
 
 
 
-#//// Esta func a root. AllÌ crear un servicio que reciba los params del wizard y los guarde para ser escritos en el clauer (revisados, claro). luego, leerlos todos del/los ficheros correspondientes en cada invocaciÛn a privops (mejor eso o que los busquen uno a uno?).
+#//// Esta func a root. All√≠ crear un servicio que reciba los params del wizard y los guarde para ser escritos en el clauer (revisados, claro). luego, leerlos todos del/los ficheros correspondientes en cada invocaci√≥n a privops (mejor eso o que los busquen uno a uno?).
 
 
 
 
-# $1 -> Parte 1 del mensaje de confirmaciÛn.
+# $1 -> Parte 1 del mensaje de confirmaci√≥n.
 
 confirmSystemFormat (){
     
-    $dlg --no-label $"Inicio"  --yes-label $"Formatear" --yesno  $"$1\nEsto implica que, o el sistema esta vacio, o desea reinstalarlo. \nSi elige continuar, se destruir·n todos los datos\n del sistema si los hubiese y se instalar·\nel sistema de voto totalmente de cero. \n\nøDesea continuar o desea volver al inicio?" 0 0
+    $dlg --no-label $"Inicio"  --yes-label $"Formatear" --yesno  $"$1\nEsto implica que, o el sistema esta vacio, o desea reinstalarlo. \nSi elige continuar, se destruir√°n todos los datos\n del sistema si los hubiese y se instalar√°\nel sistema de voto totalmente de cero. \n\n¬øDesea continuar o desea volver al inicio?" 0 0
     button=$?
 
     #echo "Pulsado $button"
@@ -156,8 +156,8 @@ confirmSystemFormat (){
 	return
     fi
 	
-    #Doble confirmaciÛn
-    $dlg   --yes-label $"SÌ" --no-label $"No" --yesno  $"øSeguro que desea continuar?" 0 0  
+    #Doble confirmaci√≥n
+    $dlg   --yes-label $"S√≠" --no-label $"No" --yesno  $"¬øSeguro que desea continuar?" 0 0  
     button=$?
     
     #echo "Pulsado $button"
@@ -181,16 +181,16 @@ confirmSystemFormat (){
 
 
 
-#////  este probablemente deba ponerlo como root, pero ver si no es necesario. En todo caso, filtrar los params a lo bestia. Que el dev sÛlo pueda ser /dev/sd[a-z][0-9]* o algo asi (verificar), limitar el tamaÒo del pwd..
+#////  este probablemente deba ponerlo como root, pero ver si no es necesario. En todo caso, filtrar los params a lo bestia. Que el dev s√≥lo pueda ser /dev/sd[a-z][0-9]* o algo asi (verificar), limitar el tama√±o del pwd..
 
 
 
 
 # ++++ seguir:
 
-# //// Un programa que corre con sudo, su espacio de memoria es accesible por el usuario que lo ejecuta o sÛlo por el root? --> parece ser que sÛlo por el root.
+# //// Un programa que corre con sudo, su espacio de memoria es accesible por el usuario que lo ejecuta o s√≥lo por el root? --> parece ser que s√≥lo por el root.
 
-# //// Verificar que la pwd de DB del usuario no se escirbe en vars.conf en ning˙n caso, y solo se usa en el setup.
+# //// Verificar que la pwd de DB del usuario no se escirbe en vars.conf en ning√∫n caso, y solo se usa en el setup.
 # //// Sacar el pwd del ssh backup de vars.conf
 # //// Sacar el pwd de la part de /root (o al menos quitarle los permisos de lectura a g y o.)
 
@@ -213,13 +213,13 @@ confirmSystemFormat (){
 
 
 
-##### Par·metros del admin del sistema #####
+##### Par√°metros del admin del sistema #####
 
 
 sysadminParams () {
 
 
-    $dlg --msgbox $"Vamos a definir los datos de acceso como administrador al programa Web de gestiÛn del sistema de voto. Deber· recordarlos para poder acceder en el futuro.\n\nRecuerde que el acceso a las funciones de administraciÛn privilegiadas sÛlo podr· llevarse a cabo previa autorizaciÛn de la comisiÛn de custodia por medio de esta aplicaciÛn." 0 0
+    $dlg --msgbox $"Vamos a definir los datos de acceso como administrador al programa Web de gesti√≥n del sistema de voto. Deber√° recordarlos para poder acceder en el futuro.\n\nRecuerde que el acceso a las funciones de administraci√≥n privilegiadas s√≥lo podr√° llevarse a cabo previa autorizaci√≥n de la comisi√≥n de custodia por medio de esta aplicaci√≥n." 0 0
     
     MGRPWD=""
     MGREMAIL=""
@@ -247,12 +247,12 @@ sysadminParams () {
       if [ $? -ne 0 ] 
 	  then
 	  verified=0
-	  $dlg --msgbox $"Debe introducir un nombre de usuario v·lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
+	  $dlg --msgbox $"Debe introducir un nombre de usuario v√°lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
 	  continue
       fi
 
 
-      getPwd '' 1 $"Introduzca la contraseÒa para\nel administrador del sistema de voto.\nEs imprescindible que la recuerde." 1
+      getPwd '' 1 $"Introduzca la contrase√±a para\nel administrador del sistema de voto.\nEs imprescindible que la recuerde." 1
       MGRPWD="$pwd"
       pwd=''
       
@@ -272,7 +272,7 @@ sysadminParams () {
       if [ $? -ne 0 ] 
 	  then
 	  verified=0
-	  $dlg --msgbox $"Debe introducir un nombre v·lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
+	  $dlg --msgbox $"Debe introducir un nombre v√°lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
 	  continue
       fi
 
@@ -293,7 +293,7 @@ sysadminParams () {
       if [ $? -ne 0 ] 
 	  then
 	  verified=0 
-	  $dlg --msgbox $"Debe introducir un numero de DNI v·lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0 
+	  $dlg --msgbox $"Debe introducir un numero de DNI v√°lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0 
 	  continue
       fi
       
@@ -301,12 +301,12 @@ sysadminParams () {
 
 
       MGREMAIL=$($dlg --no-cancel  --inputbox  \
-	  $"Correo electrÛnico del administrador del sistema de voto.\nSe emplear· para notificar incidencias del sistema." 0 0 "$MGREMAIL"  2>&1 >&4)
+	  $"Correo electr√≥nico del administrador del sistema de voto.\nSe emplear√° para notificar incidencias del sistema." 0 0 "$MGREMAIL"  2>&1 >&4)
       
       if [ "$MGREMAIL" == "" ] 
 	  then
 	  verified=0 
-	  $dlg --msgbox $"Debe proporcionar un correo electrÛnico." 0 0 
+	  $dlg --msgbox $"Debe proporcionar un correo electr√≥nico." 0 0 
 	  continue
       fi
       
@@ -314,7 +314,7 @@ sysadminParams () {
       if [ $? -ne 0 ] 
 	  then 
 	  verified=0
-	  $dlg --msgbox $"Debe introducir una direcciÛn de correo v·lida." 0 0
+	  $dlg --msgbox $"Debe introducir una direcci√≥n de correo v√°lida." 0 0
 	  continue
       fi
       
@@ -334,10 +334,10 @@ sysadminParams () {
       
 
 
-	  #Selector de tamaÒo de llave
+	  #Selector de tama√±o de llave
       KEYSIZE=""
       exec 4>&1 
-      KEYSIZE=$($dlg --no-cancel  --menu $"Seleccione un tamaÒo para las llaves del sistema\n(a mayor valor, m·s robustez, pero m·s coste computacional):" 0 80  5  \
+      KEYSIZE=$($dlg --no-cancel  --menu $"Seleccione un tama√±o para las llaves del sistema\n(a mayor valor, m√°s robustez, pero m√°s coste computacional):" 0 80  5  \
 	  1024 - \
 	  1152 - \
 	  1280 - \
@@ -351,7 +351,7 @@ sysadminParams () {
       if [ "$verified" -eq 1 ] 
 	  then
 	  $dlg --yes-label $"Revisar"  --no-label $"Continuar"  --yesno \
-	      $"Datos adquiridos. øDesea revisarlos o desea continuar con la configuraciÛn del sistema?" 0 0 
+	      $"Datos adquiridos. ¬øDesea revisarlos o desea continuar con la configuraci√≥n del sistema?" 0 0 
 	  verified=$?
       fi
       
@@ -368,7 +368,7 @@ sysadminParams () {
 esurveyParamsAndRequest () {
 
 
-	    $dlg --msgbox $"Vamos a definir los datos para registrar el sistema como miembro v·lido de la red eSurvey. Si ya est· registrado como usuario de eSurveySites, introduzca los datos correctos. Si no, puede crear una nueva cuenta ahora introduciendo los datos deseados." 0 0
+	    $dlg --msgbox $"Vamos a definir los datos para registrar el sistema como miembro v√°lido de la red eSurvey. Si ya est√° registrado como usuario de eSurveySites, introduzca los datos correctos. Si no, puede crear una nueva cuenta ahora introduciendo los datos deseados." 0 0
 	    
 	    SITESEMAIL=''
 	    SITESPWD=''
@@ -388,12 +388,12 @@ esurveyParamsAndRequest () {
 	      
 	      
 	      SITESEMAIL=$($dlg --no-cancel  --inputbox  \
-		  $"Correo electrÛnico, identificador de usuario para eSurveySites." 0 0 "$SITESEMAIL"  2>&1 >&4)
+		  $"Correo electr√≥nico, identificador de usuario para eSurveySites." 0 0 "$SITESEMAIL"  2>&1 >&4)
 	      
 	      if [ "$SITESEMAIL" == "" ] 
 		  then
 		  verified=0
-		  $dlg --msgbox $"Debe proporcionar una direcciÛn de correo." 0 0
+		  $dlg --msgbox $"Debe proporcionar una direcci√≥n de correo." 0 0
 		  continue
 	      fi
 	      
@@ -401,22 +401,22 @@ esurveyParamsAndRequest () {
 	      if [ $? -ne 0 ] 
 		  then
 		  verified=0 
-		  $dlg --msgbox $"Debe introducir una direcciÛn de correo v·lida." 0 0
+		  $dlg --msgbox $"Debe introducir una direcci√≥n de correo v√°lida." 0 0
 		  continue
 	      fi
 	      
 	      
 
-	  #yesno: auto-generar password (que recibir· en el correo) o especificarlo
+	  #yesno: auto-generar password (que recibir√° en el correo) o especificarlo
 	      $dlg --yes-label $"Especificar"  --no-label $"Generar"  --yesno \
-		  $"Desea especificar una contraseÒa para eSurveySites (si ya posee una cuenta elija 'especificar') o prefiere que se genere autom·ticamente (la recibir· en su correo)?" 0 0 
+		  $"Desea especificar una contrase√±a para eSurveySites (si ya posee una cuenta elija 'especificar') o prefiere que se genere autom√°ticamente (la recibir√° en su correo)?" 0 0 
 	      generatePWD=$?
 	      
 	      
 	      if [ "$generatePWD" -eq 0 ]
 		  then
-	      # Pide la contraseÒa
-		  getPwd '' 1 $"ContraseÒa de acceso a eSurveySites.\nSi ya posee una cuenta, escriba la contraseÒa." 1
+	      # Pide la contrase√±a
+		  getPwd '' 1 $"Contrase√±a de acceso a eSurveySites.\nSi ya posee una cuenta, escriba la contrase√±a." 1
 		  SITESPWD="$pwd"
 		  pwd=''
 	      else
@@ -429,7 +429,7 @@ esurveyParamsAndRequest () {
 	      
 	      
 	      SITESORGSERV=$($dlg --no-cancel  --inputbox  \
-		  $"Nombre de su organizaciÛn o del servidor." 0 0 "$SITESORGSERV"  2>&1 >&4)
+		  $"Nombre de su organizaci√≥n o del servidor." 0 0 "$SITESORGSERV"  2>&1 >&4)
 	      
 	      if [ "$SITESORGSERV" == "" ] 
 		  then
@@ -442,14 +442,14 @@ esurveyParamsAndRequest () {
 	      if [ $? -ne 0 ] 
 		  then 
 		  verified=0 
-		  $dlg --msgbox $"Debe introducir un nombre v·lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
+		  $dlg --msgbox $"Debe introducir un nombre v√°lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
 		  continue
 	      fi
 	      
 
 
 	      SITESNAMEPURP=$($dlg --no-cancel  --inputbox  \
-		  $"Nombre o propÛsito del sistema de voto." 0 0 "$SITESNAMEPURP"  2>&1 >&4)
+		  $"Nombre o prop√≥sito del sistema de voto." 0 0 "$SITESNAMEPURP"  2>&1 >&4)
 	      
 	      if [ "$SITESNAMEPURP" == "" ] 
 		  then
@@ -462,19 +462,19 @@ esurveyParamsAndRequest () {
 	      if [ $? -ne 0 ] 
 		  then
 		  verified=0
-		  $dlg --msgbox $"Debe introducir un nombre v·lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
+		  $dlg --msgbox $"Debe introducir un nombre v√°lido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
 		  continue
 	      fi
 	      
 
 	      
 	      SITESCOUNTRY=$($dlg --no-cancel  --inputbox  \
-		  $"PaÌs en que se ubica su organizaciÛn o su servidor (2 letras)." 0 0 "$SITESCOUNTRY"  2>&1 >&4)
+		  $"Pa√≠s en que se ubica su organizaci√≥n o su servidor (2 letras)." 0 0 "$SITESCOUNTRY"  2>&1 >&4)
 	      
 	      if [ "$SITESCOUNTRY" == "" ] 
 		  then
 		  verified=0
-		  $dlg --msgbox $"Debe proporcionar un cÛdigo de paÌs de 2 letras." 0 0
+		  $dlg --msgbox $"Debe proporcionar un c√≥digo de pa√≠s de 2 letras." 0 0
 		  continue
 	      fi
 	      
@@ -482,7 +482,7 @@ esurveyParamsAndRequest () {
 	      if [ $? -ne 0 ] 
 		  then
 		  verified=0
-		  $dlg --msgbox $"Debe introducir un cÛdigo v·lido." 0 0 
+		  $dlg --msgbox $"Debe introducir un c√≥digo v√°lido." 0 0 
 		  continue
 	      fi
 	      
@@ -491,7 +491,7 @@ esurveyParamsAndRequest () {
 	      if [ "$verified" -eq 1 ] 
 		  then
 		  $dlg --yes-label $"Revisar"  --no-label $"Continuar"  --yesno \
-		      $"Datos adquiridos. øDesea revisarlos o desea continuar con la configuraciÛn del sistema?" 0 0 
+		      $"Datos adquiridos. ¬øDesea revisarlos o desea continuar con la configuraci√≥n del sistema?" 0 0 
 		  verified=$?
 		  [ "$verified" -eq 0 ] && continue
 	      fi
@@ -517,7 +517,7 @@ esurveyParamsAndRequest () {
 	      expS=$(echo -n "$keyyS" | openssl rsa -text 2>/dev/null | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
 	      modS=$(echo -n "$keyyS" | openssl rsa -text 2>/dev/null | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
 	      
-	  #urlencode en Sed: Define la etiqueta a, lee la siguiente lÌnea y para ella sustituye = por %3D, etc. y salta a 'a' de nuevo.
+	  #urlencode en Sed: Define la etiqueta a, lee la siguiente l√≠nea y para ella sustituye = por %3D, etc. y salta a 'a' de nuevo.
 	      req=$(echo "$certS" >/tmp/crt$$; echo "$keyyS" |
 		  openssl x509 -signkey /dev/stdin -in /tmp/crt$$ -x509toreq 2>>$LOGFILE | sed -n -e "/BEGIN/,/END/p" |
 		  sed -e :a -e N -e 's/\//%2F/g;s/=/%3D/g;s/+/%2B/g;s/\n/%0A/;ta' ; rm /tmp/crt$$);
@@ -532,7 +532,7 @@ esurveyParamsAndRequest () {
 	      mail=$($urlenc "$SITESEMAIL" 2>>$LOGFILE)
 	      pwd=$($urlenc "$SITESPWD" 2>>$LOGFILE)
 	      
-	  #El param once provoca que la cuenta no pueda usarse tras el registro (para evitar un DoS el dia de la elecciÛn)
+	  #El param once provoca que la cuenta no pueda usarse tras el registro (para evitar un DoS el dia de la elecci√≥n)
 	      result=$(wget  -O - -o /dev/null "http://esurvey.nisu.org/sites?mailR=$mail&pwdR=$pwd&req=$req&lg=es&once=1")
 
 	      echo "Respuesta de sites: $result"   >>$LOGFILE 2>>$LOGFILE
@@ -550,24 +550,24 @@ esurveyParamsAndRequest () {
 		do 
 		
 		case "$linenum" in
-		  "1" ) #LÌnea de Estado
+		  "1" ) #L√≠nea de Estado
                     if [ "$line" == "ERR" ] 
 			then
-			$dlg --msgbox $"Error al entregar la solicitud de certificado en eSurveySites. Tal vez la direcciÛn de correo ya pertenece a una cuenta registrada." 0 0
+			$dlg --msgbox $"Error al entregar la solicitud de certificado en eSurveySites. Tal vez la direcci√≥n de correo ya pertenece a una cuenta registrada." 0 0
 			err=1 
 			verified=0 
 			break
 		    fi
 		    if [ "$line" == "REG" ] 
 			then
-			$dlg --msgbox $"Error al entregar la solicitud de certificado en eSurveySites. Tal vez la direcciÛn de correo ya pertenece a una cuenta registrada." 0 0
+			$dlg --msgbox $"Error al entregar la solicitud de certificado en eSurveySites. Tal vez la direcci√≥n de correo ya pertenece a una cuenta registrada." 0 0
 			err=1
 			verified=0
 			break
 		    fi
 		    if [ "$line" == "DUP" ] 
 			then
-			$dlg --msgbox $"Error: ya existe una solicitud en eSurveySites con estos datos. ModifÌquelos." 0 0
+			$dlg --msgbox $"Error: ya existe una solicitud en eSurveySites con estos datos. Modif√≠quelos." 0 0
 			err=1
 			verified=0
 			break
@@ -589,7 +589,7 @@ esurveyParamsAndRequest () {
 		    [ "$modS" != "$line" ] &&   systemPanic $"Error en eSurveySites: diferencias entre los datos enviados y los devueltos por el servidor." 
 		  ;;
 		
-		  "4" ) #OK-> Token de la peticiÛn de firma
+		  "4" ) #OK-> Token de la petici√≥n de firma
 		    SITESTOKEN="$line"
 		  ;;	
 		esac
@@ -600,10 +600,10 @@ esurveyParamsAndRequest () {
 
 		[ $err -eq 1 ] && break
 	      done
-	      #Esto lo pongo como guarda por si aÒado cÛdigo debajo de esto
+	      #Esto lo pongo como guarda por si a√±ado c√≥digo debajo de esto
 	      [ $verified -eq 0 ] && continue
 
-	    done  #Fin de entrada de datos de admin, cert y peticiÛn de cert
+	    done  #Fin de entrada de datos de admin, cert y petici√≥n de cert
 
 	    #echo "valor de tkD devuelto: $SITESTOKEN"   >>$LOGFILE 2>>$LOGFILE
 
@@ -616,14 +616,14 @@ esurveyParamsAndRequest () {
 
 
 
-##### ConfiguraciÛn principal del sistema #####
+##### Configuraci√≥n principal del sistema #####
 
 
 #1 -> 'new' or 'reset'
 doSystemConfiguration (){
 
 
-    #Si estamos creando el sistema, la red se habr· configurado durante el setup
+    #Si estamos creando el sistema, la red se habr√° configurado durante el setup
     if [ "$1" == 'reset' ]
         then
         configureNetwork 'Panic'
@@ -632,11 +632,11 @@ doSystemConfiguration (){
 	
     #Abrimos o creamos la zona segura de datos.
     configureCryptoPartition "$1"   "$MOUNTPATH"  "$MAPNAME"  "$DATAPATH"
-    #En $CRYPTDEV est· el dev empleado, para desmontarlo
+    #En $CRYPTDEV est√° el dev empleado, para desmontarlo
 
 
     
-    #Si se est· ejecutando una restauraciÛn
+    #Si se est√° ejecutando una restauraci√≥n
     if [ "$DORESTORE" -eq 1 ] ; then #////probar
 	
 	while true; do 
@@ -654,7 +654,7 @@ doSystemConfiguration (){
 
 	    if [ $ret -ne 0 ] 
 		then 
-		$dlg --msgbox $"Error durante la recuperaciÛn del backup. Vuelva a intentarlo." 0 0 
+		$dlg --msgbox $"Error durante la recuperaci√≥n del backup. Vuelva a intentarlo." 0 0 
 		continue
 	    fi
 
@@ -663,12 +663,12 @@ doSystemConfiguration (){
 	    $PSETUP recoverSSHBackupFile 
 	    if [ $? -ne 0 ] 
 		then
-		$dlg --msgbox $"Error durante la recuperaciÛn del backup. Vuelva a intentarlo." 0 0
+		$dlg --msgbox $"Error durante la recuperaci√≥n del backup. Vuelva a intentarlo." 0 0
 		continue
 	    fi
 	    
 	
-	    #Volvemos al Slot de la instalaciÛn nueva (sobre la que estamso restaurando la vieja)
+	    #Volvemos al Slot de la instalaci√≥n nueva (sobre la que estamso restaurando la vieja)
 	    $PVOPS clops switchSlot 1
 
 
@@ -679,16 +679,16 @@ doSystemConfiguration (){
     fi
     
 
-    #Leemos variables de configuraciÛn que necesitamos aquÌ (si es new, 
-    #ya est·n definidas, si es reset, se redefinen y no pasa nada)
+    #Leemos variables de configuraci√≥n que necesitamos aqu√≠ (si es new, 
+    #ya est√°n definidas, si es reset, se redefinen y no pasa nada)
     WWWMODE=$($PVOPS vars getVar d WWWMODE)
     USINGSSHBAK=$($PVOPS vars getVar c USINGSSHBAK)
 
     #Si hay backup de los datos locales
     if [ "$USINGSSHBAK" -eq 1  ] ; then
-	if [ "$1" == "new"  ] ; then  #*-*-en restore estos valen los nuevos. restaurar el vars original y que los machaque aquÌ?
+	if [ "$1" == "new"  ] ; then  #*-*-en restore estos valen los nuevos. restaurar el vars original y que los machaque aqu√≠?
 	    #Escribimos en un fichero los params que necesita el script del cron 
-	    #(sÛlo al instalar, porque luego pueden ser modificados desde el men˙ idle)
+	    #(s√≥lo al instalar, porque luego pueden ser modificados desde el men√∫ idle)
 	    #(en realidad no importa, porque al cambiarlos reescribe los clauers)
 	    $PVOPS vars setVar d SSHBAKSERVER "$SSHBAKSERVER"
 	    $PVOPS vars setVar d SSHBAKPORT   "$SSHBAKPORT"
@@ -697,10 +697,10 @@ doSystemConfiguration (){
 	fi
     fi
 
-    # Una vez montada la particiÛn cifrada, sea new o reset (en este caso, ya habr· leido las vars del disco) o restore (ya habr· copiado los datos correspondientes)
+    # Una vez montada la partici√≥n cifrada, sea new o reset (en este caso, ya habr√° leido las vars del disco) o restore (ya habr√° copiado los datos correspondientes)
     relocateLogs "$1"
 
-    #////Si he de hacer alg˙n cambio a la part cifrada, llamarlo aquÌ si es una op aislada. creo que en la de configurecryptopart ya hago los cambios correspondientes -> COMPROBAR Y BORRAR
+    #////Si he de hacer alg√∫n cambio a la part cifrada, llamarlo aqu√≠ si es una op aislada. creo que en la de configurecryptopart ya hago los cambios correspondientes -> COMPROBAR Y BORRAR
     
     
     
@@ -708,21 +708,21 @@ doSystemConfiguration (){
     if [ "$1" == 'reset' ]
 	then
 
-        #Verificamos las piezas de la llave, pero sÛlo con fin informativo, no obligamos a cambiarla ya.
+        #Verificamos las piezas de la llave, pero s√≥lo con fin informativo, no obligamos a cambiarla ya.
 	$dlg --infobox $"Verificando piezas de la llave..." 0 0
 
 	testForDeadShares 
 	res=$?
 	
-        #Si no todas las piezas son correctas, solicitamos regeneraciÛn.
+        #Si no todas las piezas son correctas, solicitamos regeneraci√≥n.
 	if [ "$res" -ne "0" ];  then
-	    $dlg --msgbox $"Se detectaron piezas corruptas.\n\nPara evitar una pÈrdida de datos, deberÌa reunirse la comisiÛn al completo en el menor tiempo posible y proceder a cambiar la llave." 0 0 
+	    $dlg --msgbox $"Se detectaron piezas corruptas.\n\nPara evitar una p√©rdida de datos, deber√≠a reunirse la comisi√≥n al completo en el menor tiempo posible y proceder a cambiar la llave." 0 0 
 	fi	
     fi
 
     
 
-    #Lanzamos los servicios del sistema (y acabamos la configuraciÛn de la instalaciÛn)
+    #Lanzamos los servicios del sistema (y acabamos la configuraci√≥n de la instalaci√≥n)
     configureServers "$1" 
 
 
@@ -741,7 +741,7 @@ doSystemConfiguration (){
 	    SSHBAKSERVER=$($PVOPS vars getVar d SSHBAKSERVER)
 	    SSHBAKPORT=$($PVOPS vars getVar d SSHBAKPORT)
 
-	    #AÒadimos las llaves del servidor SSH al known_hosts
+	    #A√±adimos las llaves del servidor SSH al known_hosts
 	    local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER")
 	    if [ "$ret" -ne 0 ]  #//// PRobar!!
 		then
@@ -755,26 +755,26 @@ doSystemConfiguration (){
     
     
     
-    #Lanzamos el sistema de recogida de estadÌsticas en RRDs
+    #Lanzamos el sistema de recogida de estad√≠sticas en RRDs
     if [ "$1" == "new"  ] ; then
 	#Construye las RRD
 	$PVOPS stats startLog 
     fi
     
-    #Creamos el cron que actualiza los resultados y genera las gr·ficas
+    #Creamos el cron que actualiza los resultados y genera las gr√°ficas
     $PVOPS stats installCron
     
-    #Actualizamos los gr·ficos al inicio (vacÌos en la creaciÛn, no vacÌos en el reboot)
+    #Actualizamos los gr√°ficos al inicio (vac√≠os en la creaci√≥n, no vac√≠os en el reboot)
     $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE
     
 
     #Escribimos el alias que permite que
-    #se envien los emails de emergencia del smart y dem·s
+    #se envien los emails de emergencia del smart y dem√°s
     #servicios al correo del administrador
     
     $PSETUP setupNotificationMails
 	
-    #Para que el panic NO saque el men˙  #////si lo quito del panic, pueod quitarlo de aquÌ.
+    #Para que el panic NO saque el men√∫  #////si lo quito del panic, pueod quitarlo de aqu√≠.
     SYSTEMISRUNNING=1
 
     #Realizamos los ajustes finales
@@ -796,15 +796,15 @@ configureServers () {
 
 
 
-    ######### ActivaciÛn del servidor postfix ##########
+    ######### Activaci√≥n del servidor postfix ##########
     $dlg --infobox $"Configurando servidor de correo..." 0 0
 
     if [ "$1" == 'new' ]
 	then :
 	
-        #Guardamos las variables d econfiguraciÛn correspondientes (esta la pido 
-        #al principio pero no se necesita hasta ahora. Adem·s ahora la guardo 
-        #sÛlo en disco, y no tb en el clauer)
+        #Guardamos las variables d econfiguraci√≥n correspondientes (esta la pido 
+        #al principio pero no se necesita hasta ahora. Adem√°s ahora la guardo 
+        #s√≥lo en disco, y no tb en el clauer)
 	$PVOPS vars setVar d MAILRELAY "$MAILRELAY"
     fi
     
@@ -823,7 +823,7 @@ configureServers () {
 	if [ "$1" == 'new' ]
 	    then :
 	    
-	    #Pedimos los par·metros del sysadmin
+	    #Pedimos los par√°metros del sysadmin
 	    sysadminParams
 
             #Ahora el pwd se guarda SALTED
@@ -848,8 +848,8 @@ configureServers () {
 	if [ "$1" == 'new' ]
 	    then :
 	    
-            #Pedimos los par·metros para registrar el servidor en eSruveySites, 
-	    #genera la peticiÛn de cert y la envia.
+            #Pedimos los par√°metros para registrar el servidor en eSruveySites, 
+	    #genera la petici√≥n de cert y la envia.
             esurveyParamsAndRequest
 	    
 	    
@@ -863,7 +863,7 @@ configureServers () {
 	    else
 		numnodes=$(wc -l /tmp/nodelist | cut -d " " -f 1)
     
-		[ "$numnodes" -lt "2"  ] && $dlg --msgbox $"No existen suficientes nodos en la red de latencia para garantizar un nivel mÌnimo de anonimato. Opere este sistema bajo su propia responsabilidad." 0 0
+		[ "$numnodes" -lt "2"  ] && $dlg --msgbox $"No existen suficientes nodos en la red de latencia para garantizar un nivel m√≠nimo de anonimato. Opere este sistema bajo su propia responsabilidad." 0 0
     
 	    fi
 	    rm /tmp/tempdlg /tmp/nodelist 2>/dev/null
@@ -871,7 +871,7 @@ configureServers () {
 	    
 	    
 	    
-            ### ConstrucciÛn de la urna ###
+            ### Construcci√≥n de la urna ###
 	    $dlg --infobox $"Generando llaves de la urna..." 0 0
 	    
 	    keyyU=$(openssl genrsa $KEYSIZE 2>/dev/null | openssl rsa -text 2>/dev/null)
@@ -896,21 +896,21 @@ configureServers () {
 
 
     
-    ######### ActivaciÛn del servidor mysql ##########
+    ######### Activaci√≥n del servidor mysql ##########
     $dlg --infobox $"Configurando servidor de base de datos..." 0 0
  
 
     $PVOPS configureServers "dbServer-init"  "$1"
     
  
-    ### ConstruÌmos el segundo fichero .sql, con los inserts necesarios para config. la aplicaciÛn ###
+    ### Constru√≠mos el segundo fichero .sql, con los inserts necesarios para config. la aplicaci√≥n ###
     if [ "$DORESTORE" -ne 1 ] ; then
 	if [ "$1" == 'new' ] 
 	    then
 	    rm -f $TMPDIR/config.sql
 	    touch $TMPDIR/config.sql
 	    
-            #Escapamos los campos que pueden contener caracteres problem·ticos (o los que reciben entrada directa del usuario)
+            #Escapamos los campos que pueden contener caracteres problem√°ticos (o los que reciben entrada directa del usuario)
 	    adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
 	    admidnum=$($addslashes "$ADMIDNUM" 2>>$LOGFILE)
 	    adminrealname=$($addslashes "$ADMREALNAME" 2>>$LOGFILE)
@@ -918,18 +918,18 @@ configureServers () {
 	    
 	    
 	    
-            #InserciÛn del usuario administrador (ahora no puede entrar cuando quiera, sÛlo cuando se le autorice)
+            #Inserci√≥n del usuario administrador (ahora no puede entrar cuando quiera, s√≥lo cuando se le autorice)
 	    echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo) values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,-1,'$mgremail');" >> $TMPDIR/config.sql
 	    
 	    
-            #InserciÛn del email del admin
+            #Inserci√≥n del email del admin
             #El primero debe ser un insert. El update no traga. --> ya hay un insert, en el script del dump, pero fallaba por no tener permisos de ALTER y se abortaba el resto del script sql.
 	    echo "update eVotDat set email='$mgremail';" >> $TMPDIR/config.sql
 	    
 	    
             #Insertamos las llaves de la urna
             # modU -> mod de la urna (B64)
-            # expU -> exp p˙blico de la urna (B64)
+            # expU -> exp p√∫blico de la urna (B64)
             # keyyU -> llave privada de la urna. (PEM)
 	    echo "update eVotDat set modU='$modU', expU='$expU', keyyU='$keyyU';" >> $TMPDIR/config.sql 
 	    
@@ -937,11 +937,11 @@ configureServers () {
             #Insertamos las llaves y el certificado autofirmado enviado a eSurveySites.
             # keyyS -> llave privada del servidor de firma (PEM)
             # certS -> certificado autofirmado del servidor de firma (B64)
-            # expS  -> exponente p˙blico del cert de firma (B64)
-            # modS  -> mÛdulo del cert de firma (B64)
+            # expS  -> exponente p√∫blico del cert de firma (B64)
+            # modS  -> m√≥dulo del cert de firma (B64)
 	    echo "update eVotDat set keyyS='$keyyS', certS='$certS', expS='$expS', modS='$modS';" >> $TMPDIR/config.sql 
 	    
-            #Insertamos el token de verificaciÛn que nos ha devuelto eSurveySites
+            #Insertamos el token de verificaci√≥n que nos ha devuelto eSurveySites
 	    echo "update eVotDat set tkD='$SITESTOKEN';" >> $TMPDIR/config.sql 
 
             #echo "tkD al insertarlo: $SITESTOKEN"   >>$LOGFILE 2>>$LOGFILE
@@ -971,13 +971,13 @@ configureServers () {
 	$PSETUP updateDb
 
 	
-        #Ejecutamos la cesiÛn o denegaciÛn de privilegios al adminsitrador de la aplicaciÛn
+        #Ejecutamos la cesi√≥n o denegaci√≥n de privilegios al adminsitrador de la aplicaci√≥n
 	grantAdminPrivileges
 
     fi
 
 
-    ######### ActivaciÛn del servidor web ##########
+    ######### Activaci√≥n del servidor web ##########
     $dlg --infobox $"Configurando servidor web..." 0 0
     sleep 1
     
@@ -986,34 +986,34 @@ configureServers () {
 	if [ "$1" == 'new' ]
 	    then :
 
-            #SelecciÛn de modo de operaciÛn: SSL o Plain
+            #Selecci√≥n de modo de operaci√≥n: SSL o Plain
 	    while true;
 	      do
 	      exec 4>&1 
-	      selec=$($dlg --no-cancel  --menu $"Seleccione un modo de operaciÛn para el servidor web:" 0 80  2  \
+	      selec=$($dlg --no-cancel  --menu $"Seleccione un modo de operaci√≥n para el servidor web:" 0 80  2  \
 		  1 $"Con certificado SSL" \
-		  2 $"ConexiÛn no cifrada" \
+		  2 $"Conexi√≥n no cifrada" \
 		  2>&1 >&4)
 	      
 	      case $selec in
 		  
 		  "1" )
                     WWWMODE="ssl"
-		    wwwmodemsg=$"AÒade un nivel m·s de privacidad y autenticidad del servidor. Requiere la solicitud de un certificado digital, un proceso relativamente costoso temporal y econÛmicamente."
+		    wwwmodemsg=$"A√±ade un nivel m√°s de privacidad y autenticidad del servidor. Requiere la solicitud de un certificado digital, un proceso relativamente costoso temporal y econ√≥micamente."
 		    wwwmodename=$"Con certificado SSL"
 		  ;;
 	      	      
 		  "2" )
 		    WWWMODE="plain"
-		    wwwmodemsg=$"La informaciÛn viajar· desprotegida. El sistema podr· emplearse inmediatamente y sin coste adicional. Aunque la seguridad del voto no se ver· afectada, si se emplea autenticaciÛn local las contraseÒas viajar·n desprotegidas." 
-		    wwwmodename=$"ConexiÛn no cifrada"
+		    wwwmodemsg=$"La informaci√≥n viajar√° desprotegida. El sistema podr√° emplearse inmediatamente y sin coste adicional. Aunque la seguridad del voto no se ver√° afectada, si se emplea autenticaci√≥n local las contrase√±as viajar√°n desprotegidas." 
+		    wwwmodename=$"Conexi√≥n no cifrada"
 	          ;;
 	      
 		  * )
 		    continue
 		  ;;
               esac
-	      $dlg --yesno $"Ha elegido el modo:\n\n$wwwmodename\n\n$wwwmodemsg\n\nøContinuar?" 0 0 
+	      $dlg --yesno $"Ha elegido el modo:\n\n$wwwmodename\n\n$wwwmodemsg\n\n¬øContinuar?" 0 0 
 	      [ $? -ne 0 ] && continue	  
 	      break
 	    done
@@ -1044,7 +1044,7 @@ configureServers () {
     if [ "$DORESTORE" -ne 1 ] 
 	then
 	
-        #Si estamos instalando o por alguna razÛn no hay fichero de llave, generamos csr
+        #Si estamos instalando o por alguna raz√≥n no hay fichero de llave, generamos csr
 	genCSR=0
 	[ "$1" == 'new' ] && genCSR=1
 	[ -f $DATAPATH/webserver/server.key ] || genCSR=1
@@ -1057,20 +1057,20 @@ configureServers () {
 	    
 	    echo "Retorno de generateCSR: $ret"  >>$LOGFILE 2>>$LOGFILE
 	    
-	    [ "$ret" -ne 0 ] && systemPanic $"Error grave: no se pudo generar la peticiÛn de certificado."
+	    [ "$ret" -ne 0 ] && systemPanic $"Error grave: no se pudo generar la petici√≥n de certificado."
 	    
             #EScribimos el pkcs10 en la zona de datos de un clauer
-	    $dlg --msgbox $"Se ha generado una peticiÛn de certificado SSL para este servidor.\nPor favor, prepare un dispositivo USB para almacenarla (puede ser uno de los Clauers empleados ahora).\nEsta peticiÛn deber· ser entregada a una Autoridad de Certificacion confiable para su firma.\n\nHaga notar al encargado de este proceso que en un fichero adjunto debe proporcionarse toda la cadena de certificaciÛn." 0 0
+	    $dlg --msgbox $"Se ha generado una petici√≥n de certificado SSL para este servidor.\nPor favor, prepare un dispositivo USB para almacenarla (puede ser uno de los Clauers empleados ahora).\nEsta petici√≥n deber√° ser entregada a una Autoridad de Certificacion confiable para su firma.\n\nHaga notar al encargado de este proceso que en un fichero adjunto debe proporcionarse toda la cadena de certificaci√≥n." 0 0
 
 	    fetchCSR "new"
 	    
 	fi
     
 	
-        #Este aviso sÛlo debe salir si es ssl y new, en plain se ejecuta igual  pero de forma transpartente
+        #Este aviso s√≥lo debe salir si es ssl y new, en plain se ejecuta igual  pero de forma transpartente
 	if [ "$1" == 'new' ]
 	    then
-	    [ "$WWWMODE" != "plain" ] && $dlg --msgbox $"Vamos a generar un certificado de pruebas para poder operar el sistema durante el proceso de firma del v·lido" 0 0
+	    [ "$WWWMODE" != "plain" ] && $dlg --msgbox $"Vamos a generar un certificado de pruebas para poder operar el sistema durante el proceso de firma del v√°lido" 0 0
 	fi
 	
         #Si no hay cert (dummy o bueno), generar un dummy a partir de la csr (ya hay una llave seguro)
@@ -1104,12 +1104,12 @@ configureServers () {
 
 
 
-#Este bloque se ejecuta sÛlo una vez, antes del exec
+#Este bloque se ejecuta s√≥lo una vez, antes del exec
 if [ "$1" == "" ]
     then
 
 
-    #Ejecutamos las acciones de configuraciÛn privilegiadas.
+    #Ejecutamos las acciones de configuraci√≥n privilegiadas.
     $PSETUP   1
     
 
@@ -1123,8 +1123,8 @@ if [ "$1" == "" ]
     
  
 
-    #CrÈditos
-    $dlg --msgbox "vtUJI - Telematic voting system v.$VERSION\n\nProject Director: Manuel Mollar Villanueva\nDeveloped by aCube Software Development (acube.projects@gmail.com)\nProgrammed by Manuel Mollar Villanueva and Francisco JosÈ AragÛ MonzonÌs\n\nProject funded by:\n\nUniversitat Jaume I\nMinisterio de Industria, Turismo y Comercio\nFondo Social Europeo." 0 0
+    #Cr√©ditos
+    $dlg --msgbox "vtUJI - Telematic voting system v.$VERSION\n\nProject Director: Manuel Mollar Villanueva\nDeveloped by aCube Software Development (acube.projects@gmail.com)\nProgrammed by Manuel Mollar Villanueva and Francisco Jos√© Arag√≥ Monzon√≠s\n\nProject funded by:\n\nUniversitat Jaume I\nMinisterio de Industria, Turismo y Comercio\nFondo Social Europeo." 0 0
     
     
     #Mostrar selector de idioma
@@ -1133,14 +1133,14 @@ if [ "$1" == "" ]
     while [ "$lan" == "" ]
       do
       lan=$($dlg --no-cancel  --menu "Select Language:" 0 40  3  \
-	  "es" "EspaÒol" \
-	  "ca" "Catal·" \
+	  "es" "Espa√±ol" \
+	  "ca" "Catal√†" \
 	  "en" "English" \
 	  2>&1 >&4)
     done
     
-    # Si LANG es C o POSIX, se impone, pero si lo dejas vacÌo o pones una
-    # cadena inv·lida, igual falla. hay que poner una cadena v·lida
+    # Si LANG es C o POSIX, se impone, pero si lo dejas vac√≠o o pones una
+    # cadena inv√°lida, igual falla. hay que poner una cadena v√°lida
     # cualquiera p. ej. es_ES.UTF-8, de las que salen en locale -a    
     
     export LANGUAGE="$lan"
@@ -1167,7 +1167,7 @@ echo "selected language: $LANGUAGE"  >>$LOGFILE 2>>$LOGFILE
 
 
 
-#Selector de timezones por defecto (una pequeÒa comodidad para el usuario)  #//// ROOT
+#Selector de timezones por defecto (una peque√±a comodidad para el usuario)  #//// ROOT
 
 case "$LANGUAGE" in 
     
@@ -1189,7 +1189,7 @@ esac
 
 
 
-    #Ejecutamos las acciones de configuraciÛn privilegiadas. (fase 2)
+    #Ejecutamos las acciones de configuraci√≥n privilegiadas. (fase 2)
     $PSETUP   2
 
 
@@ -1211,7 +1211,7 @@ do
 
 
   #Insertar un primer dispositivo
-  insertClauerDev $"Inserte un dispositivo Clauer que contenga \nlos datos de configuraciÛn del sistema para iniciarlo.\n\nSi desea realizar una primera instalaciÛn\ndel sistema o formatearlo, inserte un dispositivo USB vacio o pulse formatear." $"Formatear"
+  insertClauerDev $"Inserte un dispositivo Clauer que contenga \nlos datos de configuraci√≥n del sistema para iniciarlo.\n\nSi desea realizar una primera instalaci√≥n\ndel sistema o formatearlo, inserte un dispositivo USB vacio o pulse formatear." $"Formatear"
   
 
   #$dlg --infobox "Devs detected""($NDEVS):\n$DEVS\n""Clauers detected""($NCLS):\n$CLS"  0 0
@@ -1222,21 +1222,21 @@ do
   if [ "$DEV" == "" ]
       then
       confirmSystemFormat $"Ha pulsado formatear."
-      #Si lo confirma, salta a la secciÛn de formatear sistema completo
+      #Si lo confirma, salta a la secci√≥n de formatear sistema completo
       [ $DOFORMAT -eq 1  ] &&  break
       continue; #Sino, vuelve a pedir un dev
   #Si no es clauer,preguntar y repetir o saltar
   elif [ $ISCLAUER -eq 0 ]
       then
       confirmSystemFormat $"Este dispositivo no es un Clauer."
-      #Si lo confirma, salta a la secciÛn de formatear sistema completo
+      #Si lo confirma, salta a la secci√≥n de formatear sistema completo
       [ $DOFORMAT -eq 1  ] &&  break
       continue; #Sino, vuelve a pedir un dev
   fi
   
   
   
-  #Es un Clauer. Conectar con el clauer y pedir contraseÒa
+  #Es un Clauer. Conectar con el clauer y pedir contrase√±a
   clauerConnect $DEV auth
   
   ret=$?
@@ -1244,18 +1244,18 @@ do
   #Si se cancela la insercion de pwd, preguntar.
   if [ $ret -eq 1 ] 
       then
-      confirmSystemFormat $"Ha elegido no proporcionar una contraseÒa." 
-      #Si lo confirma, salta a la secciÛn de formatear sistema completo
+      confirmSystemFormat $"Ha elegido no proporcionar una contrase√±a." 
+      #Si lo confirma, salta a la secci√≥n de formatear sistema completo
       [ $DOFORMAT -eq 1  ] &&  break
       continue; #Sino, vuelve a pedir un dev
   fi
   
   
-  $dlg --infobox $"Leyendo configuraciÛn del sistema..."  0 0
+  $dlg --infobox $"Leyendo configuraci√≥n del sistema..."  0 0
   sleep 1
   
   
-  #Se puede acceder al Clauer. Leemos la configuraciÛn.  
+  #Se puede acceder al Clauer. Leemos la configuraci√≥n.  
   ESVYCFG=''
  
   
@@ -1263,40 +1263,40 @@ do
   #Si falla, pedimos otro clauer
   if [ $? -ne 0 ] 
       then
-      confirmSystemFormat $"No se han podido leer los datos de configuraciÛn de este Clauer." 
-      #Si lo confirma, salta a la secciÛn de formatear sistema completo
+      confirmSystemFormat $"No se han podido leer los datos de configuraci√≥n de este Clauer." 
+      #Si lo confirma, salta a la secci√≥n de formatear sistema completo
       [ $DOFORMAT -eq 1  ] &&  break
       continue; #Sino, vuelve a pedir un dev
   fi
   
 
  
-  #Verificamos que la ˙ltima config leÌda tiene una estructura aceptable.
+  #Verificamos que la √∫ltima config le√≠da tiene una estructura aceptable.
   $PVOPS clops parseConfig  >>$LOGFILE 2>>$LOGFILE
   if [ $? -ne 0 ]
       then
       #si la config no era adecuada, proponer format
-      confirmSystemFormat $"La informaciÛn de configuraciÛn leida estaba corrupta o manipulada." 
-      #Si lo confirma, salta a la secciÛn de formatear sistema completo
+      confirmSystemFormat $"La informaci√≥n de configuraci√≥n leida estaba corrupta o manipulada." 
+      #Si lo confirma, salta a la secci√≥n de formatear sistema completo
       [ $DOFORMAT -eq 1  ] &&  break
       continue; #Sino, vuelve a pedir un dev
   fi
 
   
   
-  ###### Elegir AcciÛn a llevar a cabo ######
-  #En el modo reset o restore (no en el new), antes de reconstruir la llave, pedimos que se indique la acciÛn a realizar. AsÌ ning˙n atacante podr· acceder al men˙ de acciones despuÈs de que la clave se haya reconstruÌdo.
-  #Si la acciÛn es restaurar un backup, se pondr· en modo doformat y tb se alzar· el flag dorestore
+  ###### Elegir Acci√≥n a llevar a cabo ######
+  #En el modo reset o restore (no en el new), antes de reconstruir la llave, pedimos que se indique la acci√≥n a realizar. As√≠ ning√∫n atacante podr√° acceder al men√∫ de acciones despu√©s de que la clave se haya reconstru√≠do.
+  #Si la acci√≥n es restaurar un backup, se pondr√° en modo doformat y tb se alzar√° el flag dorestore
   DORESTORE=0
   choosemaintenanceAction
   
   break;
 done  #1
 
-  #Si ha elegido formatear, le damos una ˙ltima oportunidad de echarse atr·s
+  #Si ha elegido formatear, le damos una √∫ltima oportunidad de echarse atr√°s
   if [ "$DOFORMAT" -eq 1 -a "$DORESTORE" -eq 0 ]
       then
-      $dlg --no-label $"Inicio"  --yes-label $"Formatear sistema" --yesno  $"Ha elegido FORMATEAR el sistema.\nEs muy importante que comprenda que, en caso de continuar, \nsi habÌa una instalaciÛn previa del sistema de voto ser· totalmente destruida.\n\nøEst· seguro de que desea continuar, o desea volver al inicio?" 0 0
+      $dlg --no-label $"Inicio"  --yes-label $"Formatear sistema" --yesno  $"Ha elegido FORMATEAR el sistema.\nEs muy importante que comprenda que, en caso de continuar, \nsi hab√≠a una instalaci√≥n previa del sistema de voto ser√° totalmente destruida.\n\n¬øEst√° seguro de que desea continuar, o desea volver al inicio?" 0 0
       button=$?
       #Desea insertar otro disp.
       [ $button -eq 1 ] && continue
@@ -1315,23 +1315,23 @@ done #0
 ###### Sistema ya creado #####
 	
 	
-# Es clauer y sÌ hay configuraciÛn previa. Se piden m·s clauers para iniciar el sistema.
+# Es clauer y s√≠ hay configuraci√≥n previa. Se piden m√°s clauers para iniciar el sistema.
 if [ "$DOFORMAT" -eq 0 ] 
     then 
     
-    #Si el sistema se est· reiniciando, por defecto invalida los privilegios de admin
+    #Si el sistema se est√° reiniciando, por defecto invalida los privilegios de admin
     SETAPPADMINPRIVILEGES=0
 
     #Leemos la pieza de la clave del primer clauer (del que acabamos de sacar la config)
     clauerFetch $DEV k 
     
-    detectClauerextraction $DEV $"Clauer leido con Èxito. RetÌrelo y pulse INTRO."
-    #Insertar un segundo dispositivo (jam·s se podr· cargar el sistema con uno solo)
+    detectClauerextraction $DEV $"Clauer leido con √©xito. Ret√≠relo y pulse INTRO."
+    #Insertar un segundo dispositivo (jam√°s se podr√° cargar el sistema con uno solo)
     
     
     
-    #Preguntar si quedan m·s dispositivos (a priori no sabemos el n˙mero de clauers que habr· presentes, asÌ que simplificamos y dejamos que ellos decidan cu·ntos quedan). Una vez leÌdos todos, ya veremos si hay bastantes o no.
-    $dlg   --yes-label $"SÌ" --no-label $"No" --yesno  $"øQuedan m·s Clauers por leer?" 0 0  
+    #Preguntar si quedan m√°s dispositivos (a priori no sabemos el n√∫mero de clauers que habr√° presentes, as√≠ que simplificamos y dejamos que ellos decidan cu√°ntos quedan). Una vez le√≠dos todos, ya veremos si hay bastantes o no.
+    $dlg   --yes-label $"S√≠" --no-label $"No" --yesno  $"¬øQuedan m√°s Clauers por leer?" 0 0  
     ret=$?
     
     #mientras queden dispositivos
@@ -1344,7 +1344,7 @@ if [ "$DOFORMAT" -eq 0 ]
       
       if [ "$status" -eq 9 ]
 	  then
-	  $dlg --yes-label $"Reanudar" --no-label $"Finalizar"  --yesno  $"Ha cancelado la inserciÛn de un Clauer.\nøDesea finalizar la inserciÛn de dispositivos?" 0 0  
+	  $dlg --yes-label $"Reanudar" --no-label $"Finalizar"  --yesno  $"Ha cancelado la inserci√≥n de un Clauer.\n¬øDesea finalizar la inserci√≥n de dispositivos?" 0 0  
 	  
 	  #Si desea finalizar, salimos del bucle
 	  [ $? -eq 1 ] && break;
@@ -1362,30 +1362,30 @@ if [ "$DOFORMAT" -eq 0 ]
       if [ "$status" -eq 0  ] 
 	  then
 	  
-	  #Compara la ˙ltima config leÌda con la aceptada actualmente (y si hay diferencias, pregunta cu·l usar)
+	  #Compara la √∫ltima config le√≠da con la aceptada actualmente (y si hay diferencias, pregunta cu√°l usar)
 	  $PVOPS clops compareConfigs
 
       fi	  
       
-      #Preguntar si quedan m·s dispositivos
-      $dlg   --yes-label $"SÌ" --no-label $"No" --yesno  $"øQuedan m·s Clauers por leer?" 0 0  
+      #Preguntar si quedan m√°s dispositivos
+      $dlg   --yes-label $"S√≠" --no-label $"No" --yesno  $"¬øQuedan m√°s Clauers por leer?" 0 0  
       ret=$?
       
     done
     
     #echo "Todos leidos"
     
-    $dlg   --infobox $"Examinando los datos de configuraciÛn..." 0 0
+    $dlg   --infobox $"Examinando los datos de configuraci√≥n..." 0 0
 
     #Parsear la config y almacenarla
     $PVOPS clops parseConfig  >>$LOGFILE 2>>$LOGFILE
 
     if [ $? -ne 0 ]
 	then
-	systemPanic  $"Los datos de configuraciÛn est·n corruptos o manipulados."
+	systemPanic  $"Los datos de configuraci√≥n est√°n corruptos o manipulados."
     fi
     
-    #Una vez est·n todos leÌdos, la config elegida como v·lida (si habÌa incongruencias)
+    #Una vez est√°n todos le√≠dos, la config elegida como v√°lida (si hab√≠a incongruencias)
     #se almacena para su uso oficial de ahora en adelante (puede cambiarse con comandos)
     $PVOPS clops settleConfig  >>$LOGFILE 2>>$LOGFILE
     
@@ -1395,16 +1395,16 @@ if [ "$DOFORMAT" -eq 0 ]
     $PVOPS clops rebuildKey #//// probar
     stat=$? 
 
-    #Si falla la primera reconstrucciÛn, probamos todas
+    #Si falla la primera reconstrucci√≥n, probamos todas
     if [ $stat -ne 0 ] 
 	then
 
-	$dlg --msgbox $"Se ha producido un error durante la reconstrucciÛn de la llave por la presencia de fragmentos defectuosos. El sistema intentar· recuperarse." 0 0 
+	$dlg --msgbox $"Se ha producido un error durante la reconstrucci√≥n de la llave por la presencia de fragmentos defectuosos. El sistema intentar√° recuperarse." 0 0 
 
         retrieveKeywithAllCombs
 	ret=$?
 
-	#Si no se logra con ninguna combinaciÛn, p·nico y adiÛs.
+	#Si no se logra con ninguna combinaci√≥n, p√°nico y adi√≥s.
          if [ "$ret" -ne 0 ] 
 	    then
 	     systemPanic $"No se ha podido reconstruir la llave de la zona cifrada."
@@ -1414,7 +1414,7 @@ if [ "$DOFORMAT" -eq 0 ]
 
     $dlg --msgbox $"Se ha logrado reconstruir la llave. Se prosigue con la carga del sistema." 0 0 
 
-    #Saltar a  la secciÛn de config de red/cryptfs
+    #Saltar a  la secci√≥n de config de red/cryptfs
     doSystemConfiguration "reset"   
 
 
@@ -1432,7 +1432,7 @@ if [ "$DOFORMAT" -eq 0 ]
 else 
     #echo "Se formatea" 
     
-    #Cuando el sistema se estÈ instalando, y hasta que se instale el cert SSL correcto, el admin tendr· privilegios
+    #Cuando el sistema se est√© instalando, y hasta que se instale el cert SSL correcto, el admin tendr√° privilegios
     SETAPPADMINPRIVILEGES=1
     
     
@@ -1444,13 +1444,13 @@ else
 
 
     if [ "$DORESTORE" -eq 1 ] ; then
-	$dlg --msgbox $"Ha elegido restaurar una copia de seguridad del sistema. Primero se instalar· un sistema totalmente limpio. Podr· alterar los par·metros b·sicos. Emplee un conjunto de Clauers NUEVOS. Al final se le solicitar·n los clauers antiguos para proceder a restaurar los datos." 0 0
+	$dlg --msgbox $"Ha elegido restaurar una copia de seguridad del sistema. Primero se instalar√° un sistema totalmente limpio. Podr√° alterar los par√°metros b√°sicos. Emplee un conjunto de Clauers NUEVOS. Al final se le solicitar√°n los clauers antiguos para proceder a restaurar los datos." 0 0
     fi
     
     
     #BUCLE PRINCIPAL
 
-    #InicializaciÛn de los campos de los formularios.
+    #Inicializaci√≥n de los campos de los formularios.
     ipmodeArr=(null on off)  
     declare -a ipconfArr # es un array donde almacenaremos temporalmente el contenido del form de conf ip    
 
@@ -1492,7 +1492,7 @@ else
       selectSharingParams
       
 
-      $dlg --no-label $"Continuar"  --yes-label $"Modificar" --yesno  $"Ha acabado de definir los par·metros del servidor de voto. øDesea modificar los datos introducidos?" 0 0 
+      $dlg --no-label $"Continuar"  --yes-label $"Modificar" --yesno  $"Ha acabado de definir los par√°metros del servidor de voto. ¬øDesea modificar los datos introducidos?" 0 0 
       #No (1) desea alterar nada
       [ "$?" -eq "1" ] && proceed=1
       
@@ -1509,22 +1509,22 @@ else
     $dlg   --infobox $"Sincronizando hora del servidor..." 0 0
 
     
-    #Ejecutamos elementos de configuraciÛn
+    #Ejecutamos elementos de configuraci√≥n
     $PSETUP   3
     
     
     genNfragKey
     
-    #Ahora que tenemos shares y config, pedimos los Clauers de los miembros de la comisiÛn para guardar los nuevos datos. 
+    #Ahora que tenemos shares y config, pedimos los Clauers de los miembros de la comisi√≥n para guardar los nuevos datos. 
     
     #Avisamos antes de lo que va a ocurrir.
-    $dlg --msgbox $"Ahora procederemos a repartir la nueva informaciÛn del sistema en los dispositivos de la comisiÛn de custodia.\n\nLos dispositivos que se empleen NO DEBEN CONTENER NINGUNA INFORMACI”N, porque VAN A SER FORMATEADOS." 0 0
+    $dlg --msgbox $"Ahora procederemos a repartir la nueva informaci√≥n del sistema en los dispositivos de la comisi√≥n de custodia.\n\nLos dispositivos que se empleen NO DEBEN CONTENER NINGUNA INFORMACI√ìN, porque VAN A SER FORMATEADOS." 0 0
 
 
     writeClauers   
     
-    #Informar de que se han escrito todos los clauers pero a˙n no se ha configurado el sistema. 
-    $dlg --msgbox $"Se ha terminado de repartir las nuevas llave y configuraciÛn. Vamos a proceder a configurar el sistema" 0 0
+    #Informar de que se han escrito todos los clauers pero a√∫n no se ha configurado el sistema. 
+    $dlg --msgbox $"Se ha terminado de repartir las nuevas llave y configuraci√≥n. Vamos a proceder a configurar el sistema" 0 0
 
     #Como en este caso no se elige modo de mantenimiento, indicamos el que corresponde
     doSystemConfiguration "new"
@@ -1535,7 +1535,7 @@ else
 
 
     #Avisar al admin de que necesita un Clauer, y permitirle formatear uno en blanco.
-    $dlg --yes-label $"Omitir este paso" --no-label $"Formatear dispositivo"  --yesno  $"El administrador del sistema de voto necesita poseer un dispositivo Clauer propio con fines identificativos frente a la aplicaciÛn, aunque no contenga certificados. Si no posee ya uno, tiene la posibilidad de insertar ahora un dispositivo USB y formatearlo como Clauer." 0 0
+    $dlg --yes-label $"Omitir este paso" --no-label $"Formatear dispositivo"  --yesno  $"El administrador del sistema de voto necesita poseer un dispositivo Clauer propio con fines identificativos frente a la aplicaci√≥n, aunque no contenga certificados. Si no posee ya uno, tiene la posibilidad de insertar ahora un dispositivo USB y formatearlo como Clauer." 0 0
     formatClauer=$?
 
     #Desea formatear un disp.
@@ -1553,7 +1553,7 @@ else
           #Pedir pasword nuevo
 	  
           #Acceder
-	  clauerConnect $DEV "newpwd" $"Introduzca una contraseÒa nueva:"
+	  clauerConnect $DEV "newpwd" $"Introduzca una contrase√±a nueva:"
 	  ret=$?
 	  
           #Si el acceso se cancela, pedimos que se inserte otro
@@ -1579,12 +1579,12 @@ else
 	  
 	done
 	
-	detectClauerextraction $DEV $"Clauer escrito con Èxito. RetÌrelo y pulse INTRO."
+	detectClauerextraction $DEV $"Clauer escrito con √©xito. Ret√≠relo y pulse INTRO."
 	
     fi
     
 
-    $dlg --msgbox $"El sistema se ha iniciado con privilegios para el administrador. Estos se invalidar·n en cuanto realice alguna operaciÛn de mantenimiento (tal como instalar el certificado SSL del servidor)." 0 0
+    $dlg --msgbox $"El sistema se ha iniciado con privilegios para el administrador. Estos se invalidar√°n en cuanto realice alguna operaci√≥n de mantenimiento (tal como instalar el certificado SSL del servidor)." 0 0
   
     
 fi #if se formatea el sistema
@@ -1599,8 +1599,8 @@ $PSETUP 5
 $PVOPS clops resetAllSlots  #//// probar que ya limpie y pueda ejecutar al menos una op de mant correctamente.
 
 
-#Una vez acabado el proceso de instalaciÛn/reinicio, lanzamos el proceso de mantenimiento. 
-# El uso del exec resulta de gran importancia dado que al sustituÌr el contexto del proceso 
+#Una vez acabado el proceso de instalaci√≥n/reinicio, lanzamos el proceso de mantenimiento. 
+# El uso del exec resulta de gran importancia dado que al sustitu√≠r el contexto del proceso 
 # por el de este otro, destruye cualquier variable sensible que pudiese haber quedado en memoria.
 exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 
@@ -1608,12 +1608,12 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 
 
 
-#*-*- SEGUIR MA—ANA:
+#*-*- SEGUIR MA√ëANA:
 #*-*-Revisar y racionalizar  todas las anotaciones: borrar las obsoletas e incongruentes, las duplicadas, etc. intentar agruparlas. Los puntos que ya he probado, borrarlos, y los otros anotarlos para verificarlos cuando regenere. Revisar el TODO y las hojas de la mesa.
-#*-*-Arreglar al menos el men˙ de standby y las operaciones que se realizan antes y despuÈs de llamar a una op del bucle infinito. ha sacado dos mensajes impresos. supongo que estar·n dentro del maintenance, pero revisarlo bien cuando estÈ mejor el fichero de maintenance poner reads.
-#*-*-Creo que el recovery ya est· bien. Regenerar el Cd y probarlo (instalar, reiniciar, backup y recover)
+#*-*-Arreglar al menos el men√∫ de standby y las operaciones que se realizan antes y despu√©s de llamar a una op del bucle infinito. ha sacado dos mensajes impresos. supongo que estar√°n dentro del maintenance, pero revisarlo bien cuando est√© mejor el fichero de maintenance poner reads.
+#*-*-Creo que el recovery ya est√° bien. Regenerar el Cd y probarlo (instalar, reiniciar, backup y recover)
 #*-*- Luego ponerme ya con las ops en concreto.
-#*-*- Revisar el script de instalaciÛn y hacer los cambios de seguridad (permisos extendidos, etc.)
+#*-*- Revisar el script de instalaci√≥n y hacer los cambios de seguridad (permisos extendidos, etc.)
 
 
 
@@ -1621,7 +1621,7 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 
 
 
-#//// Ver las PVOPS en  configureServers (y el resto), porque habr· alguna que podr· ser pasada a PSETUP
+#//// Ver las PVOPS en  configureServers (y el resto), porque habr√° alguna que podr√° ser pasada a PSETUP
 
 
 

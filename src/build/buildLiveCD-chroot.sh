@@ -378,21 +378,25 @@ sed -i -re "s|(vtuji\s+ALL=.*)$|\1,/usr/local/bin/launch-debug-console.sh|g" /et
 # TODO check that on no-debug, these blocks have dissapeared
 
 #Create the wizard setup bootstrapper script (will launch some debug options and then the proper wizard script)
-echo "echo 'Launching wizard'"  > $BINDIR/wizard-bootstrap.sh
+cat > $BINDIR/wizard-bootstrap.sh <<EOF
+echo 'Launching wizard'
 #<DEBUG>
-echo "sudo /usr/local/bin/launch-debug-console.sh" >> $BINDIR/wizard-bootstrap.sh
+sudo /usr/local/bin/launch-debug-console.sh
 #<DEBUG>
-#echo "exec /usr/local/bin/wizard-setup.sh"  >> $BINDIR/wizard-bootstrap.sh
-echo "echo 'TERMINAL: '\$TERM"  >> $BINDIR/wizard-bootstrap.sh
-echo "TERM=linux"  >> $BINDIR/wizard-bootstrap.sh
-echo "export \$TERM"  >> $BINDIR/wizard-bootstrap.sh
-echo "echo 'TERMINAL NOW: '\$TERM"  >> $BINDIR/wizard-bootstrap.sh
-echo "locale" >> $BINDIR/wizard-bootstrap.sh
-echo "read"  >> $BINDIR/wizard-bootstrap.sh
-echo "exec /usr/local/bin/wizard-setup.sh"  >> $BINDIR/wizard-bootstrap.sh
-#echo "/bin/bash"  >> $BINDIR/wizard-bootstrap.sh
+#exec /usr/local/bin/wizard-setup.sh
+echo 'TERMINAL: '$TERM
+TERM=linux
+export $TERM
+echo 'TERMINAL NOW: '$TERM
+locale
+read
+
+exec /usr/local/bin/wizard-setup.sh
+#/bin/bash
+EOF
 chmod 755       $BINDIR/wizard-bootstrap.sh
 
+#TODO corregir este script
 
 #TERM variable is needed by curses to determine terminal parameters. During systemd boot, it is set here:
 #
@@ -419,6 +423,7 @@ cat > /etc/rc.local  <<EOF
 #LANG=C.UTF-8
 export LANG=es_ES.UTF-8
 export LANGUAGE=es_ES.UTF-8
+loadkeys es
 
 #Autologin non-privileged user, launched shell will be the manager script
 exec /bin/login -f vtuji </dev/tty7 >/dev/tty7 2>&1
