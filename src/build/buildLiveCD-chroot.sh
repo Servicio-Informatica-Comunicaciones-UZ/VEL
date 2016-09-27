@@ -234,7 +234,6 @@ cp -fv /root/src/webapp/tools/markVariables.py   /var/www/tmp/
 
 #Build locales
 ctell "***** Generating locales"
-read
 #These seem not to work (deprecated?)
 localedef -f UTF-8 -i es_ES es_ES.UTF-8
 localedef -f UTF-8 -i en_US en_US.UTF-8
@@ -267,12 +266,11 @@ EOF
 localectl set-locale LANG="C.UTF-8"
 
 
-echo "Press RETURN to continue..."
-read
+#echo "Press RETURN to continue..." && read
 
 
 
-
+# TODO automatise user info provision
 
 
 
@@ -366,16 +364,25 @@ adduser --shell $BINDIR/wizard-bootstrap.sh --disabled-password --disabled-login
 rm $BINDIR/launch-debug-console.sh
 #<DEBUG>
 #Setup debug console script
-echo "/bin/bash -i </dev/tty2 >/dev/tty2 2>&1 &"  >> $BINDIR/launch-debug-console.sh
-echo "/bin/bash -i </dev/tty3 >/dev/tty3 2>&1 &"  >> $BINDIR/launch-debug-console.sh
-echo "/bin/bash -i </dev/tty4 >/dev/tty4 2>&1 &"  >> $BINDIR/launch-debug-console.sh
-####echo "/sbin/getty -a root tty5 9600 linux &"  >> $BINDIR/launch-debug-console.sh
+cat > $BINDIR/launch-debug-console.sh <<EOF
+
+TERM=linux
+export $TERM
+/bin/bash -i </dev/tty2 >/dev/tty2 2>&1 &
+/bin/bash -i </dev/tty3 >/dev/tty3 2>&1 &
+/bin/bash -i </dev/tty4 >/dev/tty4 2>&1 &
+
+#/sbin/getty -a root tty5 9600 linux &
+
+EOF
 chmod 550       $BINDIR/launch-debug-console.sh
 chown root:root $BINDIR/launch-debug-console.sh
+
 #Authorise sudo on debug console script (we alter the sudoers file every time as it is previously overwritten on every build)
 sed -i -re "s|(vtuji\s+ALL=.*)$|\1,/usr/local/bin/launch-debug-console.sh|g" /etc/sudoers
-#</DEBUG>
 # TODO check that on no-debug, these blocks have dissapeared
+#</DEBUG>
+
 
 #Create the wizard setup bootstrapper script (will launch some debug options and then the proper wizard script)
 cat > $BINDIR/wizard-bootstrap.sh <<EOF
@@ -383,20 +390,14 @@ echo 'Launching wizard'
 #<DEBUG>
 sudo /usr/local/bin/launch-debug-console.sh
 #<DEBUG>
-#exec /usr/local/bin/wizard-setup.sh
-echo 'TERMINAL: '$TERM
+
 TERM=linux
 export $TERM
-echo 'TERMINAL NOW: '$TERM
-locale
-read
 
 exec /usr/local/bin/wizard-setup.sh
-#/bin/bash
 EOF
 chmod 755       $BINDIR/wizard-bootstrap.sh
 
-#TODO corregir este script
 
 #TERM variable is needed by curses to determine terminal parameters. During systemd boot, it is set here:
 #
@@ -459,7 +460,7 @@ echo -e "------\nNo one can login to this system\n------" > /etc/nologin
 echo "" > /etc/securetty
 
 #Delete list of valid login shells. Doesn't affect login -f and provides more potential security
-#echo "" > /etc/shells  # TODO funciona?
+echo "" > /etc/shells  # TODO lon he descomentado. Si no funciona, comentar de nuevo. Parece que va. Quitar este TODO cuando pase un tiempo prudencial
 
 #Lock unprivileged and root user passwords to disable login (set pwd to !)
 sed -i -re "s/^(root:)[^:]*(:.+)$/\1\!\2/g" /etc/shadow

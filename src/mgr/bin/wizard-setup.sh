@@ -1,10 +1,5 @@
 #!/bin/bash
 
-echo 'TERMINAL isnide w-s 1: '$TERM
-
-export TERM=linux
-
-
 
 ##############
 #  Includes  #
@@ -14,14 +9,17 @@ export TERM=linux
 
 . /usr/local/bin/wizard-common.sh
 
-echo 'TERMINAL isnide w-s 2: '$TERM
-locale
-read
+#Terminal is being set to dumb, although we change it on the
+#bootstrapper. We need to set it here as well to allow for curses to
+#work
+export TERM=linux
+
 
 
 ###############
 #  Constants  #
 ###############
+
 
 
 #Determines if an action on the idle menu doesn't need authorization by key reuilding  
