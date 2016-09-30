@@ -1,10 +1,9 @@
 #!/bin/bash
 
 
-
-#////Quitar cuando probado.
-#Para debuguear: Cada vez que un comando no devuelva 0, se para e imprime el prompt por stderr
-#trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" ERR
+#TODO disable when stable enough
+# Debugging tool: Every time a command return value is non-zero, it will stop and show the prompt on stderr
+trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" ERR
 
 
 
@@ -19,23 +18,22 @@
 #Dialog options for all windows
 DLGCNF="--shadow --cr-wrap --aspect 60 --insecure"
 
-
-  
+#Wizard log file
 LOGFILE=/tmp/wizardLog
 
-
+#Unpriileged user space temp directory for operations
 TMPDIR=/home/vtuji/eLectionOperations
 
 
-
-#Tamaño estimado del sistema de ficheros una vez descomprimido en RAM
-ESTIMATEDCDFSSIZE=760
-
+#Approximate size of FS once it is loaded to RAM
+ESTIMATEDCDFSSIZE=760 # TODO recalculate
 
 
+#Source of random input
 RANDFILE=/dev/random
-RANDFILE=/dev/urandom  #!!!!
-
+#<DEBUG>
+RANDFILE=/dev/urandom
+#</DEBUG>
 
 
 MOUNTPATH="/media/localpart"

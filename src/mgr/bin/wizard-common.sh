@@ -34,6 +34,19 @@ relocateLogs () {
 
 
 
+
+createUserTempDir (){
+    #If it doesn't exist, create
+    [ -e "$TMPDIR" ] || mkdir "$TMPDIR"
+    #if it's not a dir, delete and create
+    [ -d "$TMPDIR" ] || (rm "$TMPDIR" && mkdir "$TMPDIR") 
+    #If it exists, empty it
+    [ -e "$TMPDIR" ] && rm -rf "$TMPDIR"/*
+}    
+
+
+
+
 ######### Configurar acceso a datos cifrados ##########
 #1 -> 'new' or 'reset'
 #2 -> mountpath -> punto de montaje de las particiones donde está el loopback file
@@ -489,12 +502,7 @@ writeNextClauer () {
 
 writeClauers () {
   
-#    if [ $(pidof hald) ];
-#	then 
-#	pkill hald* 2>/dev/null;
-#	hald_present=1
-#    fi 
-    
+
     
     #for i in {0..23} -> no acepta sustitución de variables
     firstloop=1
@@ -507,11 +515,6 @@ writeClauers () {
       
     done
 
-
-#    if [ $hald_present -eq 1 ];
-#	then
-#	/usr/sbin/hald 2>/dev/null
-#    fi
 
 }
 

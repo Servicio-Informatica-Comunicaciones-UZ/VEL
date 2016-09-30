@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#This script contains all the setup actions that need to be executed by root. They are invoked through calls. No need for authorisation
+
 #Las operaciones de setup (en varias fases) que deben ejecutarse con privilegios de root. Cuando acabe el setup, este script no podrá ser ejecutado por el usuario no privilegiado, evitando así dejar expuestas operaciones sensibles.  #////
 
 
@@ -14,58 +16,34 @@
 
 
 
-#### SETUP #### 
 
+# TODO add a guard here to disable the execution of this script once the system is loaded
 
-
-#### Common
-
-export PATH=$PATH:/usr/local/bin
-
-
-
-
-
-
-#### Fase 1
-
-if [ "$1" == "1" ]
+#Which action is invoked
+if [ "$1" == "init1" ]
     then
+        privilegedSetupPhase1
+elif
     
-    
-    # El set -x activa el modo traza en el terminal (como 'bash -x script.sh' ), que imprime por stderr y este se volcará al tty2
-    #exec 2>/dev/tty2
-    #set -x
-       
+fi
 
-    #Init del log (vtuji puede escribir pero no leer).
+privilegedSetupPhase1 () {
+    
+    #Init log (unprivileged user can write but not read, nor copy, delete or substitute it, as /tmp has sticky bit).
     echo "vtUJI $VERSION LogFile" >  $LOGFILE
     echo "===============================" >> $LOGFILE
     chown root:root $LOGFILE
-    chmod 622 $LOGFILE  #////probar
+    chmod 622 $LOGFILE
     
     
-    #Establecemos las reglas iniciales de firewall preventivamente. Ahora se hace desde el script de networking, pero por si falla
-    setupFirewall "ssl" >>$LOGFILE 2>>$LOGFILE
+    #It is set on startup, in /etc/init.d/networking, but just in case, we call it again here
+    setupFirewall >>$LOGFILE 2>>$LOGFILE
     
     
-    
-    ### Cambios de seguridad en la config del sistema ###
-    #Quitamos al usuario no privilegiado del grupo de administradores
-    sed -i -re "s/^(admin.*:).*$/\1/g" /etc/group
-    
-    #Cambiamos el shell de las cuentas de usuario por false
-    sed -i -re "s|^(vtuji.*:).*$|\1/bin/false|g"  /etc/passwd
-    sed -i -re "s|^(ubuntu.*:).*$|\1/bin/false|g" /etc/passwd
-    sed -i -re "s|^(root.*:).*$|\1/bin/false|g"   /etc/passwd #//// La del root igual no debo tocarla si necesito lanzar un shell root de admin desde el usuario vtuji.
-        
-    
-    
-    #Configuramos los sensores del lm-sensors
+    #Configure lm-sensors sensors. Detect modules to be loaded and load them
     modsToLoad=$(echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | sensors-detect | sed -re "1, /^# Chip drivers$/ d" -e "/#----cut here----/,$ d")
     for module in $modsToLoad; do modprobe $module; done;
     
-    #modsToLoad=$(echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | sensors-detect | sed -re "s/.*Chip drivers(.*)#.*$/\1/g")
     
     
     #Configuramos el SMARTmonTools
@@ -76,18 +54,15 @@ if [ "$1" == "1" ]
     #Escribir la lista de HDDs en el fichero de config
     sed -i -re "s|(enable_smart=\").+$|\1$hdds\"|g" /etc/default/smartmontools >>$LOGFILE 2>>$LOGFILE
     
-    #Relanzar el daemon
+    #Reload SMART daemon
     /etc/init.d/smartmontools stop   >>$LOGFILE 2>>$LOGFILE
     /etc/init.d/smartmontools start  >>$LOGFILE 2>>$LOGFILE
     
     
-    #El monitor de RAID lo lanzaremos al final, porque necesito el e-mail del admin.
+    #El monitor de RAID lo lanzaremos al final, porque necesito el e-mail del admin. # TODO
 
 
     
-    #Matamos los servicios de logging # ya no
-    #   /etc/init.d/sysklogd   stop  >>$LOGFILE 2>>$LOGFILE
-
 
     #Lanzamos klogd para que indique al kernel que imprima por el terminal sólo los mensajes de máxima prioridad
     /etc/init.d/klogd      stop  >>$LOGFILE 2>>$LOGFILE
@@ -101,15 +76,11 @@ if [ "$1" == "1" ]
     
     
     
-    #/etc/init.d/open-iscsi stop
-    
-    
      
     
     #No lanzamos el portmap. Sólo es necesario en servidores nfs o samba
     #/etc/init.d/portmap start >>$LOGFILE 2>>$LOGFILE  
     
-    #Lanzamos el daemon del cliente de iscsi (ya que estúpido casper lo lanza igual, me adelanto)
     
 
 
@@ -145,18 +116,6 @@ if [ "$1" == "1" ]
     
 
 
-
-    
-    #Matamos el resto de terminales virtuales  (menos el 1, que es la consola del sistema y no deja) 
-    #Lo hago así pq si falla uno, pasa del resto, y en modo debug debe fallar en el 2, 3 y 4
-    deallocvt 2  >>$LOGFILE 2>>$LOGFILE #Este no lo mato porque si falla la carga del usplash, acaba en este vt
-    deallocvt 3  >>$LOGFILE 2>>$LOGFILE #Si tienen algo en marcha, no los mata
-    deallocvt 4  >>$LOGFILE 2>>$LOGFILE
-    deallocvt 5  >>$LOGFILE 2>>$LOGFILE
-    deallocvt 6  >>$LOGFILE 2>>$LOGFILE
-    deallocvt 7  >>$LOGFILE 2>>$LOGFILE
-    deallocvt 8  >>$LOGFILE 2>>$LOGFILE
-
     #mostramos el terminal virtual 8, si estamos en jaunty (usando usplash)
     [ -e "/etc/init.d/usplash" ] && chvt 8
 
@@ -175,17 +134,17 @@ if [ "$1" == "1" ]
 
     #Establecemos la variable que indica que estamos en setup (para que el panic saque el menú) #////si la quito del panic puedo quitar esta
     setPrivVar SYSTEMISRUNNING 0 r
-fi
+}
 
 
 
 
 
-#### Fase 2
 
-if [ "$1" == "2" ]
-    then
-        
+
+
+privilegedSetupPhase2 () {
+
     #Lo primero que hacemos siempre: Si la máquina sobre la que corremos tiene RAIDs por software, los cargamos.
     setupRAIDs
     

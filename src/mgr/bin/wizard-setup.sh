@@ -23,7 +23,7 @@ export TERM=linux
 
 
 #Determines if an action on the idle menu doesn't need authorization by key reuilding  
-BYPASSAUTHORIZATION=0 ### //// Esta variable debe desaparecer. El control de autorización  pasa por completo al prog priv.
+BYPASSAUTHORIZATION=0 ### TODO Esta variable debe desaparecer. El control de autorización  pasa por completo al prog priv.
 
 
 
@@ -33,12 +33,10 @@ BYPASSAUTHORIZATION=0 ### //// Esta variable debe desaparecer. El control de aut
 ######################
 
 
-hald_present=0
-
-#Current config file accepted as in use (in case of mismatch)
+#Current config file accepted as in use (in case of mismatch) # TODO quitar este asco de variable. Cuando elija la config, renombrar a un nombre genérico e ignorar el resto
 CURRINUSE=0
 
-#Para que el panic saque el menú  #////si lo quito del panic, puedo quitarlod e aquí
+#Para que el panic saque el menú  # TODO si lo quito del panic, puedo quitarlod e aquí
 SYSTEMISRUNNING=0
 
 SETAPPADMINPRIVILEGES=''
@@ -65,35 +63,33 @@ SETAPPADMINPRIVILEGES=''
 
 
 choosemaintenanceAction () {
-
+    
     exec 4>&1 
     selec=$($dlg --no-cancel  --menu $"Seleccione una acción a llevar a cabo:" 0 80  6  \
-	1 $"Iniciar el sistema de voto." \
-	2 $"Recuperar una instalación del sistema de voto." \
-	3 $"Lanzar un terminal de administración." \
-	4 $"Apagar el equipo." \
-	2>&1 >&4)
-    
+	                1 $"Iniciar el sistema de voto." \
+	                2 $"Recuperar una instalación del sistema de voto." \
+	                3 $"Lanzar un terminal de administración." \
+	                4 $"Apagar el equipo." \
+	                2>&1 >&4)
     
     while true; do
-    case "$selec" in
+        case "$selec" in
+	           "1" )
+	               return 0
+                ;;
+            
+	           "2" )
+	               DORESTORE=1 # TODO dónde se define para el otro caso?
+	               DOFORMAT=1  # TODO dónde se define para el otro caso?
+	               return 0
+                ;;
 	
-	"1" )
-	return 0
-        ;;
-
-	"2" )
-	DORESTORE=1
-	DOFORMAT=1
-	return 0
-        ;;
-	
-	"3" )
-	$dlg --yes-label $"Sí" --no-label $"No"  --yesno  $"ATENCIÓN:\n\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que este sea reiniciado. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. ¿Desea continuar?" 0 0
-	[ "$?" -eq 0 ] && exec $PVOPS rootShell  #//// cambiar todos los sitios en que saque un bas de root por 'exec privops rootsh'
-        exec /bin/false
-        ;;	
-	
+	           "3" )
+	               $dlg --yes-label $"Sí" --no-label $"No"  --yesno  $"ATENCIÓN:\n\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que este sea reiniciado. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. ¿Desea continuar?" 0 0
+	               [ "$?" -eq 0 ] && exec $PVOPS rootShell  #//// cambiar todos los sitios en que saque un bas de root por 'exec privops rootsh'
+                exec /bin/false
+                ;;	
+	           
 	"4" )	
         #      maxhits=2
 #      hits=0
@@ -1102,15 +1098,14 @@ configureServers () {
 
 
 
-#Este bloque se ejecuta sólo una vez, antes del exec
+#This block is executed just once (not again after invoking this script from inside this script)
 if [ "$1" == "" ]
     then
-
-
-    #Ejecutamos las acciones de configuración privilegiadas.
-    $PSETUP   1
-    
-
+        
+        ###### Launch pivileged setup phase 1 ######
+        $PSETUP   init1
+        
+        
     # //// Al final ver si lo uso para algo, o todo lo hace el root
     #Si no existe, crearlo
     [ -e "$TMPDIR" ] || mkdir "$TMPDIR"
@@ -1121,8 +1116,8 @@ if [ "$1" == "" ]
     
  
 
-    #Créditos
-    $dlg --msgbox "vtUJI - Telematic voting system v.$VERSION\n\nProject Director: Manuel Mollar Villanueva\nDeveloped by aCube Software Development (acube.projects@gmail.com)\nProgrammed by Manuel Mollar Villanueva and Francisco José Aragó Monzonís\n\nProject funded by:\n\nUniversitat Jaume I\nMinisterio de Industria, Turismo y Comercio\nFondo Social Europeo." 0 0
+    #Credits
+    $dlg --msgbox "vtUJI - Telematic voting system v.$VERSION\n\nDeveloped by: Manuel Mollar Villanueva and Francisco José Aragó Monzonís\n\nProject funded by:Universitat Jaume I." 0 0
     
     
     #Mostrar selector de idioma
@@ -1137,27 +1132,23 @@ if [ "$1" == "" ]
 	  2>&1 >&4)
     done
     
-    # Si LANG es C o POSIX, se impone, pero si lo dejas vacío o pones una
-    # cadena inválida, igual falla. hay que poner una cadena válida
-    # cualquiera p. ej. es_ES.UTF-8, de las que salen en locale -a    
+    
     
     export LANGUAGE="$lan"
     export LC_ALL=""
     export LANG="es_ES.UTF-8" 
 
-    export TEXTDOMAINDIR=/usr/share/locale
-    export TEXTDOMAIN=wizard-setup.sh  #//// ver si es factible invocar a los otros scripts con cadenas localizadas. Si no, separar las funcs y devolver valores para que las acdenas se impriman en este (y considerarlo tb por seguridad una vez funcione todo)
+    # TODO rebuild localization from scratch. For now, I'll rewrite everything only in english
+#    export TEXTDOMAINDIR=/usr/share/locale
+#    export TEXTDOMAIN=wizard-setup.sh  # TODO ver si es factible invocar a los otros scripts con cadenas localizadas. Si no, separar las funcs y devolver valores para que las acdenas se impriman en este (y considerarlo tb por seguridad una vez funcione todo)
 
-    #TODO descomentar
-#    exec  "$0" "$lan"
-
-#TODO borrar
-    exec /bin/bash
-
+    #Relaunch self with the selected language
+    exec  "$0" "$lan"
     
-fi #Fin Bloque que se ejecuta una sola vez al inicio
+    
+fi #End of the block which is executed just once on startup
 
-echo "selected language: $LANGUAGE"  >>$LOGFILE 2>>$LOGFILE
+echo "Selected language: $LANGUAGE"  >>$LOGFILE 2>>$LOGFILE
 
 
 
