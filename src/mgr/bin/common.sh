@@ -523,48 +523,30 @@ getReturn () {
 
 
 
-
+# TODO This function lists usbs that are not clauers (or maybe all usbs, I dn't care). DElete. Now only usbs are detected and if used to know if it contains a keystre or not, make another function. Sanitize all calls and delete
 #Retorno
-DEVS=''
-NDEVS=0
+#DEVS=''
+#NDEVS=0
+#
+#listDevs () { 
+#
+#    DEVS=$($PVOPS listDevs list)
+#    NDEVS=$($PVOPS listDevs count)
+#
+#}
 
-listDevs () { 
-
-    DEVS=$($PVOPS listDevs list)
-    NDEVS=$($PVOPS listDevs count)
-
-}
-
-
-
-
-
-
-#Retorno:
+#TODO change listclauers fro list usbs
+#Wrapper function for the privileged operation
+#Returns:
 CLS=''
 NCLS=0
-
-listClauers () {
-   
+listClauers () {   
     CLS=$($PVOPS listClauers list)
     NCLS=$($PVOPS listClauers count)
-
 }
 
 
 
-listUSBs  () {
-
-   USBDEVS=""
-   usbs=$(ls /proc/scsi/usb-storage/ 2>/dev/null) 
-   for f in $usbs
-      do
-      currdev=$(sginfo -l | sed -ne "s/.*=\([^ ]*\).*$f.*/\1/p")
-      USBDEVS="$USBDEVS $currdev"
-   done
-
-   echo -n "$USBDEVS"
-}
 
 
 
@@ -573,14 +555,14 @@ listUSBs  () {
 isRunning () {
     
     [ "$1" == "" ] && return 1
-
+    
     if ps aux | grep -e "$1" | grep -v "grep" >>$LOGFILE 2>>$LOGFILE 
-	then
-	#Está en marcha
-	return 0
+	   then
+	       #Running
+	       return 0
     else
-	#No está en marcha
-	return 1
+	       #Not running
+	       return 1
     fi
 }
 

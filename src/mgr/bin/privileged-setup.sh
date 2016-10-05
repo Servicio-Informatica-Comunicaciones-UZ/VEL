@@ -1,31 +1,28 @@
 #!/bin/bash
 
-#This script contains all the setup actions that need to be executed by root. They are invoked through calls. No need for authorisation
+#This script contains all the setup actions that need to be executed
+#by root. They are invoked through calls. No need for authorisation as
+#on this phase, system is being monitored by the committee. After
+#setup, these operations will be disabled.
 
-#Las operaciones de setup (en varias fases) que deben ejecutarse con privilegios de root. Cuando acabe el setup, este script no podrá ser ejecutado por el usuario no privilegiado, evitando así dejar expuestas operaciones sensibles.  #////
 
 
 #### INCLUDES ####
 
+#System firewall functions
 . /usr/local/bin/firewall.sh
 
-. /usr/local/bin/common.sh  #Common functions for privileged and unprivileged scripts.
+#Common functions for privileged and unprivileged scripts.
+. /usr/local/bin/common.sh
 
+#Common functions for privileged scripts
 . /usr/local/bin/privileged-common.sh
-
 
 
 
 
 # TODO add a guard here to disable the execution of this script once the system is loaded
 
-#Which action is invoked
-if [ "$1" == "init1" ]
-    then
-        privilegedSetupPhase1
-elif
-    
-fi
 
 privilegedSetupPhase1 () {
     
@@ -46,9 +43,9 @@ privilegedSetupPhase1 () {
     
     
     
-    #Configuramos el SMARTmonTools
+    ##### Configure SMARTmonTools #####
      
-    #Listar discos duros
+    #List hard drives
     hdds=$(listHDDs)
     
     #Escribir la lista de HDDs en el fichero de config
@@ -205,20 +202,13 @@ privilegedSetupPhase2 () {
 
     #Guardamos el estado de la copia en RAM en el fichero de variables en memoria
     setPrivVar copyOnRAM "$copyOnRAM" r   #////probar que lo escribe.
-fi
+}
 
 
 
 
-
-
-
-#### Fase 3
-
-if [ "$1" == "3" ]
-    then
+privilegedSetupPhase3 () {
     
-
     /etc/init.d/openntpd stop  >>$LOGFILE 2>>$LOGFILE
     /etc/init.d/openntpd start >>$LOGFILE 2>>$LOGFILE
     ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
@@ -242,16 +232,13 @@ if [ "$1" == "3" ]
 #	hwclock -w >>$LOGFILE 2>>$LOGFILE
 #    fi
     
-fi
+}
 
 
 
 
 
-#### Fase 4
-
-if [ "$1" == "4" ]
-    then
+privilegedSetupPhase4 () {
     
     #Actualizamos la BD de aliases.
     /usr/bin/newaliases    >>$LOGFILE 2>>$LOGFILE
@@ -282,15 +269,13 @@ if [ "$1" == "4" ]
     chmod 400 $LOCKOPSFILE
 
 
-fi
+}
 
 
 
 
-#### Fase 5
+privilegedSetupPhase5 () {
 
-if [ "$1" == "5" ]
-    then
      
 #Una vez acabado el uso de los scripts de setup, los inutilizamos
 
@@ -300,121 +285,92 @@ sed -i -re 's|(^\s*vtuji\s*ALL.*NOPASSWD:[^,]+),.*$|\1|g' /etc/sudoers  >>$LOGFI
 #Quitamos los permisos de ejec al wizard.
 chmod 550 /usr/local/bin/wizard-setup.sh
     
-fi
-
-
-
-#### Fase N
-
-#if [ "$1" == "" ]
-#    then
-
-
-
-#fi
+}
 
 
 
 
+#Gets all needed recover parameters and calls the backup download and
+#decipher procedure, then restores files and variables
+recoverSSHBackupFileOp () {
+
+        #Get backup data ciphering password (the shared hard drive cipher password)
+        getPrivVar r CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        DATABAKPWD=$(cat $slotPath/key)  #TODO review slot system
+        #Get backup file SSH location parameters
+        getPrivVar s SSHBAKUSER    
+        getPrivVar s SSHBAKSERVER
+        getPrivVar s SSHBAKPORT
 
 
-#### Operaciones específicas
+        #Temporarily save all config variables that must be preserved (as now
+        #we need to overwrite some for the restore)
+        getPrivVar d SSHBAKPASSWD
+        SSHBAKPASSWDaux=$SSHBAKPASSWD
 
 
+        #Get the ssh password for the location where we must get the backup file
+        getPrivVar s SSHBAKPASSWD
+        #Write it on the disk password file (askBackupPasswd script will search for it there).
+        setPrivVar SSHBAKPASSWD "$SSHBAKPASSWD" d
+        
+        #Recover backup
+        recoverSSHBackupFile "" "$DATABAKPWD" "$SSHBAKUSER" "$SSHBAKSERVER" "$SSHBAKPORT" "$ROOTTMP/backupRecovery"
+        ret="$?"
+        if [ "$ret" -ne 0 ] 
+        then
+            exit $ret
+        fi
 
-# Forzamos un backup           #//// probar
-if [ "$1" == "forceBackup" ]
-    then
-    
-    echo "update eVotDat set backup="$(date +%s) | mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
+        #Recover backup files. It is important to do this before
+        #writing any variables in vars.conf. This enables us to
+        #recover those that are not going to be overwritten (ssh,
+        #dbpwd and mailrelay will be written later with their new
+        #values).
+        mv -f "$ROOTTMP/backupRecovery/$DATAPATH/*"  $DATAPATH/
 
-    exit 0
-fi
-
-
-
-
-
-
-if [ "$1" == "setupNotificationMails" ]
-    then
-
-    getPrivVar d MGREMAIL
-
-    echo -e "\nroot: $MGREMAIL" >> /etc/aliases   2>>$LOGFILE    
-
-    exit 0
-fi
-
-
-if [ "$1" == "loadkeys" ]
-    then
+        #TODO Asegurarme de que al restaurar se mantienen los permisos. especialmente los extendidos.
+        
+        #Restore temporarily saved variables
+        setPrivVar SSHBAKPASSWD "$SSHBAKPASSWDaux" d 
+}
 
 
-   if [ "$2" == "es" ]
-       then
-       loadkeys es  >>$LOGFILE 2>>$LOGFILE #Cargamos el teclado español
-   fi
-
-   exit 0
-fi
-
-
-#Configura las pm-utils, para pdoer suspender el equipo
-if [ "$1" == "pmutils" ] 
-    then
-    #Reconfiguramos el pm-utils, para que se adapte a esta máquina. 
-    dpkg -i /usr/local/bin/pm-utils*  >>$LOGFILE  2>>$LOGFILE
-
-    exit 0
-fi
-
-
-
-
-
-
-
-# Estra op 
-if [ "$1" == "recoverSSHBackupFile" ]
-    then
-
-
-
-#Descarga el fichero de backup y lo descomprime en el directorio indicado
+#Downloads backup file and untars it on the specified dir
 # $2 -> Password de cifrado de los datos
 # $3 -> user
 # $4 -> ssh server
 # $5 -> port
 # $6 -> backup data destination folder path
 recoverSSHBackupFile () {
-        
+    
     export DISPLAY=none:0.0
     export SSH_ASKPASS=/usr/local/bin/askBackupPasswd.sh
-
+    
     #Añadimos las llaves del servidor SSH al known_hosts
     mkdir -p /root/.ssh/  >>$LOGFILE 2>>$LOGFILE
     ssh-keyscan -p "$5" -t rsa1,rsa,dsa "$4" > /root/.ssh/known_hosts  2>>$LOGFILE
     if [ "$?" -ne 0 ] 
-	then
-	$dlg --msgbox $"Error configurando el acceso al servidor de copia de seguridad." 0 0
-	return 1
+	   then
+	       $dlg --msgbox $"Error configurando el acceso al servidor de copia de seguridad." 0 0
+	       return 1
     fi
     
     mkdir $ROOTTMP/bak
-
+    
     scp -P "$5" "$3"@"$4":vtUJI_backup.tgz.aes "$ROOTTMP/bak/"  >>$LOGFILE 2>>$LOGFILE
     if [ "$?" -ne 0 ]
-	then
-	$dlg --msgbox $"Error conectando con el servidor de Copia de Seguridad." 0 0
-	return 1
+	   then
+	       $dlg --msgbox $"Error conectando con el servidor de Copia de Seguridad." 0 0
+	       return 1
     fi
     
     openssl enc -d  -aes-256-cfb  -pass "pass:$2" -in "$ROOTTMP/bak/vtUJI_backup.tgz.aes" -out "$ROOTTMP/bak/vtUJI_backup.tgz"
     if [ "$?" -ne 0 ] 
-	then
-	$dlg --msgbox $"Error descifrando el fichero de Copia de Seguridad: fichero corrupto o llave incorrecta." 0 0 
-	return 1
+	   then
+	       $dlg --msgbox $"Error descifrando el fichero de Copia de Seguridad: fichero corrupto o llave incorrecta." 0 0 
+	       return 1
     fi
     
     rm -rf "$6"
@@ -422,14 +378,14 @@ recoverSSHBackupFile () {
     
     tar xzf "$ROOTTMP/bak/vtUJI_backup.tgz" -C "$6"
     if [ "$?" -ne 0 ] 
-	then
-	$dlg --msgbox $"Error desempaquetando el fichero de Copia de Seguridad: fichero corrupto." 0 0 
-	return 1
+	   then
+	       $dlg --msgbox $"Error desempaquetando el fichero de Copia de Seguridad: fichero corrupto." 0 0 
+	       return 1
     fi
     
     rm -rf "$ROOTTMP/bak/vtUJI_backup.tgz.aes"
     rm -rf "$ROOTTMP/bak/vtUJI_backup.tgz"
-
+    
     rmdir $ROOTTMP/bak
     
     return 0
@@ -437,55 +393,102 @@ recoverSSHBackupFile () {
 
 
 
-
-#La contraseña de cifrado de los datos del backup
-getPrivVar r CURRENTSLOT
-slotPath=$ROOTTMP/slot$CURRENTSLOT/
-DATABAKPWD=$(cat $slotPath/key)  #//// la key del slot actual
-
-getPrivVar s SSHBAKUSER    
-getPrivVar s SSHBAKSERVER
-getPrivVar s SSHBAKPORT
+######################
+##   Main program   ##
+######################
 
 
+#Which action is invoked
+if [ "$1" == "init1" ]
+then
+    privilegedSetupPhase1
+    
+elif [ "$1" == "init2" ]
+then
+    privilegedSetupPhase2
+    
+elif [ "$1" == "init3" ]
+then
+    privilegedSetupPhase3
+    
+elif [ "$1" == "init4" ]
+then
+    privilegedSetupPhase4
+    
+elif [ "$1" == "init5" ]
+then
+    privilegedSetupPhase5
 
-#////guardar aquí las variables a restaurar (las que prevalece el valor establecido en la nueva inst y no en el fichero de bak). 
-#Guardamos la contraseña del servidor ssh de backup actual en una variable
-getPrivVar d SSHBAKPASSWD
-SSHBAKPASSWDaux=$SSHBAKPASSWD
+    
+#Shutdowns the system
+elif [ "$1" == "halt" ]
+then
+    halt
 
-
-
-
-
-#Leemos la contraseña del servidor de backup donde está el restore
-getPrivVar s SSHBAKPASSWD
-#LA escribimos en el fichero de disco, de donde el script de askBackupPasswd la leerá.
-setPrivVar SSHBAKPASSWD "$SSHBAKPASSWD" d
-
-
-
-recoverSSHBackupFile "" "$DATABAKPWD" "$SSHBAKUSER" "$SSHBAKSERVER" "$SSHBAKPORT" "$ROOTTMP/backupRecovery"
-ret="$?"
-
-if [ "$ret" -ne 0 ] 
+    
+#System logs are relocated from the RAM fs to the ciphered partition on the hard drive
+elif [ "$1" == "relocateLogs" ]
+then
+    if [ "$2" != "new" -a "$2" != "reset" ]
     then
-    exit $ret
+	       echo "relocateLogs: Bad parameter" >>$LOGFILE 2>>$LOGFILE
+	       exit 1
+    fi
+    relocateLogs "$2"
+
+    
+#Mark webapp to force a backup
+elif [ "$1" == "forceBackup" ]
+then
+    # TODO make sure this works fine and the pwd is there
+    echo "update eVotDat set backup="$(date +%s) | mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
+
+    
+#setup admin's password as the recipient for all system notification e-mails
+elif [ "$1" == "setupNotificationMails" ]
+then
+    getPrivVar d MGREMAIL
+    echo -e "\nroot: $MGREMAIL" >> /etc/aliases   2>>$LOGFILE    
+
+
+#loads a keyboard keymap
+elif [ "$1" == "loadkeys" ]
+then
+    loadkeys "$2"  >>$LOGFILE 2>>$LOGFILE
+
+#Configure pm-utils to be able to suspend the computer
+elif [ "$1" == "pmutils" ] 
+then
+    #Reinstall and reconfigure package
+    dpkg -i /usr/local/bin/pm-utils*  >>$LOGFILE  2>>$LOGFILE
+    
+
+ #Recover the system from a backup file retrieved through SSH  #  TODO test
+elif [ "$1" == "recoverSSHBackupFile" ]
+then
+    recoverSSHBackupFileOp
+    
+    
+else
+    :
 fi
-
-#Recuperamos los ficheros del bak
-# Es importante hacer esto antes de que se esciba ninguna variable en vars.conf.
-#  Esto nos permite lograr recuperar aquellas que ahora no se van a  sobreescribir (las del ssh, el dbpwd y mailrelay se escriben después con sus valores nuevos).
-mv -f "$ROOTTMP/backupRecovery/$DATAPATH/*"  $DATAPATH/
-
-#//// Asegurarme de que al restaurar se mantienen los permisos. especialmente los extendidos.
+exit 0
 
 
 
-#restauramos la contraseña del servidor de backup actual #*-*-
-setPrivVar SSHBAKPASSWD "$SSHBAKPASSWDaux" d
 
-fi
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -534,29 +537,6 @@ fi
 
 
 
-if [ "$1" == "iscsi" ]
-    then
-    
-    if [ "$2" == "restart" ]
-	then
-	
-	/etc/init.d/open-iscsi stop  >>$LOGFILE 2>>$LOGFILE 
-	/etc/init.d/open-iscsi start >>$LOGFILE 2>>$LOGFILE 
-	
-    fi
-    
- 
-    if [ "$2" == "discovery" ]
-	then
-	#3 -> iscsi server
-	#4 -> iscsi port
-	iscsiadm -m discovery  -t st -p "$3:$4" 2>>$LOGFILE
-	
-    fi
-     
-    
-    
-fi
 
 
 
@@ -565,90 +545,55 @@ fi
 
 
 
-
-
-if [ "$1" == "relocateLogs" ]
-    then
 
 # $1 -> 'new' o 'reset'
 relocateLogs () {
-
     
-    #Paramos, si están en marcha, los servicios que pueden tener ficheros abiertos.
+    #Stop all services that might be logging
     RESTARTMYSQL=0
     RESTARTAPACHE=0
 
     if isRunning mysqld
-	then
-	/etc/init.d/mysql stop >>$LOGFILE 2>>$LOGFILE 
-	RESTARTMYSQL=1
+	   then
+	       /etc/init.d/mysql stop >>$LOGFILE 2>>$LOGFILE 
+	       RESTARTMYSQL=1
     fi
     if isRunning apache2
-	then
-	/etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE 
-	RESTARTAPACHE=1
+	   then
+	       /etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE 
+	       RESTARTAPACHE=1
     fi
     
     /etc/init.d/rsyslog stop >>$LOGFILE 2>>$LOGFILE 
-
     
-   #en new, debe mover el dir /var/log a la part cifrada
+    #If new, move /var/log to the ciphered partition
     if [ "$1" == "new"  ]
-	then
-	mv /var/log $DATAPATH >>$LOGFILE 2>>$LOGFILE 
+	   then
+	       mv /var/log $DATAPATH >>$LOGFILE 2>>$LOGFILE 
     else
-	#Cuando es reset, guardamos los logs generados hasta este momento 
-	#en otra ruta temporal, por si acaso se necesita analizar 
-	#algo del proceso de inicio.
-	#rm -rf /var/log >>$LOGFILE 2>>$LOGFILE 
-	mv /var/log /var/currbootlogs >>$LOGFILE 2>>$LOGFILE 
+        #If reset, save boot process logs in a temporary dir in case
+	       #they are needed.
+	       mv /var/log /var/currbootlogs >>$LOGFILE 2>>$LOGFILE 
     fi
-    
-    #en ambos, enlazamos la ruta /var/log a la partición cifrada
+    #Substitute them with the ones on the ciphered partition
     ln -s $DATAPATH/log/ /var/log >>$LOGFILE 2>>$LOGFILE 
-    #chmod go-w /var/log
     
-    
-    #Restauramos los servicios parados, para que accedan a los nuevos ficheros de log
+    #Restore stopped services
     /etc/init.d/rsyslog start >>$LOGFILE 2>>$LOGFILE 
     
     if [ "$RESTARTMYSQL" -eq "1" ]
-	then
-	/etc/init.d/mysql start >>$LOGFILE 2>>$LOGFILE
+	   then
+	       /etc/init.d/mysql start >>$LOGFILE 2>>$LOGFILE
     fi
     if [ "$RESTARTAPACHE" -eq "1" ]
-	then
-	/etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE 
+	   then
+	       /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE 
     fi
-
 }
 
 
 
 
-
-if [ "$2" != "new" -a "$2" != "reset" ]
-    then
-	echo "relocateLogs: Bad parameter" >>$LOGFILE 2>>$LOGFILE
-	exit 1
-fi
-
-
-
-relocateLogs "$2"
-
-
-fi
-
-
-
-
-
-
-if [ "$1" == "halt" ]
-    then
-    halt
-fi
 
 
 
@@ -697,26 +642,3 @@ fi
 
 
 # //// en la func de montar la part cifrada, establecer los permisos para todos los directorios y ficheros. Así me aseguro de que estén bien.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#### UTILS ####
-
-
-
-#Para limitar el tiempo de ejecución.
-#function lanza () { (eval "$1" & p=$! ; (sleep $2; kill $p 2>/dev/null) & wait $p) ; }
-
-

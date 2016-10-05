@@ -104,7 +104,7 @@ if [ $UPDATEPACKAGES -eq "1" ]
         
         #Commented. May be the source of issues for the terminal not showing utf characters # TODO
         
-                
+        
         apt-get -f install -y --force-yes ${PCKGS}
         
         

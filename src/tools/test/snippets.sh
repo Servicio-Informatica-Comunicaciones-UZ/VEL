@@ -7,3 +7,8 @@ set -x
 
 # Debugging tool: Every time a command return value is non-zero, it will stop and show the prompt on stderr
 trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" ERR
+
+
+
+#To limit execution time
+function launch () { (eval "$1" & p=$! ; (sleep $2; kill $p 2>/dev/null) & wait $p) ; }

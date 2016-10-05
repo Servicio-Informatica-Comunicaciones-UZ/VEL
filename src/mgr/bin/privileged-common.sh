@@ -110,12 +110,33 @@ setPerm () {
 
 
 
-listHDDs () {
+
+# TODO all calls to this funct. now receive a list of valid mountable partitions, not devs. Change all instances.
+#Returns all partitions that can be mounted for all usb devices
+listUSBs  () {
     
-    drives=""
+    USBDEVS=""
+    local devs=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
+    for f in $devs
+    do
+        currdev=$(realpath /dev/disk/by-id/$f)
+        mount $currdev /mnt  >>$LOGFILE 2>>$LOGFILE
+        if [ "$?" -eq 0 ] ; then
+            USBDEVS="$USBDEVS $currdev"
+            umount /mnt >>$LOGFILE 2>>$LOGFILE
+        fi
+    done
     
-    usbs=''
-#$$$$1    usbs=$(listUSBs)  #La llamada a sginfo -l peta totalmente mi sistema (debian etch stable), pero por suerte no la ubuntu lucid.
+    echo -n "$USBDEVS"
+}
+
+
+#Lists all serial and parallel devices that are not usb
+listHDDs () {   
+    local drives=""
+    
+    local usbs=''
+    usbs=$(listUSBs)
 
     for n in a b c d e f g h i j k l m n o p q r s t u v w x y z 
       do

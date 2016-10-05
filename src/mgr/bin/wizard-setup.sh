@@ -1106,13 +1106,7 @@ if [ "$1" == "" ]
         $PSETUP   init1
         
         
-    # //// Al final ver si lo uso para algo, o todo lo hace el root
-    #Si no existe, crearlo
-    [ -e "$TMPDIR" ] || mkdir "$TMPDIR"
-    #Si no es fichero borrarlo y recrearlo
-    [ -d "$TMPDIR" ] || (rm "$TMPDIR" && mkdir "$TMPDIR") 
-    #Si existe, vaciarlo
-    [ -e "$TMPDIR" ] && rm -rf "$TMPDIR"/*
+        createUserTempDir
     
  
 
