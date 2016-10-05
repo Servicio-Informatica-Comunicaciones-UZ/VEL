@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# Methods and global variables common to all management scripts go here
 
 #TODO disable when stable enough
 # Debugging tool: Every time a command return value is non-zero, it will stop and show the prompt on stderr

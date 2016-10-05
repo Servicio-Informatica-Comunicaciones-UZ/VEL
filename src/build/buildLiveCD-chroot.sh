@@ -111,13 +111,6 @@ if [ $UPDATEPACKAGES -eq "1" ]
         #Copy the pm-utils package, as it needs to be reconfigured on every boot for hardware dependencies
         cp -fv /var/cache/apt/archives/pm-utils*.deb   $BINDIR/
         chmod 444 $BINDIR/pm-utils*.deb
-
- 
-# TODO pensarme si soporto nfs
-#    ctell "CHROOT: Installing conflictive custom package: nfs"
-#    (apt-get -f install -y nfs-common)    
-#    #Si falla la instalación y peta el sub-shell, hacer el reconfigure
-        #    [ "$?" -ne 0 ] && dpkg --configure -a
         
 fi
 
@@ -348,10 +341,6 @@ update-rc.d -f smbd          remove
 update-rc.d -f nmbd          remove
 update-rc.d -f winbind       remove
 
-# TODO decide if we support nfs
-#update-rc.d -f nfs-common    remove
-#update-rc.d -f rpcbind       remove
-
 
 #Create non-privileged user (UID 1000)
 #adduser [options] [--home DIR] [--shell SHELL] [--no-create-home] [--uid ID] [--firstuid ID] [--lastuid ID] [--ingroup GROUP | --gid ID] [--disabled-password] [--disabled-login] [--gecos GECOS] [--add_extra_groups] user
@@ -468,9 +457,6 @@ sed -i -re "s/^(vtuji:)[^:]*(:.+)$/\1\!\2/g" /etc/shadow
 
 
 #TODO: see things at etc/security
-
-#Disable nfs autoload  // TODO if we suport it
-#mv /etc/network/if-up.d/mountnfs /trash/mountnfs 
 
 
 

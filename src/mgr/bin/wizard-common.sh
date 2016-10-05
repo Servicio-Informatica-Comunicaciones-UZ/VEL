@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# Methods and global variables only common to all non-privileged scripts go here
 
 ###############
 #  Constants  #

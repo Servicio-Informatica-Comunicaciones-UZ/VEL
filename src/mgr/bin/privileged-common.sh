@@ -1,110 +1,91 @@
 #!/bin/bash
+# Methods and global variables only common to all privileged scripts go here
 
 
 
 
+###############
+#  Constants  #
+###############
 
-###### Constants ########
+OPSEXE=/usr/local/bin/eLectionOps  # TODO Ver si alguna operación es crítica, y hacerlo sólo root y cambiar esta var para que invoque al sudo --> Porque resulta absurdo que la func encargada de leer clauers y reconstruir claves pida la clave, claro. Si todo es legal para vtuji y este puede usarla, darle permisos de ejecución sin necesidad de que sea root.# //// Probar opsexe desde un terminal vtuji para asegurarme de que puede hacerlo todo siendo un usuario no privilegiado.  #--> Sólo accesible por el root (cambiar permisos) verificar que al final en setup no se usa o defihnir esta var en ambos sitios.
 
-
-OPSEXE=/usr/local/bin/eLectionOps  # //// Ver si alguna operación es crítica, y hacerlo sólo root y cambiar esta var para que invoque al sudo --> Porque resulta absurdo que la func encargada de leer clauers y reconstruir claves pida la clave, claro. Si todo es legal para vtuji y este puede usarla, darle permisos de ejecución sin necesidad de que sea root.# //// Probar opsexe desde un terminal vtuji para asegurarme de que puede hacerlo todo siendo un usuario no privilegiado.  #--> Sólo accesible por el root (cambiar permisos) verificar que al final en setup no se usa o defihnir esta var en ambos sitios.
-
-
+#Temp dirs for the privileged operations
 ROOTTMP="/root/"
-
 ROOTFILETMP=$ROOTTMP"/filetmp"
 ROOTSSLTMP=$ROOTTMP"/ssltmp"
 
-#Cuántos directorios para escribir fragmentos de llave hay en el sistema
+#Number of key sharing slots managed by the system.
 SHAREMAXSLOTS=2
 
 
-###### Methods ########
+
+
+#############
+#  Methods  #
+#############
 
 
 
-
-
-#1 -> Modo de acceso a la partición cifrada "$DRIVEMODE"
-#2 -> Ruta donde se monta el dev que contiene el fichero de loopback "$MOUNTPATH" (puede ser cadena vacía)
-#3 -> Nombre del mapper device donde se monta el sistema cifrado "$MAPNAME"
-#4 -> Path donde se monta la partición final "$DATAPATH"
-#5 -> Ruta al dev loop que contiene la part cifrada "$CRYPTDEV"  (puede ser cadena vacía)
-#6 -> iscsitarget   (puede ser cadena vacía)
-#7 -> iscsiserver   (puede ser cadena vacía)
-#8 -> iscsiport     (puede ser cadena vacía)
+#Umount encrypted partition in any of the supported modes
+#1 -> Partition acces mode "$DRIVEMODE"
+#2 -> [May be empty string] Path where the dev containing the loopback file is mounted "$MOUNTPATH"
+#3 -> Name of the mapper device where the encrypted fs is mounted "$MAPNAME"
+#4 -> Path where the final partition is mounted "$DATAPATH"
+#5 -> [May be empty string] Path to the loop dev containing the ciphered partition "$CRYPTDEV"
 umountCryptoPart () {
 
+    #Umount final route
+    umount  "$4"
 
-    iscsitarget=$6
-    iscsiserver=$7   
-    iscsiport=$8
-
-
-    umount  "$4"  #Desmontamos la ruta final
-    cryptsetup luksClose /dev/mapper/$3 >>$LOGFILE 2>>$LOGFILE #Desmontamos el sistema de ficheros cifrado
-
-
+    #Umount encrypted filesystem
+    cryptsetup luksClose /dev/mapper/$3 >>$LOGFILE 2>>$LOGFILE
+    
     case "$1" in
-	"local" )
-        :
-	;;
-	
-	"iscsi" )
-	iscsiadm -m node -T "$iscsitarget" -p "$iscsiserver:$iscsiport" -u  >>$LOGFILE 2>>$LOGFILE
-        ;;
-	
-	"nfs" )
-	losetup -d $5
-	umount $2   #Desmonta el directorio montado por NFS
-        ;;
-	
-	"samba" )
-	losetup -d $5
-	umount $2   #Desmonta el directorio montado por SMB
-        ;;
-	
-	"file" )
-	losetup -d $5
-	umount $2   #Desmonta la partición que contiene el fichero de loopback
-        ;;
-	
-    esac
+        #If we were using a physical drive, nothing else to be done
+	       "local" )
+            :
+	           ;;
 
-
+		      #If using a loopback file filesystem
+	       "file" )
+	           losetup -d $5
+	           umount $2   #Desmonta la partición que contiene el fichero de loopback
+            ;;
+	   esac
 }
 
 
 
-#$1 -> Ruta base
+#Recursively set a different mask for files and directories
+#$1 -> Base route
 #$2 -> Octal perms for files
 #$3 -> Octal perms for dirs
-
 setPerm () {
     local directorios="$1 "$(ls -R $1/* | grep -oEe "^.*:$" | sed -re "s/^(.*):$/\1/")
     
-    echo -e "Directorios:\n $directorios"  >>$LOGFILE 2>>$LOGFILE
+    echo -e "Directories:\n $directorios"  >>$LOGFILE 2>>$LOGFILE
 
     for direct in $directorios
-      do
-      
-      local pfiles=$(ls -p $direct | grep -oEe "^.*[^/]$")
-      local pds=$(ls -p $direct | grep -oEe "^.*[/]$")
-      
-      echo -e "=== Dir $direct files: ===\n$pfiles"  >>$LOGFILE 2>>$LOGFILE
-      echo -e "=== Dir $direct dirs : ===\n$pds"  >>$LOGFILE 2>>$LOGFILE
-      
-      for pf in $pfiles
-	do
-	echo "chmod $2 $direct/$pf"  >>$LOGFILE 2>>$LOGFILE
-	chmod $2 $direct/$pf  >>$LOGFILE 2>>$LOGFILE
-      done
-
-      for pd in $pds
-	do
-	echo "chmod $3 $direct/$pd"  >>$LOGFILE 2>>$LOGFILE
-	chmod $3 $direct/$pd  >>$LOGFILE 2>>$LOGFILE
-      done
+    do
+        
+        local pfiles=$(ls -p $direct | grep -oEe "^.*[^/]$")
+        local pds=$(ls -p $direct | grep -oEe "^.*[/]$")
+        
+        echo -e "=== Dir $direct files: ===\n$pfiles"  >>$LOGFILE 2>>$LOGFILE
+        echo -e "=== Dir $direct dirs : ===\n$pds"  >>$LOGFILE 2>>$LOGFILE
+        
+        for pf in $pfiles
+	       do
+	           echo "chmod $2 $direct/$pf"  >>$LOGFILE 2>>$LOGFILE
+	           chmod $2 $direct/$pf  >>$LOGFILE 2>>$LOGFILE
+        done
+        
+        for pd in $pds
+	       do
+	           echo "chmod $3 $direct/$pd"  >>$LOGFILE 2>>$LOGFILE
+	           chmod $3 $direct/$pd  >>$LOGFILE 2>>$LOGFILE
+        done
     done
 }
 
@@ -140,115 +121,88 @@ listHDDs () {
 
     for n in a b c d e f g h i j k l m n o p q r s t u v w x y z 
       do
-      
-      drivename=/dev/hd$n
-      
+      #All existing PATA drives are added
+      drivename=/dev/hd$n 
       [ -e $drivename ] && drives="$drives $drivename"
-      
+
+      #All existing serial drives not conneted through USB are added
       drivename=/dev/sd$n
-
       for usb in $usbs
-	do
-	#Si el drive name es un usb, pasa de él.
-	[ "$drivename" == "$usb" ]   && continue 2
+	     do
+	         #If drive among usbs, ignore
+	         [ "$drivename" == "$usb" ]   && continue 2
       done
-
-      
-      [ -e $drivename ] && drives="$drives $drivename"
-      
+      [ -e $drivename ] && drives="$drives $drivename"     
     done
-    
-    
+
     echo "$drives"
-    
 }
 
 
 
-
-
-
+#Assembles any existing RAID array if units are found
 setupRAIDs () {
     
-    mdadm --examine --scan --config=partitions >/tmp/mdadm.conf                  2>>$LOGFILE
+    #Scans for RAID volumes.
+    mdadm --examine --scan --config=partitions >/tmp/mdadm.conf  2>>$LOGFILE
     
-    ret=0
-    ret2=0
+    local ret=0
+    local ret2=0
     if [ "$(cat /tmp/mdadm.conf)" != "" ] 
-	then
-	
-        #Quito --run y pongo --no-degraded para evitar que intente cargar arrays degradados
-	mdadm --assemble --scan --no-degraded --config=/tmp/mdadm.conf --auto=yes >>$LOGFILE 2>>$LOGFILE
-	ret=$?
-	
-        #Comprobamos el estado del raid
-	mdadm --detail --scan --config=/tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
-	ret2=$?
+	   then
+	       #Changed --run by --no-degraded to avoid loading degraded arrays
+	       mdadm --assemble --scan --no-degraded --config=/tmp/mdadm.conf --auto=yes >>$LOGFILE 2>>$LOGFILE
+	       ret=$?
+	       
+        #Check RAID status
+	       mdadm --detail --scan --config=/tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
+	       ret2=$?
     fi
     
     if [ "$ret" -ne 0 -o "$ret2" -ne 0 ]
-	then
-        #Si el raid está degradado o faltan discos o se produce cualquier error
-	systemPanic $"Error: no se activaron las unidades RAID debido a errores o inconsistencias. Solucione el problema antes de continuar."
+	   then
+	       systemPanic "Error: couldn't setup RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot."
     fi
-    
-    #No lo borro. Ahora me sirve para el monitor
-    #rm /tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
-    
-    
-    #Crear un RAID (create añade un superbloque en cada disco)
-    # mdadm --create /dev/md0 --level=raid1 --raid-devices=2 /dev/hda1 /dev/hdc1
-    # Crear tabla de particiones:  $fdisk /dev/md0  c(dos compatibility off) u(units to sectors) o (new table) n (new partition) w
-
-    #Consultar estado del raid o de sus unidades en particular
-    #mdadm --detail /dev/md0
-    #mdadm --examine /dev/sda
-    #cat /proc/mdstat and instead of the string [UU] you will see [U_] if you have a degraded RAID1 array.
-
-
-    #Consultar estado de las operaciones:
-    # cat /proc/mdstat
-    
-    #Reconstruir un raid si se ha degradado:
-    # mdadm --fail /dev/md0 /dev/hdc1    #Marca el disco como malo
-    # mdadm --remove /dev/md0 /dev/hdc1  #Elimina el disco malo del array
-    #Apagar y sustituir el disco
-    # mdadm --zero-superblock /dev/hdc1  #Por si el disco nuevo viene de otro RAID, machacamos la info del superbloque
-    # mdadm --add /dev/md0 /dev/hdc1     #Añadimos el disco al array
 }
 
 
 
 
-#$1 -> variable (variable is uniquely recognized to belong to a data type)
-#$2 -> value    to set in the variable if fits the data type
-#$3 -> 0: don't set the variable value, just check if it fits. 1(default): set the variable with the value.
+#$1 -> variable: variable is uniquely recognized to belong to a data type
+#$2 -> value:    to set in the variable if fits the data type
+#$3 -> 0:           don't set the variable value, just check if it fits.
+#      1 (default): set the variable with the value.
 checkParameterOrDie () {
     
     local val=$(echo "$2" | sed -re "s/\s+//g")
-
     if [ "$val" == "" ]
-	then
-	return 0
+	   then
+	       return 0
     fi
-
+    
     if checkParameter "$1" "$val"
-	then
-	echo "param OK: $1=$2"   >>$LOGFILE 2>>$LOGFILE  #////Borrar el valor del param del echo, que no se loguee
-	if [ "$3" != "0" ]
-	    then
-	    export "$1"="$val"
-	fi
+	   then
+        echo "param OK: $1"   >>$LOGFILE 2>>$LOGFILE
+        #<DEBUG>
+	       echo "param OK: $1=$2"   >>$LOGFILE 2>>$LOGFILE
+        #</DEBUG>
+	       if [ "$3" != "0" ]
+	       then
+	           export "$1"="$val"
+	       fi
     else
-	echo "param ERR (exiting 1): $1=$2"   >>$LOGFILE 2>>$LOGFILE
-	exit 1
+        echo "param ERR (exiting 1): $1"   >>$LOGFILE 2>>$LOGFILE
+        #<DEBUG>
+	       echo "param ERR (exiting 1): $1=$2"   >>$LOGFILE 2>>$LOGFILE
+        #</DEBUG>
+	       exit 1
     fi
 }
 
 
 
 
-#//// Esta debería desaparecer, si todos los params se gestionan en root. --> poner esta func en root y cargar todas las variables con esto y punto (primero del clauer y después de vars.conf del hd y después de vars.conf del root.) Revisar todos los params y los que sea imprescindible tener en el wizard, crear servicio que los devuelva.
+#TODO Esta debería desaparecer, si todos los params se gestionan en root. --> poner esta func en root y cargar todas las variables con esto y punto (primero del clauer y después de vars.conf del hd y después de vars.conf del root.) Revisar todos los params y los que sea imprescindible tener en el wizard, crear servicio que los devuelva.
 
 
 
