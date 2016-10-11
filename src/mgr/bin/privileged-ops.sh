@@ -1157,7 +1157,7 @@ createPartitionTable () {
     
     
     sync
-    
+    # TODO revisar esta func. Ya no son clauers, ya no hace falta dos aprts. Ve ris merge con la que particiona la unidad de datos
     
     cmd="n\np\n1\n\n""$CilindroFinalDatos""\nn\np\n4\n\n\nt\n1\nc\nt\n4\n69\nw\n";
     echo -ne "$cmd" | $fdisk $dev -C $cylinders -H $H -S $S 1>/dev/null 2>>$LOGFILE
@@ -1987,8 +1987,9 @@ fetchCSR () {
 	  fi
 	  
 	  umount /media/testusb  >>$LOGFILE 2>>$LOGFILE
-	  
-	  detectClauerextraction $DEV $"Petición de certificado escrita con éxito.\nRetire el dispositivo y pulse INTRO."
+
+	  #TODO get these messages out of here or decide on how to handle i18n
+	  detectUsbExtraction $DEV $"Petición de certificado escrita con éxito.\nRetire el dispositivo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
 
 	done
 	rmdir /media/testusb  >>$LOGFILE 2>>$LOGFILE

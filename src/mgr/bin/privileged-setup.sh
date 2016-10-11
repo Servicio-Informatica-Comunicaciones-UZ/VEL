@@ -21,7 +21,13 @@
 
 
 
-# TODO add a guard here to disable the execution of this script once the system is loaded
+#Once the system is loaded, none of these operations can be called, for security reasons
+getPrivVar r SYSTEMISRUNNING
+if [ "$SYSTEMISRUNNING" != "" -a "$SYSTEMISRUNNING" -eq 1 ]
+then
+    echo "*** Attempted call to privileged setup while system is running" >> $LOGFILE
+	   exit 99
+fi
 
 
 privilegedSetupPhase1 () {
@@ -142,8 +148,8 @@ privilegedSetupPhase1 () {
 
 privilegedSetupPhase2 () {
 
-    #Lo primero que hacemos siempre: Si la máquina sobre la que corremos tiene RAIDs por software, los cargamos.
-    setupRAIDs
+    #If there are RAIDS, check them before doing anything else
+    checkRAIDs
     
     
     # Para evitar la suplantación del sistema, copiaremos todo el
@@ -246,19 +252,12 @@ privilegedSetupPhase4 () {
     
     #Creamos la Whitelist inicial de nodos de la LCN 
     bash /usr/local/bin/firewallWhitelist.sh  >>$LOGFILE 2>>$LOGFILE
-	    
-
-    #Para mayor seguridad, copiamos la config de raids al tmp del root
-    cp /tmp/mdadm.conf $ROOTTMP/mdadm.conf
-    chmod 440 $ROOTTMP/mdadm.conf
-
-	    
-    #Instalamos el monitor de RAIDs. Realiza chequeo de estado cada hora
-    echo -e "\n0 * * * * root /sbin/mdadm --monitor  --scan  --oneshot --syslog --mail=root --config=$ROOTTMP/mdadm.conf >/dev/null 2>/dev/null\n" >> /etc/crontab  
-	    
-    #Probamos el monitor de RAID (modo test)
-    mdadm --monitor  --scan  --oneshot --syslog --mail=root --config=$ROOTTMP/mdadm.conf  --test  >>$LOGFILE 2>>$LOGFILE
-
+	   	    
+    # TODO maybe, if we i18n all files, add here a warning to the root user, that he must receive an e-mail with the test for the raid # TODO we should really avoid UI from root. Move all UI to user space
+    
+    #Test the RAID arrays if any and generate a test message for the administrator
+    mdadm --monitor  --scan  --oneshot --syslog --mail=root  --test  >>$LOGFILE 2>>$LOGFILE
+    
     #Marcamos en una variable que el sistema está en marcha (para que el panic NO saque el menú)  #//// si lo saco del panic, puedo uitarlo de aquí.
     setPrivVar SYSTEMISRUNNING 1 r
 

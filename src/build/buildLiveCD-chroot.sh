@@ -40,7 +40,7 @@ cd $HOME
 
 #TODO config TLS en postfi. Do we need to secure SSL for postfix?
 
-#Tras el mgr, relanzar el apache, mysql, postfix y smartmontools (verificar), mdadm
+#Tras el mgr, relanzar el apache, mysql, postfix y smartmontools (verificar)
 
 
 ctell "Running with profile: $*"
@@ -259,14 +259,11 @@ EOF
 localectl set-locale LANG="C.UTF-8"
 
 
-#echo "Press RETURN to continue..." && read
-
-
 
 # TODO automatise user info provision
 
 
-
+# TODO review all localization system. decide if only one or all scripts are handled
 ctell "***** Installing localization for our tools *****"
 #For each available language
 langs=$(ls -p /root/src/mgr/localization/ | grep  -oEe "[^/]+/$" | sed -re "s|(.*)/$|\1|g")
@@ -326,7 +323,21 @@ sed -i -re "s/#(smartd_opts)/\1/g"  /etc/default/smartmontools
 
 
 
+ctell "****** Configure RAID management and monitoring"
 
+#Assemble only non-degraded arrays
+aux=$(cat /etc/init.d/mdadm-raid | grep no-degraded)
+if [ "$aux" == "" ] 
+then
+    sed -i -re "s/(MDADM\s+--assemble)/\1 --no-degraded/g" /etc/init.d/mdadm-raid
+fi
+#Although there is a daemonised monitor, we do our own RAID check
+#hourly and ensure it is notified by mail to the administrator.
+aux=$(cat /etc/crontab | grep mdadm)
+if [ "$aux" == "" ] 
+then
+    echo -e "\n0 * * * * root /sbin/mdadm --monitor  --scan  --oneshot --syslog --mail=root\n" >> /etc/crontab  
+fi
 
 #The necessary ones are launched from the manager after system is
 #setup and loaded, not on startup
@@ -334,8 +345,6 @@ ctell "****** Removing autoload of services"
 update-rc.d -f apache2       remove
 update-rc.d -f postfix       remove
 update-rc.d -f mysql         remove
-
-update-rc.d -f mdadm         remove
 
 update-rc.d -f smbd          remove
 update-rc.d -f nmbd          remove

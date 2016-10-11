@@ -496,7 +496,7 @@ writeNextClauer () {
       
     done
 
-    detectClauerextraction $DEV $"Clauer escrito con éxito. Retírelo y pulse INTRO."
+    detectUsbExtraction $DEV $"Clauer escrito con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
 }
 
 
@@ -2018,7 +2018,7 @@ readNextClauer () {
       #Si falla, pedimos otro clauer
       [ $? -ne 0 ] && return $ret
       
-      detectClauerextraction $DEV $"Clauer leido con éxito. Retírelo y pulse INTRO."
+      detectUsbExtraction $DEV $"Clauer leido con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
 
       return $ret
 }

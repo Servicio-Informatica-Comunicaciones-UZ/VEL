@@ -1308,7 +1308,7 @@ if [ "$DOFORMAT" -eq 0 ]
     #Leemos la pieza de la clave del primer clauer (del que acabamos de sacar la config)
     clauerFetch $DEV k 
     
-    detectClauerextraction $DEV $"Clauer leido con éxito. Retírelo y pulse INTRO."
+    detectUsbExtraction $DEV $"Clauer leido con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
     #Insertar un segundo dispositivo (jamás se podrá cargar el sistema con uno solo)
     
     
@@ -1562,7 +1562,7 @@ else
 	  
 	done
 	
-	detectClauerextraction $DEV $"Clauer escrito con éxito. Retírelo y pulse INTRO."
+	detectUsbExtraction $DEV $"Clauer escrito con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
 	
     fi
     

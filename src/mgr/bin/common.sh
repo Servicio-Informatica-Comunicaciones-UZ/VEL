@@ -538,11 +538,21 @@ getReturn () {
 #TODO change listclauers fro list usbs
 #Wrapper function for the privileged operation
 #Returns:
-CLS=''
-NCLS=0
-listClauers () {   
-    CLS=$($PVOPS listClauers list)
-    NCLS=$($PVOPS listClauers count)
+#CLS=''
+#NCLS=0
+# TODO change usage of these globals. DEspite, we return the number of devs as the return value and we print the list
+
+#Lists all connected usb drives
+#Return value: number of drives
+#Prints: list of drives
+listUSBDrives () {   
+    local devs=""
+    local ndevs=0
+    devs=$($PVOPS listUSBDrives list 2>>$LOGFILE)
+    ndevs=$($PVOPS listUSBDrives count 2>>$LOGFILE)
+    
+    echo -n "$devs"
+    return ndevs
 }
 
 
@@ -591,39 +601,21 @@ randomPassword () {
 
 
 
-
-### Hay un problema gordo: Si se extrae el clauer justo en el momento
-### en que se está ejecutando el clls, este se queda colgado
-### eternamente. (No devuelve error ni nada. símplemente no
-### termina). Por eso, en vez de implementar bucles de autodetección
-### de extracción, lo haré con diálogos bloqueantes
-
 # $1 -> el dev a vigilar
 # $2 -> el mensaje a mostrar
-detectClauerextraction (){
-
-    #echo "----Entrando en detect: 1: $1    2: $2"
-    
+# $3 -> "you didn't remove it" message
+detectUsbExtraction (){    
     sync
-    
     didnt=""
-    #Mientras el dev aparezca en la lista de clauers o la de devs, refrescarla y esperar
-    locdev=$(echo "$CLS $DEVS" | grep -o "$1")
+    
+    #While dev is on th list of usbs, refresh and wait
+    locdev=$( listUSBDrives | grep -o "$1" )
     while [ "$locdev" != "" ]
-      do
-      $dlg --msgbox "$2""\n$didnt"  0 0
-      
-      #echo "----detect 3 locdev: $locdev"
-
-      #echo "----detect 3.1"
-      listClauers 2>/dev/null
-      #echo "----detect 3.2"
-      listDevs    2>/dev/null
-      #echo "----detect 3.3"
-      locdev=$(echo "$CLS $DEVS" | grep -o "$1")
-      #echo "----detect 4 locdev: $locdev"
-
-      didnt=$"No lo ha retirado. Hágalo y pulse INTRO."
+    do
+        $dlg --msgbox "$2""\n$didnt"  0 0
+        
+        locdev=$( listUSBDrives | grep -o "$1" )
+        didnt=$3
     done
 }
 
@@ -662,7 +654,7 @@ insertClauerDev () {
     while true 
       do
       
-      listClauers 2>/dev/null
+      listUSBDrives 2>/dev/null
       listDevs    2>/dev/null
       #echo "----->3   $(($NCLS + $NDEVS)) Cl: $CLS  Devs: $DEVS"
       
@@ -670,13 +662,13 @@ insertClauerDev () {
 	do
 	#echo "----->4 "
 	$dlg --msgbox $"No lo ha insertado. Hágalo ahora y pulse INTRO."  0 0
-	listClauers 2>/dev/null
+	listUSBDrives 2>/dev/null
 	listDevs    2>/dev/null
       done
       
       #Workaround: Dado que a veces no se detecta el clauer como tal pq se ejecuta el clls en un momento crítico, volvemos a listar aquí, una vez ya ha detectado un dispositivo (que puede haber no identificado como clauer)
       sleep 1
-      listClauers 2>/dev/null
+      listUSBDrives 2>/dev/null
       listDevs    2>/dev/null
       
       if [ $(($NCLS + $NDEVS)) -eq 1 ]
@@ -702,7 +694,7 @@ insertClauerDev () {
 	  
 	  #while [ $(($NCLS + $NDEVS)) -gt 1 ]
 	  #  do
-	  #  listClauers 2>/dev/null
+	  #  listUSBDrives 2>/dev/null
 	  #  listDevs    2>/dev/null
 	  #  sleep 1
 	  #done

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Methods and global variables only common to all privileged scripts go here
 
-
+export PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 
 ###############
@@ -139,29 +139,21 @@ listHDDs () {
 }
 
 
-
-#Assembles any existing RAID array if units are found
-setupRAIDs () {
+#If any RAID array, do an online check for health
+checkRAIDs () {
     
-    #Scans for RAID volumes.
+    #Check if there are RAID volumes.
     mdadm --examine --scan --config=partitions >/tmp/mdadm.conf  2>>$LOGFILE
     
-    local ret=0
-    local ret2=0
     if [ "$(cat /tmp/mdadm.conf)" != "" ] 
 	   then
-	       #Changed --run by --no-degraded to avoid loading degraded arrays
-	       mdadm --assemble --scan --no-degraded --config=/tmp/mdadm.conf --auto=yes >>$LOGFILE 2>>$LOGFILE
-	       ret=$?
-	       
-        #Check RAID status
+	       #Check RAID status
 	       mdadm --detail --scan --config=/tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
-	       ret2=$?
-    fi
-    
-    if [ "$ret" -ne 0 -o "$ret2" -ne 0 ]
-	   then
-	       systemPanic "Error: couldn't setup RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot."
+	       local ret=$?
+        if ["$ret" -ne 0 ]
+	       then
+	           systemPanic "Error: failed RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot."
+        fi
     fi
 }
 
@@ -204,52 +196,48 @@ checkParameterOrDie () {
 
 #TODO Esta debería desaparecer, si todos los params se gestionan en root. --> poner esta func en root y cargar todas las variables con esto y punto (primero del clauer y después de vars.conf del hd y después de vars.conf del root.) Revisar todos los params y los que sea imprescindible tener en el wizard, crear servicio que los devuelva.
 
+# TODO possible security issue: create a list of all the possible variable names here and if not matching, don't set (do check before line: export $var=$val). This will prevent some unexpected global var that is not initialized to be overwritten (grep all files on setvar and join)
 
-
+#Read variables from a config file and set them as global variables
 # $1 --> file to read vars from 
 setVariablesFromFile () {
     
     [ "$1" == ""  ] && return 1
-
-    #Para cada par variable=valor
-    BAKIFS=$IFS
-    IFS=$(echo -en "\n\b")
-    exec 5<&0
-    exec 0<"$1"  #Escribe el fichero en la entrada estàndar
-    while read -r couple
-      do
-      
-      #echo "Linea: " $couple
-      
-      #Sacamos la var y el valor
-      var=$(echo "$couple" | grep -Eoe "^[^=]+");
-      val=$(echo "$couple" | grep -Eoe "=.+$" | sed "s/=//" | sed 's/^"//' | sed 's/".*$//g');
-
-
-      #Verificar el formato de cada uno de ellos con el parser del form.
-      #En la función parseInput, para el modo 'ipaddr', requiere que IFS tenga su valor original, o no verifica correctamente. Lo restauramos temporalmente.
-      IFS=$BAKIFS
-
-      checkParameter "$var" "$val"
-      chkret=$?
-      
-      if [ "$chkret" -eq 1 ] 
-	  then
-	  echo "ERROR setVariablesFromFile: bad param or value: $var = $val" >>$LOGFILE  2>>$LOGFILE
-	  systemPanic $"Uno de los parámetros está corrupto o manipulado." 
-      fi
-      
-      BAKIFS=$IFS
-      IFS=$(echo -en "\n\b")
-      
-      #Ejecutar cada instancia
-      #echo "Setting: $var=$val"
-      export $var=$val
-      
-    done
-    exec 0<&5
     
-    # restore $IFS which was used to determine what the field separators are
+    #For each variable=value tuple
+    BAKIFS=$IFS
+    IFS=$(echo -en "\n\b") # we need these field separators here (as each line is one item and there may be spaces in the values)
+    exec 5<&0    #Store stdin file descriptor
+    exec 0<"$1"  #Overwrites the stdin descriptor and sets the file as the stdin
+    while read -r couple
+    do
+        #echo "Line: " $couple
+        
+        #Get variable and value
+        var=$(echo "$couple" | grep -Eoe "^[^=]+");
+        val=$(echo "$couple" | grep -Eoe "=.+$" | sed "s/=//" | sed 's/^"//' | sed 's/".*$//g');
+        
+        #Verify each variable format with the form variable parser
+        #parseInput function in the 'ipaddr' entry, requieres IFS to have the original value, temporarily restore it.
+        IFS=$BAKIFS
+
+        checkParameter "$var" "$val"
+        chkret=$?
+        
+        if [ "$chkret" -eq 1 ] 
+	       then
+	           echo "ERROR setVariablesFromFile: bad param or value: $var = $val" >>$LOGFILE  2>>$LOGFILE
+	           systemPanic "One of the parameters is corrupt or manipulated." 
+        fi
+        
+        BAKIFS=$IFS
+        IFS=$(echo -en "\n\b")
+        
+        #Set every variable with its value as a global on the code
+        export $var=$val
+    done
+    
+    exec 0<&5 #Restore stdin to the proper descriptor
     IFS=$BAKIFS
     
     return 0
@@ -257,111 +245,31 @@ setVariablesFromFile () {
 
 
 
-# //// ++++ llamara  esta desde las ops.
+# TODO llamar a  esta desde las ops.
 
-#Establece las variables de config de la app, para las ops que las 
-# necesitan, con la precedencia adecuada por si alguna está redefinida
-# en otro fichero (redefinida quiere decir que la variable aparece y 
-# si está vacía ese es su valor, si no aparece se quedará el valor anterior)
+#Sets the app config variables, for the operations that need them,
+#with the appropiate precedence in case one is defined on several
+#sources (the variable that appears on a file, even if the value is
+#empty string, will overwrite the previous value)
 setAllConfigVariables () {
     
-    getPrivVar r CURRENTSLOT   #////probar
+    #Determine the active slot, to read the fronfig from
+    getPrivVar r CURRENTSLOT   #TODO probar
     
+    #First, config vars read from the usb stores
     setVariablesFromFile "$ROOTTMP/slot$CURRENTSLOT/config"x
     
+    #Second, vars saved on the encrypted drive
     setVariablesFromFile "$DATAPATH/root/vars.conf"
-    
+
+    #Last, vars set in 'memory' (that is, values set during this execution of the system)
     setVariablesFromFile "$ROOTTMP/vars.conf"
-    
 }
 
 
 
 
-
-#//// Esta func probablemente sea inútil, porque ahora las vars las escribiré directamente en un fichero usando una op priv. --> convertirla en una función setConfig que llame a la privop cada vez que toque.
-
-
-#Pasa las variables de configuración empleadas en este caso a una cadena separada por saltos de linea para volcarlo a un clauer
-serializeConfig () {
-    
-    cfg=''
-    
-    cfg="$cfg\nIPMODE=\"$IPMODE\""
-    
-    if [ "$IPMODE" == "user"  ] #si es 'dhcp' no hacen falta
-	then
-	cfg="$cfg\nIPADDR=\"$IPADDR\""
-	cfg="$cfg\nMASK=\"$MASK\""
-	cfg="$cfg\nGATEWAY=\"$GATEWAY\""
-	cfg="$cfg\nDNS1=\"$DNS1\""
-	cfg="$cfg\nDNS2=\"$DNS2\""
-	cfg="$cfg\nFQDN=\"$FQDN\""
-    fi
-    
-    if [ "$FQDN" != ""  ]
-	then
-	cfg="$cfg\nFQDN=\"$FQDN\""
-    fi
-    
-    cfg="$cfg\nDRIVEMODE=\"$DRIVEMODE\""
-    
-    case "$DRIVEMODE" in
-	
-	"local" )
-        cfg="$cfg\nDRIVELOCALPATH=\"$DRIVELOCALPATH\""
-	;;
-	
-    	"nfs" )
-	cfg="$cfg\nNFSSERVER=\"$NFSSERVER\""
-	cfg="$cfg\nNFSPORT=\"$NFSPORT\""
-	cfg="$cfg\nNFSPATH=\"$NFSPATH\""
-	cfg="$cfg\nNFSFILESIZE=\"$NFSFILESIZE\""
-        cfg="$cfg\nCRYPTFILENAME=\"$CRYPTFILENAME\""
-    	;;
-	
-    	"samba" )
-	cfg="$cfg\nSMBSERVER=\"$SMBSERVER\""
-	cfg="$cfg\nSMBPORT=\"$SMBPORT\""
-	cfg="$cfg\nSMBPATH=\"$SMBPATH\""
-	cfg="$cfg\nSMBUSER=\"$SMBUSER\""
-	cfg="$cfg\nSMBPWD=\"$SMBPWD\""
-	cfg="$cfg\nSMBFILESIZE=\"$SMBFILESIZE\""
-        cfg="$cfg\nCRYPTFILENAME=\"$CRYPTFILENAME\""
-    	;;
-	
-    	"iscsi" )
-	cfg="$cfg\nISCSISERVER=\"$ISCSISERVER\""
-	cfg="$cfg\nISCSIPORT=\"$ISCSIPORT\""
-	cfg="$cfg\nISCSITARGET=\"$ISCSITARGET\""
-    	;;
-	
-    	"file" )
-	cfg="$cfg\nFILEPATH=\"$FILEPATH\""
-	cfg="$cfg\nFILEFILESIZE=\"$FILEFILESIZE\""
-        cfg="$cfg\nCRYPTFILENAME=\"$CRYPTFILENAME\""
-    	;;
-	
-    esac
-
-    cfg="$cfg\nUSINGSSHBAK=\"$USINGSSHBAK\""
-    
-    if [ "$USINGSSHBAK" -eq 1 ] ; then
-	cfg="$cfg\nSSHBAKSERVER=\"$SSHBAKSERVER\""
-	cfg="$cfg\nSSHBAKPORT=\"$SSHBAKPORT\""
-	cfg="$cfg\nSSHBAKUSER=\"$SSHBAKUSER\""
-	cfg="$cfg\nSSHBAKPASSWD=\"$SSHBAKPASSWD\""
-    fi
-
-
-    cfg="$cfg\nSHARES=\"$SHARES\""
-    cfg="$cfg\nTHRESHOLD=\"$THRESHOLD\""
-
-    #echo -e "CONFIG:: $cfg"
-    #Al pasarlo a un fichero hay que hacer echo -e o no interpretará los \n
-}
-
-
+#Parse any configuration file, to ensure syntax is adequate
 parseConfigFile () {
     
     cat "$1" | grep -oEe '^[a-zA-Z][_a-zA-Z0-9]*?=("([^"$]|[\]")*?"|""|[^ "$]+)'
@@ -374,293 +282,269 @@ parseConfigFile () {
 #Sets a config variable to be shared among invocations of privilegedOps
 # $1 -> variable
 # $2 -> value
-# $3 (opcional) -> 'd' si queremos que se guarde en disco, 'r' o nada si queremos que se guarde en RAM 'c' si queremos ponerla en el fichero de config del clauer (el establecido) , 's' del slot activo
+# $3 (optional) -> Destination: 'd' disk;
+#                               'r' or nothing if we want it in volatile memory;
+#                               'c' if we want it on the usb config file;
+#                               's' in the active slot configuration
 setPrivVar () {
-
-
+    
     local file="$ROOTTMP/vars.conf"
+    
     if [ "$3" == "d" ]
-	then
-	file="$DATAPATH/root/vars.conf"
+	   then
+	       file="$DATAPATH/root/vars.conf"
     fi
+    
     if [ "$3" == "c" ]
-	then
-	file="$ROOTTMP/config"
+	   then
+	       file="$ROOTTMP/config"
     fi
-    if [ "$3" == "s" ] #*-*-
-	then
-	getPrivVar r CURRENTSLOT
-	slotPath=$ROOTTMP/slot$CURRENTSLOT/
-	file="$slotPath/config"
+    
+    if [ "$3" == "s" ]
+	   then
+	       getPrivVar r CURRENTSLOT
+	       slotPath=$ROOTTMP/slot$CURRENTSLOT/
+	       file="$slotPath/config"
     fi
-
-    echo "****setting var on file $file: '$1'='$2'" >>$LOGFILE 2>>$LOGFILE #////Borrar
-
+    echo "****setting var on file $file: '$1'" >>$LOGFILE 2>>$LOGFILE
+    #<DEBUG>
+    echo "****setting var on file $file: '$1'='$2'" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
     touch $file
     chmod 600 $file  >>$LOGFILE 2>>$LOGFILE
 
 
-    #Verificamos si la variable está definida en el fichero
+    #Check if var is defined in file
     local isvardefined=$(cat $file | grep -Ee "^$1")
-
     echo "isvardef: $1? $isvardefined" >>$LOGFILE 2>>$LOGFILE
 
-    #Si no lo está, append
+    #If not, append
     if [ "$isvardefined" == "" ] ; then
-	echo "$1=\"$2\"" >> $file
+	       echo "$1=\"$2\"" >> $file
     else
-    #Si lo está, sustitución.
-	sed -i -re "s/^$1=.*$/$1=\"$2\"/g" $file
+        #Else, substitute.
+	       sed -i -re "s/^$1=.*$/$1=\"$2\"/g" $file
     fi
-    
 }
 
 
 		
-# $1 -> 'd' si queremos leer de disco, 'r' si queremos leer de RAM, 'c' si queremos leer de la config leida del clauer y establecida, 's' del slot activo
+# $1 -> Where to read the var from 'd' disk;
+#                                  'r' or nothing if we want it from volatile memory;
+#                                  'c' if we want it from the usb config file;
+#                                  's' from the active slot's configuration
 # $2 -> var name (to be read)
 # $3 -> (optional) name of the destination variable
-#Si la var no está definida en el fichero, no cambia su valor actual (si lo tuviese).
+# if var is not found in file, the current value (if any) of the destination var is not modified.
 getPrivVar () {
 
     local file="$ROOTTMP/vars.conf"
     if [ "$1" == "d" ]
-	then
-	file="$DATAPATH/root/vars.conf"
+	   then
+	       file="$DATAPATH/root/vars.conf"
     fi
     if [ "$1" == "c" ]
-	then
-	file="$ROOTTMP/config"
+	   then
+	       file="$ROOTTMP/config"
     fi
-    if [ "$1" == "s" ] #*-*-
-	then
-	getPrivVar r CURRENTSLOT
-	slotPath=$ROOTTMP/slot$CURRENTSLOT/
-	file="$slotPath/config"
+    if [ "$1" == "s" ]
+	   then
+	       getPrivVar r CURRENTSLOT
+	       slotPath=$ROOTTMP/slot$CURRENTSLOT/
+	       file="$slotPath/config"
     fi
-
+    
     [ -f "$file" ] || return 1
-        
+    
     local destvar=$2
     [ "$3" != "" ] && destvar=$3
-
-    if (parseConfigFile $file | grep -e "^$2" >>$LOGFILE 2>>$LOGFILE)
-	then #//// El >> LOGFILE de arriba debo cambiarlo por dev/null,  por seguridad
-	:
-	else
-	echo "****variable '$2' not found in file '$file'." >>$LOGFILE 2>>$LOGFILE  #////QUITAR
-	return 1
+    
+    if (parseConfigFile $file | grep -e "^$2" >>/dev/null 2>>$LOGFILE)
+	   then
+	       :
+	   else
+        #<DEBUG>
+	       echo "****variable '$2' not found in file '$file'." >>$LOGFILE 2>>$LOGFILE
+        #</DEBUG>
+	       return 1
     fi
     
-    
     value=$(cat $file 2>>$LOGFILE  | grep -e "$2" 2>>$LOGFILE | sed -re "s/$2=\"(.*)\"\s*$/\1/g" 2>>$LOGFILE)
-    
     export $destvar=$value
-
-#////Verificar que si no existe, no pasa nada.
-
+    #TODO Verificar que si no existe, no pasa nada.
+    #<DEBUG>
     echo "****getting var from file '$file': '$2' on var '$3' = $value" >>$LOGFILE 2>>$LOGFILE  #//// QUITAR
-
+    #</DEBUG>
     return 0 
 }
 
 
 
 
-#//// Quitar toda interactividad... en todo caso que devuelva el mensaje en un buffer y un errcode alto. revisar en wizard los sitios en que se llame y si devuelve ese error, que lea el buffer y haga un syspanic con dicho mensaje --> de aquí se podría eliminar el systemisrunning
-#1-> El mensaje de panic
-#2-> 'f' -> fuerza el modo panic aunque esté activado el flag de volver al menu idle.
+# TODO Quitar toda interactividad... en todo caso que devuelva el mensaje en un buffer y un errcode alto. revisar en wizard los sitios en que se llame y si devuelve ese error, que lea el buffer y haga un syspanic con dicho mensaje --> de aquí se podría eliminar el systemisrunning
+#Handles a fatal error
+#1-> The panic message
+#2-> 'f' -> force panic mode even if thereturn-to-idle-menu flag is on.
 systemPanic () {
     
     $dlg --msgbox "$1" 0 0
-
-    getPrivVar r SYSTEMISRUNNING
-
-    #Si el sistema ya está en marcha (se estaba ejecutando alguna acción de mantenimiento), 
-    # el panic no tiene por qué apagar el equipo. A no ser que se fuerce a ello.
-    # En este caso, vuelve al menú de standby.
+    
+    getPrivVar r SYSTEMISRUNNING  # TODO see if the panic can eb called during operation. if true, remove this. see where else is this var used.
+    #If the system was already running and the caller was an
+    #administration operation, the panic won't always mean that the
+    #system must shutdown (it can go back to the idle menu). This
+    #function will return in that case, unless the force parameter is
+    #passed.
     if [ "$SYSTEMISRUNNING" -eq 1 -a "$2" != "f" ]
-	then
-	exit 1
+	   then
+	       exit 1
     fi
     
-    
-    #Destruimos variables sensibles
+    #Destroy sensitive variables
     keyyU=''
     keyyS=''
     MYSQLROOTPWD=''
-
-
+    
     exec 4>&1 
-    selec=$($dlg --no-cancel  --menu $"Elija una opción." 0 0  3  \
-	1 $"Apagar el sistema." \
-	2 $"Reiniciar el sistema." \
-	3 $"Lanzar terminal de acceso total al sistema." \
-	2>&1 >&4)
+    selec=$($dlg --no-cancel  --menu $"Select an option." 0 0  3  \
+	                1 $"Shutdown system." \
+	                2 $"Reboot system." \
+	                3 $"Launch an administration terminal." \
+	                2>&1 >&4)
     
     
     case "$selec" in
-	
-	"1" )
-        #Apagar el sistema
-        shutdownServer "h"
-	
-        ;;
+	       
+	       "1" )
+            #Shutdown
+            shutdownServer "h"
+	           ;;
 
-	"2" )
-	#Reiniciar sistema
-        shutdownServer "r"
-        ;;
-	
-	"3" )
-	$dlg --yes-label $"Sí" --no-label $"No"  --yesno  $"ATENCIÓN:\n\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que este sea reiniciado. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. ¿Desea continuar?" 0 0
-	[ "$?" -eq 0 ] && exec $PVOPS rootShell
-        ;;	
-	* )
-	echo "systemPanic: Bad selection"  >>$LOGFILE 2>>$LOGFILE
-	$dlg --msgbox "BAD SELECTION" 0 0
-	shutdownServer "h"
-	;;
-	
+	       "2" )
+	           #Reboot
+            shutdownServer "r"
+            ;;
+	       
+	       "3" )
+	           $dlg --yes-label $"Yes" --no-label $"No"  --yesno  $"WARNING: This action may allow the user access to sensitive data until it is rebooted. Make sure it is not operated without supervision from a qualified overseer. ¿Do you wish to continue?." 0 0
+	           [ "$?" -eq 0 ] && exec $PVOPS rootShell
+            ;;	
+	       * )
+	           echo "systemPanic: Bad selection"  >>$LOGFILE 2>>$LOGFILE
+	           $dlg --msgbox "BAD SELECTION" 0 0
+	           shutdownServer "h"
+	           ;;
+	       
     esac
     
     shutdownServer "h"
-        
+    
 }
 
 
 
 
-#1 -> path del fichero con el cert / los cert a probar
-#2 -> modo: 'serverCert' para verificar el certificado ssl, 'certChain' para verificar la cadena de certificación
-#3 -> path de la llave (modo serverCert)
+#1 -> Path to the file containing the cert(s) to be checked
+#2 -> mode: 'serverCert' verify a single ssl server cert (by itself and towards the priv key)
+#           'certChain' verify a number of certificates (individually, not whether they form a valid cert chain)
+#3 -> path to the private key (in serverCert mode)
 checkCertificate () {
 
     [ "$1" == "" ] && echo "checkCertificate: no param 1" >>$LOGFILE  2>>$LOGFILE  && return 11
     [ "$2" == "" ] && echo "checkCertificate: no param 2" >>$LOGFILE  2>>$LOGFILE  && return 12
     [ "$2" == "serverCert" -a "$3" == "" ] && echo "checkCertificate: no param 3 at mode serverCert" >>$LOGFILE  2>>$LOGFILE  && return 13
 
-    #Verificamos que no sea vacio
+    #Validate non-empty file
     if [ -s "$1" ] 
-	then
-	:
+	   then
+	       :
     else
-	echo "Error: el fichero esta vacio." >>$LOGFILE  2>>$LOGFILE 
-	return 14
+	       echo "Error: empty file." >>$LOGFILE  2>>$LOGFILE 
+	       return 14
     fi
-
     
-    #Para pasar un cert de der a pem
-    #openssl x509 -inform DER -outform PEM -in "$1" -out /tmp/cert.pem
-    
-    #Separamos los certificados del fichero en distintos ficheros, para probarlos todos
+    #Separate certs in different files for testing
     /usr/local/bin/separateCerts.py  "$1"
     ret=$?
-	      
+	   
     if [ "$ret" -eq 3 ] 
-	then
-	echo "Error de lectura." >>$LOGFILE  2>>$LOGFILE 
-	return 15
+	   then
+	       echo "Read error." >>$LOGFILE  2>>$LOGFILE 
+	       return 15
     fi
     if [ "$ret" -eq 5 ]  
-	then
-	echo "Error: el fichero no contiene certificados PEM." >>$LOGFILE  2>>$LOGFILE 
-	return 16
+	   then
+	       echo "Error: file contains no PEM certificates." >>$LOGFILE  2>>$LOGFILE 
+	       return 16
     fi
-    #[ "$ret" -eq 6 ]  && $dlg --msgbox $"Error: el fichero debe contener al menos el certificado y una CA." 0 0 && return 1
     if [ "$ret" -ne 0 ]  
-	then
-	echo "Error procesando el fichero de certificado." >>$LOGFILE  2>>$LOGFILE 
-	return 17
+	   then
+	       echo "Error processing cert file." >>$LOGFILE  2>>$LOGFILE 
+	       return 17
     fi
     
     certlist=$(ls "$1".[0-9]*)
     certlistlen=$(echo $certlist | wc -w)
-
-    #Si estamos procesando el fichero con el cert ssl del servidor, debe estar él solo
+    
+    #If processing a server cert file, it must be alone
     if [ "$2" == "serverCert" -a  "$certlistlen" -ne 1 ]
-	then
-	echo "El fichero sólo debe contener el certificado de servidor." >>$LOGFILE  2>>$LOGFILE 
-	return 18
+	   then
+	       echo "File should contain server cert only." >>$LOGFILE  2>>$LOGFILE 
+	       return 18
     fi
     
-    
-    #Para cada uno de ellos
+    #For each cert
     for c in $certlist
-      do
-      
-      #Verificamos que sea un certificado
-      openssl x509 -text < $c  >>$LOGFILE  2>>$LOGFILE
-      ret=$?
-      if [ "$ret" -ne 0  ] 
-	  then 
-	  echo "Error: certificado no válido." >>$LOGFILE  2>>$LOGFILE
-	  return 19
-      fi
-      
-      
-#     #Verificamos confianza con el cert
-#     validated=0
-#     for cacert in $(find /usr/share/ca-certificates/ -iname "*.crt")
-#	  do
-#	  iserror=$(openssl verify -CAfile "$cacert" -purpose sslserver "$c"|grep -ioe "error")	
-#	  #Si no ha salido una cadena de error, es que se ha verificado
-#         [ "$iserror" == ""  ] && validated=1 && break
-#     done
-#        
-#     if [ $validated -eq 0 ] 
-#	  then
-#         $dlg --msgbox $"Error: certificado firmado por una entidad no confiable." 0 0 
-#	  return 1
-#     fi
-      
-      #Si estamos procesando el fichero con el cert ssl del servidor, verificamos que coincida con la llave
-      if  [ "$2" == "serverCert" ] ; then
-          #verificar que la llave corresponde al cert: (si ambos comandos dan el mismo resultado)
-	  aa=$(openssl x509 -noout -modulus -in $c | openssl sha1)
-	  bb=$(openssl rsa  -noout -modulus -in $3 | openssl sha1)
-	  
-	  #echo -e "aa:$aa\nbb:$bb\n-----------"
-  	  #ls -l  $c
-	  #echo "------------"
-	  #ls -l $3
-	  #echo "------------"
-	  
-	  #Si coinciden, es que uno de los certs es el asociado a esta llave
-	  if [ "$aa" != "$bb" ]
-	      then
-	      echo "Error: el certificado no corresponde con la llave." >>$LOGFILE  2>>$LOGFILE
-	      return 20
-	  fi
-      fi
-      
+    do      
+        #Check it is a x509 cert
+        openssl x509 -text < $c  >>$LOGFILE  2>>$LOGFILE
+        ret=$?
+        if [ "$ret" -ne 0  ] 
+	       then 
+	           echo "Error: certificate not valid." >>$LOGFILE  2>>$LOGFILE
+	           return 19
+        fi
+        
+        #If processing a server cert file, it must match with the private key
+        if  [ "$2" == "serverCert" ] ; then
+            #Compare modulus on the cert and on the priv key
+	           aa=$(openssl x509 -noout -modulus -in $c | openssl sha1)
+	           bb=$(openssl rsa  -noout -modulus -in $3 | openssl sha1)
+            
+	           #If not matching, the cert doesn't belong to the priv key
+	           if [ "$aa" != "$bb" ]
+	           then
+	               echo "Error: no cert-key match." >>$LOGFILE  2>>$LOGFILE
+	               return 20
+	           fi
+        fi
+        
     done
     
     return 0
-}  
+}
 
 
 
 
-
+#Check purpose of a certificate (and trust if chain is supplied)
 # $1 -> Certificate to verify
-# $2 -> (optional) CA chain
+# $2 -> (optional) CA chain (to see if matching towards it)
 # RET: 0: ok  1: error
 verifyCert () {
     
     [ "$1" == "" ] && return 1
     
     if [ "$2" != "" ]
-	then
-	chain=" -untrusted $2 "
+	   then
+	       chain=" -untrusted $2 "
     fi
-    
     
     iserror=$(openssl verify -purpose sslserver -CApath /etc/ssl/certs/ $chain  "$1" 2>&1  | grep -ie "error")
     
     echo $iserror  >>$LOGFILE 2>>$LOGFILE
     
-    #Si no ha salido una cadena de error, es que se ha verificado
+    #If no error string, validated
     [ "$iserror" != ""  ] && return 1
     
     return 0
