@@ -9,6 +9,20 @@
 
 
 
+#Fatal error function. It is redefined on each script with the
+#expected behaviour, for security reasons.
+#$1 -> error message
+systemPanic () {
+
+    #Show error message to the user
+    $dlg --msgbox "$1" 0 0
+    
+    # TODO check if any privvars need to be destroyed after an operation, and add them here as well (as a failed peration may leave an unconsistent state)
+    
+    #Exit immediately the privileged operations script and return
+    #control back to the user script
+    exit 99
+}
 
 
 
@@ -370,29 +384,29 @@ if [ "$1" == "configureNetwork" ]
 
 
 configureNetwork () {
-
+    
     exec 4>&1 
     
     ######### Configurar acceso a internet ##########
     sleep 1
-
-
-    if [ "$IPMODE" == "user" ]
-	then
-	
-	killall dhclient3 dhclient  >>$LOGFILE 2>>$LOGFILE 
-	
-	
-	interfacelist=$(cat /etc/network/interfaces | grep  -Ee "^[^#]*iface" | sed -re 's/^.*iface\s+([^\t ]+).*$/\1/g')
+    
+    
+    if [ "$IPMODE" == "static" ]
+	   then
+	       
+	       killall dhclient3 dhclient  >>$LOGFILE 2>>$LOGFILE 
+	       
+	       
+	       interfacelist=$(cat /etc/network/interfaces | grep  -Ee "^[^#]*iface" | sed -re 's/^.*iface\s+([^\t ]+).*$/\1/g')
         #Cambiamos la configuración de network/interfaces para marcar todas las ifs menos lo como manual
-	for intfc in $interfacelist
-	  do
-	  
-	  if [ "$intfc" != "lo" ] ; then
-	      sed  -i -re "s/^([^#]*iface\s+$intfc\s+\w+\s+).+$/\1manual/g" /etc/network/interfaces
-	  fi
-	  
-	done
+	       for intfc in $interfacelist
+	       do
+	           
+	           if [ "$intfc" != "lo" ] ; then
+	               sed  -i -re "s/^([^#]*iface\s+$intfc\s+\w+\s+).+$/\1manual/g" /etc/network/interfaces
+	           fi
+	           
+	       done
 	
   	
         #list eth interfaces (sometimes kernel may not set fisrt if to eth0)

@@ -36,9 +36,6 @@ BYPASSAUTHORIZATION=0 ### TODO Esta variable debe desaparecer. El control de aut
 #Current config file accepted as in use (in case of mismatch) # TODO quitar este asco de variable. Cuando elija la config, renombrar a un nombre genérico e ignorar el resto
 CURRINUSE=0
 
-#Para que el panic saque el menú  # TODO si lo quito del panic, puedo quitarlod e aquí
-SYSTEMISRUNNING=0
-
 SETAPPADMINPRIVILEGES=''
 
 
@@ -47,6 +44,55 @@ SETAPPADMINPRIVILEGES=''
 #  Methods  #
 #############
 
+
+
+#Fatal error function. It is redefined on each script with the
+#expected behaviour, for security reasons.
+#$1 -> error message
+systemPanic () {
+
+    #Show error message to the user
+    $dlg --msgbox "$1" 0 0
+    
+    #Destroy sensitive variables  # TODO review if this is needed or list of vars must be updated
+    keyyU=''
+    keyyS=''
+    MYSQLROOTPWD=''
+
+    #Offer emergency administration choices
+    exec 4>&1 
+    selec=$($dlg --no-cancel  --menu $"Select an option." 0 0  3  \
+	                1 $"Shutdown system." \
+	                2 $"Reboot system." \
+	                3 $"Launch an administration terminal." \
+	                2>&1 >&4)
+    
+    case "$selec" in
+	       
+	       "1" )
+            #Shutdown
+            shutdownServer "h"
+	           ;;
+
+	       "2" )
+	           #Reboot
+            shutdownServer "r"
+            ;;
+	       
+	       "3" )
+            #Launch a root terminal (with a disclaimer for the overseers)
+	           $dlg --yes-label $"Yes" --no-label $"No"  --yesno  $"WARNING: This action may allow the user access to sensitive data until it is rebooted. Make sure it is not operated without supervision from a qualified overseer. ¿Do you wish to continue?." 0 0
+	           [ "$?" -eq 0 ] && exec $PVOPS rootShell
+            ;;	
+	       * )
+	           echo "systemPanic: Bad selection"  >>$LOGFILE 2>>$LOGFILE
+	           $dlg --msgbox "BAD SELECTION" 0 0
+	           shutdownServer "h"
+	           ;;
+	   esac
+    
+    shutdownServer "h"
+}
 
 # //// VER si estas 3 funcs las pongo en commons o las dejo aquí (dependiendo de cuántas variables necesito usar como root), y si el fichero de variables de root debe contener tb las variables del fichero de usuario.
 
@@ -262,7 +308,7 @@ sysadminParams () {
       fi
       
       
-      parseInput completename "$ADMREALNAME"
+      parseInput freetext "$ADMREALNAME"
       if [ $? -ne 0 ] 
 	  then
 	  verified=0
@@ -432,7 +478,7 @@ esurveyParamsAndRequest () {
 		  continue
 	      fi
 	      
-	      parseInput name "$SITESORGSERV"
+	      parseInput freetext "$SITESORGSERV"
 	      if [ $? -ne 0 ] 
 		  then 
 		  verified=0 
@@ -452,7 +498,7 @@ esurveyParamsAndRequest () {
 		  continue
 	      fi
 	      
-	      parseInput name "$SITESNAMEPURP"
+	      parseInput freetext "$SITESNAMEPURP"
 	      if [ $? -ne 0 ] 
 		  then
 		  verified=0
@@ -767,10 +813,8 @@ doSystemConfiguration (){
     #servicios al correo del administrador
     
     $PSETUP setupNotificationMails
-	
-    #Para que el panic NO saque el menú  #////si lo quito del panic, pueod quitarlo de aquí.
-    SYSTEMISRUNNING=1
 
+    
     #Realizamos los ajustes finales
     $PSETUP 4
         

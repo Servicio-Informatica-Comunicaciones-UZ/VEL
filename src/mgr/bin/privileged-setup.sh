@@ -3,7 +3,7 @@
 #This script contains all the setup actions that need to be executed
 #by root. They are invoked through calls. No need for authorisation as
 #on this phase, system is being monitored by the committee. After
-#setup, these operations will be disabled.
+#setup, user won't be able to call it again.
 
 
 
@@ -19,15 +19,58 @@
 . /usr/local/bin/privileged-common.sh
 
 
+# See if this function can be deleted. We would need an error message passback system to let the invoker script handle this. Leave for alter
+
+#Fatal error function. It is redefined on each script with the
+#expected behaviour, for security reasons.
+#$1 -> error message
+systemPanic () {
+
+    #Show error message to the user
+    $dlg --msgbox "$1" 0 0
+    
+    #Destroy sensitive variables  # TODO review if this is needed or list of vars must be updated
+    keyyU=''
+    keyyS=''
+    MYSQLROOTPWD=''
+
+    #Offer emergency administration choices
+    exec 4>&1 
+    selec=$($dlg --no-cancel  --menu $"Select an option." 0 0  3  \
+	                1 $"Shutdown system." \
+	                2 $"Reboot system." \
+	                3 $"Launch an administration terminal." \
+	                2>&1 >&4)
+    
+    case "$selec" in
+	       
+	       "1" )
+            #Shutdown
+            shutdownServer "h"
+	           ;;
+
+	       "2" )
+	           #Reboot
+            shutdownServer "r"
+            ;;
+	       
+	       "3" )
+            #Launch a root terminal (with a disclaimer for the overseers)
+	           $dlg --yes-label $"Yes" --no-label $"No"  --yesno  $"WARNING: This action may allow the user access to sensitive data until it is rebooted. Make sure it is not operated without supervision from a qualified overseer. ¿Do you wish to continue?." 0 0
+	           [ "$?" -eq 0 ] && exec $PVOPS rootShell
+            ;;	
+	       * )
+	           echo "systemPanic: Bad selection"  >>$LOGFILE 2>>$LOGFILE
+	           $dlg --msgbox "BAD SELECTION" 0 0
+	           shutdownServer "h"
+	           ;;
+	   esac
+    
+    shutdownServer "h"
+}
 
 
-#Once the system is loaded, none of these operations can be called, for security reasons
-getPrivVar r SYSTEMISRUNNING
-if [ "$SYSTEMISRUNNING" != "" -a "$SYSTEMISRUNNING" -eq 1 ]
-then
-    echo "*** Attempted call to privileged setup while system is running" >> $LOGFILE
-	   exit 99
-fi
+
 
 
 privilegedSetupPhase1 () {
@@ -54,89 +97,28 @@ privilegedSetupPhase1 () {
     #List hard drives
     hdds=$(listHDDs)
     
-    #Escribir la lista de HDDs en el fichero de config
+    #Write list of HDDs to be monitored on the config file
     sed -i -re "s|(enable_smart=\").+$|\1$hdds\"|g" /etc/default/smartmontools >>$LOGFILE 2>>$LOGFILE
     
     #Reload SMART daemon
     /etc/init.d/smartmontools stop   >>$LOGFILE 2>>$LOGFILE
     /etc/init.d/smartmontools start  >>$LOGFILE 2>>$LOGFILE
     
-    
-    #El monitor de RAID lo lanzaremos al final, porque necesito el e-mail del admin. # TODO
-
-
-    
-
-    #Lanzamos klogd para que indique al kernel que imprima por el terminal sólo los mensajes de máxima prioridad
-    /etc/init.d/klogd      stop  >>$LOGFILE 2>>$LOGFILE
-    /sbin/klogd -c 1   >>$LOGFILE 2>>$LOGFILE
-    #    killall klogd      >>$LOGFILE 2>>$LOGFILE
-
-    ###  Desde la Lucid se descarta el klogd por rsyslogd, pero la
-    ###  versión distribuída aún no implementa la directriz para cambiar
-    ###  el loglevel. Lo hacemos a mano sobre el proc
-    echo "1  1  1  1" > /proc/sys/kernel/printk
-    
-    
-    
-     
-    
-    #No lanzamos el portmap. Sólo es necesario en servidores nfs o samba
-    #/etc/init.d/portmap start >>$LOGFILE 2>>$LOGFILE  
-    
-    
-
-
-#    #Desactivamos los logs del sistema
-#    #Ya no los desactivo.
-#    sed -i -re "s|/var/log/[^ ]+|/dev/null|g" /etc/syslog.conf
-#
-#    #Desactivamos los Logs del sistema (para los que escriben directamete, sin el syslogd)
-#    rm /var/log/syslog
-#    ln -s /dev/null /var/log/syslog
-#    rm /var/log/dmesg
-#    ln -s /dev/null /var/log/dmesg
-#    rm /var/log/kern.log
-#    ln -s /dev/null /var/log/kern.log
-#    rm /var/log/udev
-#    ln -s /dev/null /var/log/udev
-#    rm /var/log/messages
-#    ln -s /dev/null /var/log/messages
-#    rm /var/log/daemon.log
-#    ln -s /dev/null /var/log/daemon.log
-
-
-   
-    
-    #Matamos el usplash (para que muestre mi script)
-    /etc/init.d/usplash start >>$LOGFILE 2>>$LOGFILE
-
-    # Limpiamos el terminal 7 (para que al quiatr el plymouth no saque texto) #///Comentar para debug.
+    # Clear terminal 7 (and 1 just in case), so no text is seen after plymouth quits
+    #<RELEASE>
     clear > /dev/tty7
-
-    #Si se está usando plymouth (>=lucid lynx), lo matamos
+    clear > /dev/tty1
+    #</RELEASE>
+    
+    #Kill plymouth (if alive) so we can show the curses GUI
     plymouth quit
     
-
-
-    #mostramos el terminal virtual 8, si estamos en jaunty (usando usplash)
-    [ -e "/etc/init.d/usplash" ] && chvt 8
-
-    #mostramos el terminal virtual 7, si estamos en lucid+ (usando plymouth)
-    [ -e "/bin/plymouth" ] && chvt 7
-
+    #Jump to terminal 7 (the graphic one, where we run our curses GUI)
+    chvt 7
     
-    #El tty 1 lo limpiamos, pues es la consola del sistrema y no puede matarse
-    clear > /dev/tty1
-
-
-    #Preparamos el tmp del root  #////probar
+    #Prepare root user tmp dir
     chmod 700 $ROOTTMP/ >>$LOGFILE 2>>$LOGFILE
     $PVOPS clops init
-
-
-    #Establecemos la variable que indica que estamos en setup (para que el panic saque el menú) #////si la quito del panic puedo quitar esta
-    setPrivVar SYSTEMISRUNNING 0 r
 }
 
 
@@ -258,8 +240,6 @@ privilegedSetupPhase4 () {
     #Test the RAID arrays if any and generate a test message for the administrator
     mdadm --monitor  --scan  --oneshot --syslog --mail=root  --test  >>$LOGFILE 2>>$LOGFILE
     
-    #Marcamos en una variable que el sistema está en marcha (para que el panic NO saque el menú)  #//// si lo saco del panic, puedo uitarlo de aquí.
-    setPrivVar SYSTEMISRUNNING 1 r
 
     #Activamos el bloqueo de ejecución de operaciones privilegiadas. Ahora, 
     #cualquier operación que se ejecute verificará antes que puede reconstruir 
@@ -278,8 +258,8 @@ privilegedSetupPhase5 () {
      
 #Una vez acabado el uso de los scripts de setup, los inutilizamos
 
-#Quitamos el privileged del sudo
-sed -i -re 's|(^\s*vtuji\s*ALL.*NOPASSWD:[^,]+),.*$|\1|g' /etc/sudoers  >>$LOGFILE 2>>$LOGFILE  #//// Probar que no fastidie al que está en ejecución y probar que no pueda ejecutarlo de nuevo.
+#TODO Remove sudo capabilities to privileged setup so it cannot be invoked by user
+sed -i -re 's|(^\s*vtuji\s*ALL.*NOPASSWD:[^,]+),.*$|\1|g' /etc/sudoers  >>$LOGFILE 2>>$LOGFILE  #TODO Probar que no fastidie al que está en ejecución y probar que no pueda ejecutarlo de nuevo.
 
 #Quitamos los permisos de ejec al wizard.
 chmod 550 /usr/local/bin/wizard-setup.sh

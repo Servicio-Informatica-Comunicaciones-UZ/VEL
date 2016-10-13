@@ -1,7 +1,6 @@
 #!/bin/bash
 # Methods and global variables only common to all privileged scripts go here
 
-export PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 
 ###############
@@ -92,7 +91,7 @@ setPerm () {
 
 
 
-# TODO all calls to this funct. now receive a list of valid mountable partitions, not devs. Change all instances.
+# TODO all calls to this funct. now receive a list of valid mountable partitions, not devs. Change all instances.  # TODO make a version that retrieves all devs, not partitions. Then, on the business logic, if no writable partitions found, offer to format a drive. !!!!!!
 #Returns all partitions that can be mounted for all usb devices
 listUSBs  () {
     
@@ -381,65 +380,6 @@ getPrivVar () {
 
 
 
-# TODO Quitar toda interactividad... en todo caso que devuelva el mensaje en un buffer y un errcode alto. revisar en wizard los sitios en que se llame y si devuelve ese error, que lea el buffer y haga un syspanic con dicho mensaje --> de aquí se podría eliminar el systemisrunning
-#Handles a fatal error
-#1-> The panic message
-#2-> 'f' -> force panic mode even if thereturn-to-idle-menu flag is on.
-systemPanic () {
-    
-    $dlg --msgbox "$1" 0 0
-    
-    getPrivVar r SYSTEMISRUNNING  # TODO see if the panic can eb called during operation. if true, remove this. see where else is this var used.
-    #If the system was already running and the caller was an
-    #administration operation, the panic won't always mean that the
-    #system must shutdown (it can go back to the idle menu). This
-    #function will return in that case, unless the force parameter is
-    #passed.
-    if [ "$SYSTEMISRUNNING" -eq 1 -a "$2" != "f" ]
-	   then
-	       exit 1
-    fi
-    
-    #Destroy sensitive variables
-    keyyU=''
-    keyyS=''
-    MYSQLROOTPWD=''
-    
-    exec 4>&1 
-    selec=$($dlg --no-cancel  --menu $"Select an option." 0 0  3  \
-	                1 $"Shutdown system." \
-	                2 $"Reboot system." \
-	                3 $"Launch an administration terminal." \
-	                2>&1 >&4)
-    
-    
-    case "$selec" in
-	       
-	       "1" )
-            #Shutdown
-            shutdownServer "h"
-	           ;;
-
-	       "2" )
-	           #Reboot
-            shutdownServer "r"
-            ;;
-	       
-	       "3" )
-	           $dlg --yes-label $"Yes" --no-label $"No"  --yesno  $"WARNING: This action may allow the user access to sensitive data until it is rebooted. Make sure it is not operated without supervision from a qualified overseer. ¿Do you wish to continue?." 0 0
-	           [ "$?" -eq 0 ] && exec $PVOPS rootShell
-            ;;	
-	       * )
-	           echo "systemPanic: Bad selection"  >>$LOGFILE 2>>$LOGFILE
-	           $dlg --msgbox "BAD SELECTION" 0 0
-	           shutdownServer "h"
-	           ;;
-	       
-    esac
-    
-    shutdownServer "h"
-    
-}
 
 
 

@@ -18,7 +18,8 @@ trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" 
 function launch () { (eval "$1" & p=$! ; (sleep $2; kill $p 2>/dev/null) & wait $p) ; }
 
 
-
+#To set $? to the desired value (if at some point we need to reset that value, or when debugging to simulate the output of a previous call)
+dummyretval() { return $1; }
 
 
 #Scans for RAID volumes.
@@ -58,7 +59,9 @@ openssl x509 -inform DER -outform PEM -in "$1" -out /tmp/cert.pem
 
 
 
-
+# Change kernel log level so it only prints the most critical messages
+# on the perminals (currently, default debian value)
+echo "1  1  1  1" > /proc/sys/kernel/printk
 
 
 
@@ -76,3 +79,19 @@ openssl x509 -inform DER -outform PEM -in "$1" -out /tmp/cert.pem
 #         $dlg --msgbox $"Error: certificate signed by non-trusted CA." 0 0 
 #	        return 1
 #     fi
+
+
+
+#To validate any domain name
+#  /^([a-z0-9]([-a-z0-9]*[a-z0-9])?\\.)+((a[cdefgilmnoqrstuwxz]|aero|arpa)|(b[abdefghijmnorstvwyz]|biz)|(c[acdfghiklmnorsuvxyz]|cat|com|coop)|d[ejkmoz]|(e[ceghrstu]|edu)|f[ijkmor]|(g[abdefghilmnpqrstuwy]|gov)|h[kmnrtu]|(i[delmnoqrst]|info|int)|(j[emop]|jobs)|k[eghimnprwyz]|l[abcikrstuvy]|(m[acdghklmnopqrstuvwxyz]|mil|mobi|museum)|(n[acefgilopruz]|name|net)|(om|org)|(p[aefghklmnrstwy]|pro)|qa|r[eouw]|s[abcdeghijklmnortvyz]|(t[cdfghjklmnoprtvwz]|travel)|u[agkmsyz]|v[aceginu]|w[fs]|y[etu]|z[amw])$/i
+
+
+#To check syntax of a iscsi target name
+	       "iscsitar" )
+	           echo "$2" | grep -oEe "(^eui\.[0-9A-Fa-f]+|iqn\.[0-9]{4}-[0-9]{2}\.([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+(:[^ ]*?)?)$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+
+#Email parsing regexps:
+#Deprecated e-mail regexp. issues with openssl. "^[-A-Za-z0-9!#%\&\`_=\/$\'*+?^{}|~.]+@[-.a-zA-Z]+$"
+#Too weird, no-one uses it: "^[-A-Za-z0-9!#%\&\`_=$*+?^{}|~.]+@[-.a-zA-Z]+$"

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Methods and global variables common to all management scripts go here
 
-#TODO disable when stable enough
+#TODO delete when system is stable enough
 # Debugging tool: Every time a command return value is non-zero, it will stop and show the prompt on stderr
 trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" ERR
 
@@ -13,16 +13,26 @@ trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" 
 #  Constants  #
 ###############
 
-
+export PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 #Dialog options for all windows
 DLGCNF="--shadow --cr-wrap --aspect 60 --insecure"
+dlg="dialog $DLGCNF "
+
 
 #Wizard log file
 LOGFILE=/tmp/wizardLog
 
 #Unpriileged user space temp directory for operations
 TMPDIR=/home/vtuji/eLectionOperations
+
+#Drive config vars file. These override those read form usbs.
+VARFILE="$DATAPATH/root/vars.conf"
+
+#If this file contains a 1, no privileged operation will execute
+#unless the valid ciphering key can be rebuilt from the fragments
+#stored on the active slot.
+LOCKOPSFILE="/root/lockPrivileged"
 
 
 #Approximate size of FS once it is loaded to RAM
@@ -35,41 +45,30 @@ RANDFILE=/dev/random
 RANDFILE=/dev/urandom
 #</DEBUG>
 
-
+#Persistent drive paths (for encrypted, physical and loopback filesystems)
 MOUNTPATH="/media/localpart"
 MAPNAME="EncMap"
 DATAPATH="/media/crypStorage"
 
-#Drive config vars file. These override those read form clauers.
-VARFILE="$DATAPATH/root/vars.conf"
-
+#Encrypted FS parameters
 CRYPTFILENAMEBASE="eLectionCryptFS-"
-
 CRYPTDEV=""
 
-cryptosize=4 #(MB a dedicar a la part crypto)
 
 
-
-
-
-urlenc="/usr/local/bin/urlencode"
-addslashes="/usr/local/bin/addslashes"
-
-
-
-
-DEFNFSPORT=2049
-DEFSMBPORT=139    #y el 445 tb es estándar
-DEFISCSIPORT=3260 #Confirmado (para portal y target)
+#Default SSH port
 DEFSSHPORT=22
 
 
-#If this file contains a 1, anyone executing one of these OPS, must have previouly put the key shares on a certain dir, so this script rebuilds them and checks if the key is valid.
-LOCKOPSFILE="/root/lockPrivileged"
 
 
+#Tools aliases
+urlenc="/usr/local/bin/urlencode"
+addslashes="/usr/local/bin/addslashes"
+fdisk="/sbin/fdisk"
 
+PSETUP="sudo /usr/local/bin/privileged-setup.sh"
+PVOPS="sudo /usr/local/bin/privileged-ops.sh"
 
 
 
@@ -80,16 +79,13 @@ LOCKOPSFILE="/root/lockPrivileged"
 ######################
 
 
-#Defines del dialog, para evitar incómodos códigos de retorno que me fastidien el flujo y la seguridad 
-
+#Redefine all unhandled dialog return codes to avoid app flow security
+#issues
 export DIALOG_ESC=1
 export DIALOG_ERROR=1
 export DIALOG_HELP=1
 export DIALOG_ITEM_HELP=1
 
-
-#La mayoría de ejecutables, (incluso los del clauer desde que lo compilo dentro). Están en usr/local/bin
-export PATH=$PATH:/usr/local/bin
 
 
 
@@ -99,237 +95,195 @@ export PATH=$PATH:/usr/local/bin
 ###############
 
 
-fdisk=/sbin/fdisk
 
-PSETUP="sudo /usr/local/bin/privileged-setup.sh"
-PVOPS="sudo /usr/local/bin/privileged-ops.sh"
-
-
-
-dlg="dialog $DLGCNF "
-
-
-dummyretval() { return $1; }
-
-
-
-# 1-> h --> halt r --> reboot default--> halt
+#Wrapper for the privileged  op
+# 1-> h: halts the system (default)
+#     r: reboots
 shutdownServer(){
-    
     $PVOPS shutdownServer "$1"
-
 }
 
 
-
-
-
-
-
-
-
-
-# $1 --> el tipo de datos esperado
-# $2 --> la cadena de entrada
-#Ret: 0 si pertenece al tipo de datos esperado o 1 si no.
-#ALLOWEDCHARSET  --> Si el retorno es 1, indica qué caracteres son legales, en algunos campos no estructurados.
+#Check if a string matches the syntax restrictions of some data type
+# $1 --> expected data type
+# $2 --> input value string
+#Returns 0 if matching data type, 1 otherwise.
+#STDOUT: If not matching, the allowed charset information for the data
+#type is printed in some cases  # TODO: change all calls to expect allwedcharset on stdout
 parseInput () {
     
-    ALLOWEDCHARSET=''
+    local ALLOWEDCHARSET=''
+    local ret=0
     
     case "$1" in
+	       
+	       "ipaddr" ) #IP address
+            echo "$2" | grep -oiEe "([0-9]{1,3}\.){3}[0-9]{1,3}" 2>&1 >/dev/null
+            [ $? -ne 0 ] && return 1
+            
+	           local parts=$(echo "$2" | sed "s/\./ /g")
+	           for p in $parts
+	           do
+	               [ "$p" -gt "255" ] && return 1
+	           done
+	       	   ;;
+
+
+
+        "ipdn" ) #IP address or domain name
+            local notIp=0
+            local notDn=0
+            
+            echo "$2" | grep -oiEe "^([0-9]{1,3}\.){3}[0-9]{1,3}$" 2>&1 >/dev/null
+           	[ $? -ne 0 ] && notIp=1
+	           if [ "$notIp" -eq 0 ]
+	           then
+	               local parts=$(echo "$2" | sed "s/\./ /g")
+	               for p in $parts
+	               do
+	                   [ "$p" -gt 255 ] && notIp=1
+	               done
+	           fi
 	
-	"ipaddr" )
+	           echo "$2" | grep -oiEe "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+$" 2>&1 >/dev/null
+		          [ $? -ne 0 ] && notDn=1
+            #echo "validating ip or dn Return: $((notIp & notDn))  notIp: $notIp  notDn: $notDn  str: $2"
 
-        echo "$2" | grep -oiEe "([0-9]{1,3}\.){3}[0-9]{1,3}" 2>&1 >/dev/null
-
-	[ $? -ne 0 ] && return 1
-
-	parts=$(echo "$2" | sed "s/\./ /g")
-	
-	for p in $parts
-	  do
-	  [ "$p" -gt "255" ] && return 1
-	done
-	
-	;;
-	
-	"dn" )
-	      
-		
-	echo "$2" | grep -oiEe "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+" 2>&1 >/dev/null
-		
-	[ $? -ne 0 ] && return 1
-	      
-	#Valida cualquier dominio
-	#  /^([a-z0-9]([-a-z0-9]*[a-z0-9])?\\.)+((a[cdefgilmnoqrstuwxz]|aero|arpa)|(b[abdefghijmnorstvwyz]|biz)|(c[acdfghiklmnorsuvxyz]|cat|com|coop)|d[ejkmoz]|(e[ceghrstu]|edu)|f[ijkmor]|(g[abdefghilmnpqrstuwy]|gov)|h[kmnrtu]|(i[delmnoqrst]|info|int)|(j[emop]|jobs)|k[eghimnprwyz]|l[abcikrstuvy]|(m[acdghklmnopqrstuvwxyz]|mil|mobi|museum)|(n[acefgilopruz]|name|net)|(om|org)|(p[aefghklmnrstwy]|pro)|qa|r[eouw]|s[abcdeghijklmnortvyz]|(t[cdfghjklmnoprtvwz]|travel)|u[agkmsyz]|v[aceginu]|w[fs]|y[etu]|z[amw])$/i
-	;;
-
-
-
-	"ipdn" ) #Ip o DN
-        notIp=0
-        notDn=0
-
-        echo "$2" | grep -oiEe "^([0-9]{1,3}\.){3}[0-9]{1,3}$" 2>&1 >/dev/null
-
-	[ $? -ne 0 ] && notIp=1
-	
-	if [ "$notIp" -eq 0 ]
-	    then
-	    parts=$(echo "$2" | sed "s/\./ /g")	
-	    for p in $parts
-	      do
-	      [ "$p" -gt 255 ] && notIp=1
-	    done
-	fi
-	
-	echo "$2" | grep -oiEe "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+$" 2>&1 >/dev/null
-		
-	[ $? -ne 0 ] && notDn=1
+            #If either of them is 0, returns zero (it is ip or dn), if both are 1 (not ip nor dn) returns 1
+	           return $((notIp & notDn))
+	           ;;
         
-	#echo "modo ipDN Retornando: $((notIp & notDn))  notIp: $notIp  notDn: $notDn  cadena: $2"
-		
-	return $((notIp & notDn)) #Si uno de los dos es 0 (o es ip o es DN), será 0. si los dos son 1 (no es ip ni dn), será 1
-	;;
+	       
+	       "dn" ) #Domain name
+	           echo "$2" | grep -oiEe "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+" 2>&1 >/dev/null
+		          [ $? -ne 0 ] && ret=1
+	      	    ;;
+        
+	       "path" ) #System path
+	           ALLOWEDCHARSET='- _ . + a-z A-Z 0-9'
+	           echo "$2" | grep -oEe "^[/.]?([-_.+a-zA-Z0-9]+/?)*$" 2>&1 >/dev/null   # "^[/.]?(([^ ]|\\ )+/)*([^ ]|\\ )+"
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+	       
+	       "user" ) #Valid username
+	           ALLOWEDCHARSET='- _ . a-z A-Z 0-9'
+	           echo "$2" | grep -oEe "^[-_.a-zA-Z0-9]+$"	2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+        
+	       "pwd" ) #Valid password
+	           ALLOWEDCHARSET='-.·+_;:,*@#%|~!?()=& a-z A-Z 0-9'
+	           echo "$2" | grep -oEe "^[-.·+_;:,*@#%|~!?()=&a-zA-Z0-9]+$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+        
+	       "int" ) #Non-zero Integer value string (natural number)
+	           echo "$2" | grep -oEe "^[1-9][0-9]*$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+        
+	       "int0" ) #Integer (zero allowed)
+	           echo "$2" | grep -oEe "^[0-9][0-9]*$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
 	
-	"path" )
-	ALLOWEDCHARSET='- _ . + a-z A-Z 0-9'
-	echo "$2" | grep -oEe "^[/.]?([-_.+a-zA-Z0-9]+/?)*$" 2>&1 >/dev/null   # "^[/.]?(([^ ]|\\ )+/)*([^ ]|\\ )+"
-	[ $? -ne 0 ] && return 1
-	;;
-	
-	"user" )
-	ALLOWEDCHARSET='- _ . a-z A-Z 0-9'
-	echo "$2" | grep -oEe "^[-_.a-zA-Z0-9]+$"	2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-	"pwd" ) #Es para el pwd del samba. Debo poder limitar el juego de caracteres porque hago un eval para establecer la variable desde la config. Restringir al menos " y ' y $
-	ALLOWEDCHARSET='-.·+_;:,*@#%|~!?()=& a-z A-Z 0-9'
-	echo "$2" | grep -oEe "^[-.·+_;:,*@#%|~!?()=&a-zA-Z0-9]+$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-	"iscsitar" )
-	echo "$2" | grep -oEe "(^eui\.[0-9A-Fa-f]+|iqn\.[0-9]{4}-[0-9]{2}\.([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+(:[^ ]*?)?)$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-	
-	"int" )
-	echo "$2" | grep -oEe "^[1-9][0-9]*$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-	"int0" )
-	echo "$2" | grep -oEe "^[0-9][0-9]*$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-	
-	"port" )
-	echo "$2" | grep -oEe "^[1-9][0-9]*$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	[ "$2" -lt 1 ] && return 1
-	[ "$2" -gt 65535 ] && return 1
-	;;
-
-	"email" )  #No permitir el /, por la generación del cert de firma del servidor
-	#Deprecated e-mail regexp. issues with openssl. "^[-A-Za-z0-9!#%\&\`_=\/$\'*+?^{}|~.]+@[-.a-zA-Z]+$"
-	#Demasiado rara. nadie la usa: "^[-A-Za-z0-9!#%\&\`_=$*+?^{}|~.]+@[-.a-zA-Z]+$"
-	echo "$2" | grep -oEe "^[-A-Za-z0-9_+.]+@[-.a-zA-Z]+$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-	
-	"b64" )
-	echo "$2" | grep -oEe "^[0-9a-zA-Z/+]+=?=?$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-		
-	"cc" )
-	echo "$2" | grep -oEe "^[a-zA-Z][a-zA-Z]$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-	
-	"name" ) #No permitir el /, por la generación del cert de firma del servidor
-	ALLOWEDCHARSET='- _<>=+@|·&!?.,: a-z A-Z 0-9'
-	echo "$2" | grep -oEe "^[- _<>=+@|·&!?.,:a-zA-Z0-9]+$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-	"completename" )
-	ALLOWEDCHARSET='- _<>=+@|·&!?.,: a-z A-Z 0-9'
-	echo "$2" | grep -oEe "^[- _<>=+@|·&!?.,:a-zA-Z0-9]+$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-
-	"dni" )
-	ALLOWEDCHARSET='- . a-z A-Z 0-9'
-	echo "$2" | grep -oEe "^[-. 0-9a-zA-Z]+$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-
-	"crypfilename" )
-	echo "$2" | grep -oEe "^$CRYPTFILENAMEBASE[0-9]+$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-	"dev" )
-	echo "$2" | grep -oEe "^/dev/[shm][a-z]+[0-9]*$" 2>&1 >/dev/null
-	[ $? -ne 0 ] && return 1
-	;;
-
-
-	* )
-	echo "parseInput: tipo erroneo"  >>$LOGFILE 2>>$LOGFILE
-	return 1
-	;;	
+	       "port" ) #Valid network port
+	           echo "$2" | grep -oEe "^[1-9][0-9]*$" 2>&1 >/dev/null
+	           if [ $? -ne 0 ] ; then
+                ret=1
+            elif [ "$2" -lt 1  -o  "$2" -gt 65535 ] ; then
+                ret=1
+            fi
+	           ;;
+        
+	       "email" ) #Valid e-mail (with some restrictions over the standard)
+            #Disallow / to avoid issues with server signature certificate generation process
+	           echo "$2" | grep -oEe "^[-A-Za-z0-9_+.]+@[-.a-zA-Z]+$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+	       
+	       "b64" ) #Base 64 string
+	           echo "$2" | grep -oEe "^[0-9a-zA-Z/+]+=?=?$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+        
+	       "cc" ) #Two letter country code (no use in checking the whole set)
+	           echo "$2" | grep -oEe "^[a-zA-Z][a-zA-Z]$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+	       
+	       "freetext" ) #Any string (with limitations)
+	           ALLOWEDCHARSET='- _<>=+@|·&!?.,: a-z A-Z 0-9'
+            echo "$2" | grep -oEe "^[- _<>=+@|·&!?.,:a-zA-Z0-9]+$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+        
+	       "dni" ) #ID number
+	           ALLOWEDCHARSET='- . a-z A-Z 0-9'
+	           echo "$2" | grep -oEe "^[-. 0-9a-zA-Z]+$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+        
+        "crypfilename" ) #Filename of an encrypted filesystem
+	           echo "$2" | grep -oEe "^$CRYPTFILENAMEBASE[0-9]+$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+        
+	       "dev" ) #Path to a device: /dev/sda, hdb, md0...
+	           echo "$2" | grep -oEe "^/dev/[shm][a-z]+[0-9]*$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+        
+        * )
+	           echo "parseInput: Wrong type -$1-"  >>$LOGFILE 2>>$LOGFILE
+	           return 1
+	           ;;	
     esac
 
-    return 0
+    #For those who have one, print the allowed characters to match the
+    #parser
+    echo -n $ALLOWEDCHARSET
+    
+    return $ret
 }
 
 
-# $1 -> El nombre de la variable (a partir de este, sabremos que tipo de input esperamos)
-# $2 -> El valor, que deberá ser comprobado
-#Ret: 0 Ok;  1 Bad Format
+
+#Check if a certain variable has a proper value (content type is inferred from the variable name)
+# $1 -> Variable name
+# $2 -> Actual value
+#Ret: 0 Ok, value meets the type syntax;  1 wrong value syntax
 checkParameter () {
     
-
-    #Comprobamos aquellos parámetros que explícitamente pueden aceptar un contenido vacío
-
+    #These vars can accept an empty value and we ch
     if [ "$2" == "" ]
-	then
-	
-	case "$1" in 
-	    
-	    "MAILRELAY" )
-            return 0
-	    ;;
-
-	    "SERVEREMAIL" )
-            return 0
-	    ;;	    
-
-	    * )
-	    echo "Parameter nos accepted with an empty value: $1"  >>$LOGFILE 2>>$LOGFILE
-	    return 1
-	    ;;
-	
-        esac	
+	   then
+	     	 case "$1" in 
+            
+            "MAILRELAY" )
+                return 0
+	               ;;
+            
+	           "SERVEREMAIL" )
+                return 0
+	               ;;	    
+            
+	           * )
+	               echo "Variable $1 does not accept an empty value."  >>$LOGFILE 2>>$LOGFILE
+	               return 1
+	               ;;
+	       esac	
     fi
 
     case "$1" in 
-	
-	"IPMODE" )   
-	#únicos valores aceptables
-	if [ "$2" != "dhcp"   -a   "$2" != "user" ]
-	    then
-	    return 1
-	fi
-	;;
+	       
+	       "IPMODE" )
+	           #Closed set value
+	           if [ "$2" != "dhcp"   -a   "$2" != "static" ]
+	           then
+	               return 1
+	           fi
+	           ;;
 	
 	
 	"IPADDR" | "MASK" | "GATEWAY" | "DNS1" | "DNS2"  )
@@ -425,13 +379,13 @@ checkParameter () {
 
 
 	"SITESORGSERV" | "SITESNAMEPURP" )
-        parseInput name "$2"
+        parseInput freetext "$2"
 	ret=$?
 	[ $ret -ne 0 ] && return 1
 	;;
 
 	"ADMREALNAME" )
-        parseInput completename "$2"
+        parseInput freetext "$2"
 	ret=$?
 	[ $ret -ne 0 ] && return 1
 	;;

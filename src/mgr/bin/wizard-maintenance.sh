@@ -14,7 +14,18 @@
 
 
 
-
+#Fatal error function. It is redefined on each script with the
+#expected behaviour, for security reasons.
+#$1 -> error message
+systemPanic () {
+    
+    #Show error message to the user
+    $dlg --msgbox "$1" 0 0
+    
+    #Return to the maintenance idle loop
+	   exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
+    shutdownServer "h" #This will never execute
+}
 
 
 
@@ -355,7 +366,7 @@ setAdmin () {
 	      fi
 	      
 	      
-	      parseInput completename "$auxADMREALNAME"
+	      parseInput freetext "$auxADMREALNAME"
 	      if [ $? -ne 0 ] 
 		  then
 		  verified=0
@@ -1130,8 +1141,6 @@ USINGSSHBAK=$($PVOPS vars getVar c USINGSSHBAK)
 
 copyOnRAM=$($PVOPS vars getVar r copyOnRAM)
 
-
-#/////leer la var systemisrunning (por el systempanic). si lo disocio, pues ya no hará falta.
 
 
 sslCertState=$($PVOPS getSslCertState)

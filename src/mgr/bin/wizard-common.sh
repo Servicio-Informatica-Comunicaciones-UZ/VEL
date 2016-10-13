@@ -344,33 +344,32 @@ clauerConnect(){
 	
 	
     if [ "$2" == 'auth' ]
-	then
+	   then
         #Si el pwd es incorrecto, lo vuelve a pedir
         $PVOPS clops checkPwd "$1" "$pwd"    2>>$LOGFILE  #0 ok  1 bad pwd  #////probar
-	#dummyretval 0	
-	ret=$?
-
-	if [ $ret -eq 1 ]
-	    then
-	    errmsg=$"Contraseña incorrecta."
-	    continue
-	fi
+	       ret=$?
+        
+	       if [ $ret -eq 1 ]
+	       then
+	           errmsg=$"Contraseña incorrecta."
+	           continue
+	       fi
     elif [ "$2" == 'newpwd' ]
-	then
-	#No hay que hacer nada de lo de abajo. Cambio de funcionalidad de este modo
+	   then
+	       #No hay que hacer nada de lo de abajo. Cambio de funcionalidad de este modo
         #$OPSEXE checkDev -d $1  2>>$LOGFILE
-	dummyretval 0
-	
-	#ret=$?
-
-	#if [ $ret -eq 1 ]
-	#    then
-	#    errmsg=$"El dispositivo no es un clauer"
-	#    continue
-	#    
-	#fi
+	       #dummyretval 0 # TODO cuando lo rehaga, ver si hace falta que $? valga 0 por alguna razón, pero comentado lo de abajo, lo dudo
+	       
+	       #ret=$?
+        
+	       #if [ $ret -eq 1 ]
+	       #    then
+	       #    errmsg=$"El dispositivo no es un clauer"
+	       #    continue
+	       #    
+	       #fi
     fi
-
+    
     #Si todo ha ido correcto
     PASSWD="$pwd"
     pwd="" #///probar
@@ -555,7 +554,7 @@ writeClauers () {
 	  if [ "$choice" -eq 2 ] 
 	      then
 	      
-	      IPMODE="user"
+	      IPMODE="static"
 	      
 	      selectIPParams
 	      
@@ -2304,7 +2303,7 @@ setConfigVars () {
     
     $PVOPS vars setVar c IPMODE $IPMODE
     
-    if [ "$IPMODE" == "user"  ] #si es 'dhcp' no hacen falta
+    if [ "$IPMODE" == "static"  ] #si es 'dhcp' no hacen falta
 	then
 	$PVOPS vars setVar c IPADDR "$IPADDR"
 	$PVOPS vars setVar c MASK "$MASK"
@@ -2371,71 +2370,5 @@ setConfigVars () {
 
     $PVOPS vars setVar c SHARES "$SHARES"
     $PVOPS vars setVar c THRESHOLD "$THRESHOLD"
-}
-
-
-
-
-
-
-#////Quitar la posibilidad de sacar un terminal?? ahora mismo necesita autorización... redefinirla en maint y que vuelva siempre? trazar donde se fuerza el panic y donde no y ver si lo puedo disociar.
-#////quitar la var systemisrunning. usar systempanic redefinida en cada caso (prriv-setup, priv-ops, wiz-set, wiz-maint)
-
-#1-> El mensaje de panic
-#2-> 'f' -> fuerza el modo panic aunque esté activado el flag de volver al menu idle.
-systemPanic () {
-    
-    $dlg --msgbox "$1" 0 0
-
-    #Si el sistema ya está en marcha (se estaba ejecutando alguna acción de mantenimiento), 
-    # el panic no tiene por qué apagar el equipo. A no ser que se fuerce a ello.
-    # En este caso, vuelve al menú de standby.
-    if [ "$SYSTEMISRUNNING" -eq 1 -a "$2" != "f" ]
-	then
-	exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
-    fi
-    
-    
-    #Destruimos variables sensibles
-    keyyU=''
-    keyyS=''
-    MYSQLROOTPWD=''
-
-
-    exec 4>&1 
-    selec=$($dlg --no-cancel  --menu $"Elija una opción." 0 0  3  \
-	1 $"Apagar el sistema." \
-	2 $"Reiniciar el sistema." \
-	3 $"Lanzar terminal de acceso total al sistema." \
-	2>&1 >&4)
-    
-    
-    case "$selec" in
-	
-	"1" )
-        #Apagar el sistema
-        shutdownServer "h"
-	
-        ;;
-
-	"2" )
-	#Reiniciar sistema
-        shutdownServer "r"
-        ;;
-	
-	"3" )
-	$dlg --yes-label $"Sí" --no-label $"No"  --yesno  $"ATENCIÓN:\n\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que este sea reiniciado. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. ¿Desea continuar?" 0 0
-	[ "$?" -eq 0 ] && exec $PVOPS rootShell
-        ;;	
-	* )
-	echo "systemPanic: Bad selection"  >>$LOGFILE 2>>$LOGFILE
-	$dlg --msgbox "BAD SELECTION" 0 0
-	shutdownServer "h"
-	;;
-	
-    esac
-    
-    shutdownServer "h"
-        
 }
 

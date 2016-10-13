@@ -339,6 +339,9 @@ then
     echo -e "\n0 * * * * root /sbin/mdadm --monitor  --scan  --oneshot --syslog --mail=root\n" >> /etc/crontab  
 fi
 
+
+
+
 #The necessary ones are launched from the manager after system is
 #setup and loaded, not on startup
 ctell "****** Removing autoload of services"
