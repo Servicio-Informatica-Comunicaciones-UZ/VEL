@@ -92,21 +92,37 @@ setPerm () {
 
 
 # TODO all calls to this funct. now receive a list of valid mountable partitions, not devs. Change all instances.  # TODO make a version that retrieves all devs, not partitions. Then, on the business logic, if no writable partitions found, offer to format a drive. !!!!!!
-#Returns all partitions that can be mounted for all usb devices
+
+
+#Returns usb connected storage devices
+#$1 -> 'devs'  : show all usb storage devices, not partitions (default)
+#      'valid' : show partitions from usb devices that can be mounted
 listUSBs  () {
     
-    USBDEVS=""
+    local USBDEVS=""
     local devs=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
-    for f in $devs
-    do
-        currdev=$(realpath /dev/disk/by-id/$f)
-        mount $currdev /mnt  >>$LOGFILE 2>>$LOGFILE
-        if [ "$?" -eq 0 ] ; then
-            USBDEVS="$USBDEVS $currdev"
-            umount /mnt >>$LOGFILE 2>>$LOGFILE
-        fi
-    done
-    
+    if [ "$1" == 'valid' ] ; then
+        #Check all devices and partitions to be mountable
+        for f in $devs
+        do
+            local currdev=$(realpath /dev/disk/by-id/$f)
+            mount $currdev /mnt  >>$LOGFILE 2>>$LOGFILE
+            if [ "$?" -eq 0 ] ; then
+                USBDEVS="$USBDEVS $currdev"
+                umount /mnt >>$LOGFILE 2>>$LOGFILE
+            fi
+        done
+    else
+        #Show only the devices, not partitions
+        for f in $devs
+        do
+            local currdev=$(realpath /dev/disk/by-id/$f)
+            if [ $(echo "$currdev" | grep -Ee "/dev/[a-z]+[0-9]+") ] ; then :
+            else
+                USBDEVS="$USBDEVS $currdev"
+            fi
+        done
+    fi
     echo -n "$USBDEVS"
 }
 

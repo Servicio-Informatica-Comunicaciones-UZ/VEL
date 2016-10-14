@@ -1238,14 +1238,15 @@ do
 
 
   #Insertar un primer dispositivo
-  insertClauerDev $"Inserte un dispositivo Clauer que contenga \nlos datos de configuración del sistema para iniciarlo.\n\nSi desea realizar una primera instalación\ndel sistema o formatearlo, inserte un dispositivo USB vacio o pulse formatear." $"Formatear"
+  insertUSB $"Inserte un dispositivo Clauer que contenga \nlos datos de configuración del sistema para iniciarlo.\n\nSi desea realizar una primera instalación\ndel sistema o formatearlo, inserte un dispositivo USB vacio o pulse formatear." $"Formatear"
+# TODO devolverá una part a montar y ret 0 o un dev a formatear con ret 2
   
-
+# TODO review. use list usbs
   #$dlg --infobox "Devs detected""($NDEVS):\n$DEVS\n""Clauers detected""($NCLS):\n$CLS"  0 0
   #sleep 1
   #$dlg --infobox "Dev chosen"": $DEV\n""Clauer?"" $ISCLAUER"  0 0
   #sleep 1
-
+# TODO also, check return 1 and not only the returneddev (which by the way is no longer a global, but a stdout)
   if [ "$DEV" == "" ]
       then
       confirmSystemFormat $"Ha pulsado formatear."
@@ -1573,9 +1574,9 @@ else
 	while [ "$success" -eq  "0" ]
 	  do
 	  
- 
-	  insertClauerDev $"Inserte el dispositivo USB a escribir y pulse INTRO." "none"
-	  
+ # TODO refactor this. now insertusb can always be cancelled and return 1, no infinite loop. Below there already is a special case, extenbd also for this
+	  insertUSB $"Inserte el dispositivo USB a escribir y pulse INTRO." "none"
+	 #TODO Verificar comportamiento de esto. si ret 2 es part a format y si es 0, es part montable, luego puede escribir el store directamente
       
           #Pedir pasword nuevo
 	  

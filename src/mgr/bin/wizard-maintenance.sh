@@ -46,7 +46,8 @@ getFileToTmp() {
     msg=$"Inserte un dispositivo USB."
     [ "$1" != "" ] && msg="$1"
     
-    insertClauerDev "$msg" "none"
+    insertUSB "$msg" "none" # TODO check return and handle as below
+    #TODO verificar que ret es 0, luego se puede montar, y ahora devuelve una part, no un dev, seguir traza para verificar que lo haga bien
     
     $PVOPS getFile mountDev "$1"
     ret=$?

@@ -60,6 +60,10 @@ CRYPTDEV=""
 DEFSSHPORT=22
 
 
+#Buffer to pass return strings between the privileged script and the
+#user script when stdout is locked by dialog
+RETBUFFER=$TMPDIR/returnBuffer
+
 
 
 #Tools aliases
@@ -248,6 +252,7 @@ parseInput () {
 }
 
 
+#TODO check which vars do not exist anymore (iscsi, nfs, smb)
 
 #Check if a certain variable has a proper value (content type is inferred from the variable name)
 # $1 -> Variable name
@@ -275,226 +280,155 @@ checkParameter () {
 	       esac	
     fi
 
+    local ret=0
     case "$1" in 
 	       
 	       "IPMODE" )
 	           #Closed set value
 	           if [ "$2" != "dhcp"   -a   "$2" != "static" ]
 	           then
-	               return 1
+	               ret=1
 	           fi
 	           ;;
-	
-	
-	"IPADDR" | "MASK" | "GATEWAY" | "DNS1" | "DNS2"  )
-	parseInput ipaddr "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-	
-	
-	"FQDN" | "SERVERCN" )
-        parseInput dn "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-	
-
-	"USINGSSHBAK" )
-	[ "$2" != "0" -a "$2" != "1" ] && return 1
-	;;
-	
-	"DRIVEMODE" )
-	#únicos valores aceptables
-	if [ "$2" != "local"   -a   "$2" != "iscsi"   -a   "$2" != "nfs"   -a   "$2" != "samba"   -a   "$2" != "file" ]
-	    then
-	    return 1
-	fi
-	;;	
-	
-	
-	"DRIVELOCALPATH" | "NFSPATH" | "SMBPATH" | "FILEPATH" | "CRYPTFILENAME" )
-        parseInput path "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-	
-	"NFSSERVER" | "SMBSERVER" | "ISCSISERVER" | "MAILRELAY" | "SSHBAKSERVER" )
-        parseInput ipdn "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-	
-	"NFSPORT" | "SMBPORT" | "ISCSIPORT" | "SSHBAKPORT" )
-        parseInput port "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;	
-
-	"ISCSITARGET" )
-        parseInput iscsitar "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-	
-	
-	"SMBUSER" | "SSHBAKUSER" | "ADMINNAME" )
-        parseInput user "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-	
-	
-	"SMBPWD" | "DBPWD" | "SSHBAKPASSWD" | "PARTPWD" | "MYSQLROOTPWD" | "DEVPWD" | "MGRPWD" )
-        parseInput pwd "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-	
-	
-	"NFSFILESIZE" | "SMBFILESIZE" | "FILEFILESIZE" | "SHARES" | "THRESHOLD" )
-        parseInput int "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-
-	"INT" )
-        parseInput int0 "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-	
-	"CRYPTFILENAME" )
-        parseInput crypfilename "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-
-
-	"MGREMAIL" | "SERVEREMAIL" )
-        parseInput email "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-
-
-	"SITESORGSERV" | "SITESNAMEPURP" )
-        parseInput freetext "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-
-	"ADMREALNAME" )
-        parseInput freetext "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-
-	"ADMIDNUM" )
-        parseInput dni "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-
-	"SITESCOUNTRY" | "COUNTRY" )
-        parseInput cc "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-
-
-	"KEYSIZE" )
-	#únicos valores aceptables
-	if [ "$2" -ne "1024"   -a   "$2" -ne "1152"  -a   "$2" -ne "1280" ]
-	    then
-	    return 1
-	fi
-	;;
-
-	"WWWMODE" )
-	#únicos valores aceptables
-	if [ "$2" != "plain"   -a   "$2" != "ssl" ]
-	    then
-	    return 1
-	fi
-	;;
-
-	"DEV" )  #En realidad no uso ninguna variable DEV (creo), pero lo pongo aquí por comodidad.
-        parseInput dev "$2"
-	ret=$?
-	[ $ret -ne 0 ] && return 1
-	;;
-
-
-	* )
-	echo "Not Expected Parameter: $1"  >>$LOGFILE 2>>$LOGFILE
-	return 1
-	;;	
-	
-    esac
-	
+	       
+	       "IPADDR" | "MASK" | "GATEWAY" | "DNS1" | "DNS2"  )
+	           parseInput ipaddr "$2"
+	           ret=$?
+            ;;
+	       
+	       "FQDN" | "SERVERCN" )
+            parseInput dn "$2"
+	           ret=$?
+	           ;;
+	       
+	       "USINGSSHBAK" )
+            #Closed set value
+	           if [ "$2" != "0" -a "$2" != "1" ]
+            then
+                ret=1
+            fi
+	           ;;
+	       
+	       "DRIVEMODE" )
+	           #Closed set value
+	           if [ "$2" != "local"   -a   "$2" != "file" ]
+	           then
+	               ret=1
+	           fi
+	           ;;	
+	       
+	       "DRIVELOCALPATH" | "FILEPATH" | "CRYPTFILENAME" )
+            parseInput path "$2"
+	           ret=$?
+	           ;;
+	       
+        "MAILRELAY" | "SSHBAKSERVER" )
+            parseInput ipdn "$2"
+	           ret=$?
+            ;;
+	       
+	       "SSHBAKPORT" )
+            parseInput port "$2"
+	           ret=$?
+	           ;;	
+        
+	       "SSHBAKUSER" | "ADMINNAME" )
+            parseInput user "$2"
+	           ret=$?
+	           ;;
+	       
+	       "DBPWD" | "SSHBAKPASSWD" | "PARTPWD" | "MYSQLROOTPWD" | "DEVPWD" | "MGRPWD" )
+            parseInput pwd "$2"
+	           ret=$?
+	           ;;
+	       
+	       "FILEFILESIZE" | "SHARES" | "THRESHOLD" )
+            parseInput int "$2"
+	           ret=$?
+	           ;;
+        
+	       "INT" ) #This is no variable
+            parseInput int0 "$2"
+	           ret=$?
+	           ;;
+	       
+	       "CRYPTFILENAME" )
+            parseInput crypfilename "$2"
+	           ret=$?
+	           ;;
+        
+	       "MGREMAIL" | "SERVEREMAIL" )
+            parseInput email "$2"
+	           ret=$?
+	           ;;
+        
+	       "SITESORGSERV" | "SITESNAMEPURP" )
+            parseInput freetext "$2"
+	           ret=$?
+	           ;;
+        
+	       "ADMREALNAME" )
+            parseInput freetext "$2"
+	           ret=$?
+	           ;;
+        
+	       "ADMIDNUM" )
+            parseInput dni "$2"
+	           ret=$?
+	           ;;
+        
+	       "SITESCOUNTRY" | "COUNTRY" )
+            parseInput cc "$2"
+	           ret=$?
+	           ;;
+        
+	       "KEYSIZE" )
+	           if [ "$2" -ne "1024"   -a   "$2" -ne "1152"  -a   "$2" -ne "1280" ]
+	           then
+	               ret=1
+	           fi
+	           ;;
+        
+	       "DEV" ) #This is no variable
+            parseInput dev "$2"
+	           ret=$?
+	           ;;
+        
+	       * )
+	           echo "Not Expected Variable name: $1"  >>$LOGFILE 2>>$LOGFILE
+	           return 1
+	           ;;	
+	   esac
+    
+		  [ "$ret" -ne 0 ] && return 1
     return 0	    
 }
 
 
 
 
-
-RETBUFFER=$TMPDIR/returnBuffer
-
-#Función para retornar datos entre el script privilegiado y el no privilegiado cuando no puede redirigirse la salida del comando (porque en la parte privilegiada saca dialogs)
-# $1 -> Cadena a retornar
+#Function to pass return strings between the privileged script and the
+#user script when stdout is locked by dialog
+# $1 -> return string
 doReturn () {
-    
     rm -f $RETBUFFER     >>$LOGFILE 2>>$LOGFILE
     touch $RETBUFFER >>$LOGFILE 2>>$LOGFILE    
-    chmod 644 $RETBUFFER >>$LOGFILE 2>>$LOGFILE
-    
+    chmod 644 $RETBUFFER >>$LOGFILE 2>>$LOGFILE    
     echo -n "$1" > $RETBUFFER
-
 }
 
 
-# imprime por stdout la cadena devuelta por la última op privilegiada 
+#Print and delete the last string returned by a privileged op
 getReturn () {
-    
     if [ -e "$RETBUFFER" ]
-	then
-	cat "$RETBUFFER"
+	   then
+	       cat "$RETBUFFER"  2>>$LOGFILE
+        rm -f $RETBUFFER  >>$LOGFILE 2>>$LOGFILE
     fi
-    
-    rm -f $RETBUFFER  >>$LOGFILE 2>>$LOGFILE
 }
 
 
 
-
-
-
-
-
-
-
-
-
-# TODO This function lists usbs that are not clauers (or maybe all usbs, I dn't care). DElete. Now only usbs are detected and if used to know if it contains a keystre or not, make another function. Sanitize all calls and delete
-#Retorno
-#DEVS=''
-#NDEVS=0
-#
-#listDevs () { 
-#
-#    DEVS=$($PVOPS listDevs list)
-#    NDEVS=$($PVOPS listDevs count)
-#
-#}
-
-#TODO change listclauers fro list usbs
-#Wrapper function for the privileged operation
-#Returns:
-#CLS=''
-#NCLS=0
-# TODO change usage of these globals. DEspite, we return the number of devs as the return value and we print the list
 
 #Lists all connected usb drives
 #Return value: number of drives
@@ -502,14 +436,25 @@ getReturn () {
 listUSBDrives () {   
     local devs=""
     local ndevs=0
-    devs=$($PVOPS listUSBDrives list 2>>$LOGFILE)
-    ndevs=$($PVOPS listUSBDrives count 2>>$LOGFILE)
+    devs=$($PVOPS listUSBDrives devs list 2>>$LOGFILE)
+    ndevs=$($PVOPS listUSBDrives devs count 2>>$LOGFILE)
     
     echo -n "$devs"
     return ndevs
 }
 
-
+#Lists all writable partitions from all connected usb drives
+#Return value: number of writable partitions
+#Prints: list of writable partitions
+listUSBPartitions () {   
+    local parts=""
+    local nparts=0
+    parts=$($PVOPS listUSBDrives parts list 2>>$LOGFILE)
+    nparts=$($PVOPS listUSBDrives parts count 2>>$LOGFILE)
+    
+    echo -n "$parts"
+    return nparts
+}
 
 
 
@@ -517,7 +462,6 @@ listUSBDrives () {
 # Checks if a service is running
 # $1 -> service name
 isRunning () {
-    
     [ "$1" == "" ] && return 1
     
     if ps aux | grep -e "$1" | grep -v "grep" >>$LOGFILE 2>>$LOGFILE 
@@ -531,22 +475,19 @@ isRunning () {
 }
 
 
-# $1 -> Longitud en chars del pwd (opcional)
-#Retorno: $pw -> es el password
-randomPassword () {
-    
+#Generate a true random password
+# $1 -> Length in chars for the password (optional)
+#Stdout: the generated password
+randomPassword () { # TODO eliminar usos var $pw
     pwlen=91
-    
     [ "$1" != "" ] && pwlen="$1"
     
-
     pw=""
-
     while [ "$pw" == "" ]
       do
       pw=$(openssl rand -rand $RANDFILE -base64 $pwlen  2>>$LOGFILE)
-      pw=$(echo $pw | sed -e "s/ //g") #Si la var del echo está entrecomillada, no realiza la sustitución correcta
-      #Sustituimos: + -> .  / -> -  = -> : (para evitar porblemas de escape)
+      pw=$(echo $pw | sed -e "s/ //g")
+      #Substitute b64 non-alpha chars (+ -> .  / -> -  = -> :) to avoid escape issues
       pw=$(echo $pw | sed -e "s/\+/./g")
       pw=$(echo $pw | sed -e "s/\//-/g")
       pw=$(echo $pw | sed -e "s/=/:/g")
@@ -555,9 +496,9 @@ randomPassword () {
 
 
 
-# $1 -> el dev a vigilar
-# $2 -> el mensaje a mostrar
-# $3 -> "you didn't remove it" message
+# $1 -> The dev path to oversee
+# $2 -> Message to show
+# $3 -> The "you didn't remove it" message
 detectUsbExtraction (){    
     sync
     didnt=""
@@ -575,121 +516,76 @@ detectUsbExtraction (){
 
 
 
+# SEGUIR: revisar de nuevo lo que he hecho hoy, a ver si me he colado
 
-
-#//// esta función se está invocando desde privops. hacer allí lo que sea para sacar esa llamada al wizard,  y pasar esta func al wizard-common.
-
-#Retorno:
-DEV=''
-ISCLAUER=0
-
-# $1 --> Mensaje de solicitud de disp.
-# $2 --> Mensaje para no label --> Si es none, deja un sólo botón
-insertClauerDev () {
-    #dlg --infobox $"Inserte un dispositivo"  0 0
-    #$dlg --msgbox "$1" 0 0
+#Detect insertion of a usb device
+# $1 --> "Insert device" message.
+# $2 --> "No" label message.
+#Stdout: dev path of the inserted usb device
+#Return code 0: selected device/partition is writable
+#            1: nothing selected (the 'no' option has been selected)
+#            2: selected device needs to be formatted
+insertUSB () {  # TODO extinguish usage of $DEV and $ISCLAUER
     
-    #echo "----->1"
-
-    if [ "$2" == none ]
-	then
-	$dlg --msgbox "$1" 0 0
-	#echo "----->2.1"
-    else
-	$dlg --yes-label $"Continuar" --no-label $2  --yesno "$1" 0 0
-        #Cancelada la inserción
-	[ $? -ne 0 ]  &&  return 1
-    fi
+	   $dlg --yes-label $"Continue" --no-label "$2"  --yesno "$1" 0 0
     
-    
-    DEV=''
-    ISCLAUER=0
+    #Insertion cancelled
+	   [ $? -ne 0 ]  &&  return 1
     
     while true 
-      do
-      
-      listUSBDrives 2>/dev/null
-      listDevs    2>/dev/null
-      #echo "----->3   $(($NCLS + $NDEVS)) Cl: $CLS  Devs: $DEVS"
-      
-      while [ $(($NCLS + $NDEVS)) -lt 1 ]
-	do
-	#echo "----->4 "
-	$dlg --msgbox $"No lo ha insertado. Hágalo ahora y pulse INTRO."  0 0
-	listUSBDrives 2>/dev/null
-	listDevs    2>/dev/null
-      done
-      
-      #Workaround: Dado que a veces no se detecta el clauer como tal pq se ejecuta el clls en un momento crítico, volvemos a listar aquí, una vez ya ha detectado un dispositivo (que puede haber no identificado como clauer)
-      sleep 1
-      listUSBDrives 2>/dev/null
-      listDevs    2>/dev/null
-      
-      if [ $(($NCLS + $NDEVS)) -eq 1 ]
-	  then
-	  
-	  DEV=$(echo $CLS | grep -oEe "/dev/[a-z]+?")
-	  ISCLAUER=1
-	  
-	  [ "$CLS" == "" ] && DEV=$(echo $DEVS | grep -oEe "/dev/[a-z]+?")
-	  [ "$CLS" == "" ] && ISCLAUER=0
+    do
+        #Loop until one usb device is connected
+        local usbs=$(listUSBDrives 2>/dev/null)
+        local nusbs=$?
+        if [ $nusbs -lt 1 ]
+	       then
+            $dlg --no-label "$2" --yesno $"Not inserted. Please, do it and press OK." 0 0
+            [ $? -ne 0 ]  &&  break
+            continue
+            
+            #If more than one usb device is detected, ask to leave just one and loop
+        elif [ $nusbs -gt 1 ]
+	       then
+            $dlg --no-label "$2" --yesno $"More than one usb device detected. Please, remove all but one and press OK."  0 0
+            [ $? -ne 0 ]  &&  break
+            continue
+        fi
+        
+        #Detect all writable partitions
+        local parts=$(listUSBPartitions 2>/dev/null)
+        local nparts=$?
+        if [ $nparts -le 0 ]
+	       then
+            #One device, no writable partitions: return it and mark that format is needed
+            echo -n $usbs
+            return 2
+            
+        elif [ $nparts -eq 1 ]
+	       then
+            #One device, with one writable partition: return it
+            echo -n $parts
+            return 0
 
-	  #echo "Disp insertado:  "$DEV
-	  #echo "Es Clauer:       "$ISCLAUER
-	  
+        else
+            #More than one writable partition on the device. Let user select which one
+            local options=""
+            for p in $parts
+            do
+                options="$options $p -"
+            done
 
-      fi
-
- 
-      
-      if [ $(($NCLS + $NDEVS)) -gt 1 ]
-	  then
-	  #$dlg --infobox $"Multiples dispositivos detectados.\nPor favor, retire todos menos uno."  0 0
-	  
-	  #while [ $(($NCLS + $NDEVS)) -gt 1 ]
-	  #  do
-	  #  listUSBDrives 2>/dev/null
-	  #  listDevs    2>/dev/null
-	  #  sleep 1
-	  #done
-	  
-	  exec 4>&1 
-	  dev=$($dlg --cancel-label $"Refrescar"  --menu $"Múltiples dispositivos detectados.\nPor favor, seleccione uno." 0 0 $(($NCLS + $NDEVS)) $CLS $DEVS 2>&1 >&4)
-
-	  #echo "opId elegida:  "$dev
-
-	  
-	  #Si se refresca (cancela), se vuelven a listar los disp y se sigue.
-	  [ $? -ne 0 ] && continue
-	  
-	  iscl=$(echo $CLS" "$DEVS | grep -oEe "$dev (.+?)( |$)" | cut -d ' ' -f 2)
-
-
-	  ISCLAUER=1
-	  [ "$iscl" == '-' ] && ISCLAUER=0
-	  
-	  DEV=$dev
-	  
-	  #echo "Disp elegido:  "$DEV
-	  #echo "Es Clauer:     "$ISCLAUER
-      fi
-
-
-      
-      [ "$DEV" != '' ] && break
-      
-
-      #if [ $(($NCLS + $NDEVS)) -eq 1 ]
-      #    then 
-      #    break;
-      #fi
-      
-      sleep 1
+            exec 4>&1
+            local part=$($dlg --cancel-label "$2" --menu $"Choose one partition:" 0 0 3 $options  2>&1 >&4)
+            [ $? -ne 0 ] && break
+            
+            echo -n $part
+            return 0
+        fi
+        
+        break
     done
     
-    
-    return 0
-#$dlg --infobox $"Clauers detectados""($NCLS):\n$CLS"  0 0
+    return 1
 }
 
 

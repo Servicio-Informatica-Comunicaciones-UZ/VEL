@@ -7,7 +7,7 @@
 
 . /usr/local/bin/firewall.sh
 
-
+# TODO extinguir WWWMODE. Siempre ssl (aunque sea snakeoil)
 
 #Fatal error function. It is redefined on each script with the
 #expected behaviour, for security reasons.
@@ -185,13 +185,15 @@ fi
 if [ "$1" == "listUSBDrives" ] 
     then
 
-        listUSBS  # TODO reimplement correctly. Also implement the count
+        listUSBS  # TODO reimplement correctly. Also implement the count, to list all drives
 
-  if [ "$2" == "list" ]
+        # TODO now $2 can be 'devs' or 'parts' to list drives or writabñle partitions
+        
+  if [ "$3" == "list" ]
       then
       echo $CLS
       exit 0
-  elif [ "$2" == "count" ]
+  elif [ "$3" == "count" ]
       then
       echo $NCLS
       exit 0
@@ -202,7 +204,6 @@ if [ "$1" == "listUSBDrives" ]
 
   exit 0
 fi
-
 
 
 
@@ -1931,9 +1932,9 @@ fetchCSR () {
 	  do
 	  umount /media/testusb  >>$LOGFILE 2>>$LOGFILE # Lo desmontamos por si se ha quedado montado
 
-	  insertClauerDev $"Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\n(Puede ser uno de los Clauer que acaban de emplear)" "none"
+	  insertUSB $"Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\n(Puede ser uno de los Clauer que acaban de emplear)" "none"
 
-	  #intentar montar la part 1 del DEV. 
+	  #intentar montar la part 1 del DEV. # TODO ahora devuelve directamente la partición, hay que mirar el ret de la func para ver si es part o dev (en cuyo caso debe dar error porque seria un dev sin particiones montables)
 	  part="$DEV""1"
 	  #echo "DEv: $DEV"
 	  mount  $part /media/testusb  >>$LOGFILE 2>>$LOGFILE

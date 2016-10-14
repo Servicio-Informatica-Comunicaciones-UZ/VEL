@@ -424,7 +424,8 @@ writeNextClauer () {
       clauerpos=$"el siguiente"
       [ "$3" -eq 1 ] && clauerpos=$"el primer"
       
-      insertClauerDev $"Inserte $clauerpos Clauer a escribir ($member de $2) y pulse INTRO." "none" 
+      insertUSB $"Inserte $clauerpos Clauer a escribir ($member de $2) y pulse INTRO." "none"
+      # TODO comprobar con nuevo funcionamiento de esta func , entre otras cosas, no hay loop infinito. si ret 1, pedir de nuevo
      
       
       #Pedir pasword nuevo
@@ -1985,16 +1986,17 @@ readNextClauer () {
       clauerpos=$"el siguiente"
       [ "$1" -eq 1 ] && clauerpos=$"el primer"
       
-      insertClauerDev $"Inserte $clauerpos Clauer a leer y pulse INTRO." $"Abortar" #////Esta func está ya en priv.
+      insertUSB $"Inserte $clauerpos Clauer a leer y pulse INTRO." $"Abortar" #////Esta func está ya en priv.
       cancelled=$?
-
+      # TODO comprobar con nuevo funcionamiento de esta func
       [ "$cancelled" -eq 1 ]  && return 9 
       
       
       until [ $ISCLAUER -eq 1 ]
 	do
 	$dlg --msgbox $"Debe elegir un dispositivo que sea Clauer" 0 0
-	insertClauerDev $"Inserte el siguiente Clauer a leer y pulse INTRO." $"Abortar"
+	insertUSB $"Inserte el siguiente Clauer a leer y pulse INTRO." $"Abortar"
+       # TODO comprobar con nuevo funcionamiento de esta func
       done
       
       
@@ -2054,8 +2056,8 @@ print str(round(num,2))+units[multiplier]
 #NPARTS: num de particiones
 listPartitions () {
 
-    listDevs     >>$LOGFILE 2>>$LOGFILE
-    listClauers  >>$LOGFILE 2>>$LOGFILE
+    listDevs     >>$LOGFILE 2>>$LOGFILE  #TODO change for listUSBDrives
+    listClauers  >>$LOGFILE 2>>$LOGFILE #TODO change for listUSBDrives
 
     echo "DEVS+CLS: $DEVS $CLS" >>$LOGFILE 2>>$LOGFILE
 

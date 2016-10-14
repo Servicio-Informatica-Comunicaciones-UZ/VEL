@@ -87,11 +87,26 @@ echo "1  1  1  1" > /proc/sys/kernel/printk
 
 
 #To check syntax of a iscsi target name
-	       "iscsitar" )
-	           echo "$2" | grep -oEe "(^eui\.[0-9A-Fa-f]+|iqn\.[0-9]{4}-[0-9]{2}\.([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+(:[^ ]*?)?)$" 2>&1 >/dev/null
-	           [ $? -ne 0 ] && ret=1
-	           ;;
+#"iscsitar" )
+#	           echo "$2" | grep -oEe "(^eui\.[0-9A-Fa-f]+|iqn\.[0-9]{4}-[0-9]{2}\.([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+(:[^ ]*?)?)$" 2>&1 >/dev/null
+#	           [ $? -ne 0 ] && ret=1
+#	           ;;
 
 #Email parsing regexps:
 #Deprecated e-mail regexp. issues with openssl. "^[-A-Za-z0-9!#%\&\`_=\/$\'*+?^{}|~.]+@[-.a-zA-Z]+$"
 #Too weird, no-one uses it: "^[-A-Za-z0-9!#%\&\`_=$*+?^{}|~.]+@[-.a-zA-Z]+$"
+
+
+
+#Cast list to array
+parts=( $(echo -n $parts | grep -oEe "/dev/[a-z]+[0-9]+") )
+echo ${parts[1]}
+
+
+#Strip the partition number from a dev path to return the dev only
+getPartitionDev () {
+    local dirn=$(dirname $1)
+    local devn=$(basename $1)
+    
+    echo -n $dirn/$(echo $devn | sed -re  "s/(^[a-z]+)[0-9]+$/\1/g")
+}
