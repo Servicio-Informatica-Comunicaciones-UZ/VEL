@@ -667,411 +667,58 @@ fi
 
 
 
-
-
-
-
-
-
-
-#//// verif en mant: si
-
-
-
+#Formats or loads an encrypted drive, for persistent data
+#storage. Either a physical drive partition or a loopback filesystem
 if [ "$1" == "configureCryptoPartition" ] 
-    then
-
-#params: new/reset $mountpath $FILEFILESIZE 
-#Retorno: loopbackdev: el /dev/loopX en que queda montado el fs
-manageLoopbackFS () {
-
-    realfilepath=$2/$CRYPTFILENAME  
+then
     
-    #Si estamos construyendo el sistema, llenamos el fs de ceros.
-    if [ "$1" == 'new' ]
-	then
-	#$dlg --infobox $"Preparando espacio de almacenamiento..." 0 0
-	echo $"Preparando espacio de almacenamiento..."  >>$LOGFILE 2>>$LOGFILE
-	FILEBLOCKS=$(($3 * 1024 * 1024 / 512))
-	dd if=/dev/zero of=$realfilepath bs=512 count=$FILEBLOCKS  >>$LOGFILE 2>>$LOGFILE
-    fi
-    
-    #Elegimos un dispositivo de loopback libre para montar el fichero
-    #losetup /dev/loop$X, muestra info del loop y sale con 0 si puede mostrarla (está ocupado) o con 1 si falla (está libre)
-    LOOPDEV=''
-    for l in 0 1 2 3 4 5 6 7
-      do
-      losetup /dev/loop$l  >>$LOGFILE 2>>$LOGFILE
-      [ $? -ne 0 ] && LOOPDEV=loop$l && break 
-    done
-    [ "$LOOPDEV" == '' ]  &&  systemPanic $"Error grave: no se puede acceder a ningún dispositivo loopback"
-    
-    
-    #Montamos el fichero
-    losetup /dev/${LOOPDEV}  $realfilepath  >>$LOGFILE 2>>$LOGFILE
-    
-    loopbackdev=/dev/${LOOPDEV}
-}
-
-
-
-
-######### Configurar acceso a datos cifrados ##########
-#1 -> 'new' or 'reset'
-#2 -> mountpath -> punto de montaje de las particiones donde está el loopback file
-#3 -> mapperName -> nombre del disp mapeado sobrwe elq ue montar el cryptsetup
-#4 -> exposedpath -> El path definitivo de los datos. Por lo general debe ser $DATAPATH
-configureCryptoPartition () {
-
-
-    #Uso normal:
-    #mountpath="/media/localpart"
-    #mapperName="eSurveyEncryptedMap"
-    #exposedpath="$DATAPATH"
-    
-    mountpath="$2"
-    mapperName="$3"
-    exposedpath="$4"
-    
-    [ "$mountpath" == "" ] &&  echo "No param 2"  >>$LOGFILE 2>>$LOGFILE  && return 1
-    [ "$mapperName" == "" ] &&  echo "No param 3"  >>$LOGFILE 2>>$LOGFILE  && return 1
-    [ "$exposedpath" == "" ] &&  echo "No param 4"  >>$LOGFILE 2>>$LOGFILE  && return 1
-    
-    cryptdev=""
-    
-    mkdir -p $mountpath
-
-    case "$DRIVEMODE" in 
-	
-	
-	"local" ) 
-        cryptdev="$DRIVELOCALPATH"
-        ;;
-	
-	
-	"iscsi" )
-	/etc/init.d/open-iscsi stop >>$LOGFILE 2>>$LOGFILE 
-	/etc/init.d/open-iscsi start >>$LOGFILE 2>>$LOGFILE 
-        [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el cliente de iSCSI."
-	
-	#Listar /dev/sd* antes de montar
-	devsBefore=$(ls /dev/sd? 2>>$LOGFILE)
-	
-	echo -e "DevsBefore:\n$devsBefore" >>$LOGFILE
-	
-	#Workaround: Por alguna razón (pinta como algo de cachés), antes de conectar necesita que se haga un discover
-	targets=$(iscsiadm -m discovery  -t st -p "$ISCSISERVER:$ISCSIPORT" 2>>$LOGFILE)
-
-	iscsiadm -m node -T "$ISCSITARGET" -p "$ISCSISERVER:$ISCSIPORT" -l  >>$LOGFILE 2>>$LOGFILE 
-        [ $? -ne 0 ] &&  systemPanic $"Error: imposible acceder al target iSCSI."
-	
-	#Este sleep es pq parece que no le da tiempo a crear los nuevos devs 
-	sleep 5
-
-	#Listar /dev/sd* despues de montar
-	devsAfter=$(ls /dev/sd? 2>>$LOGFILE)
-
-	echo -e "devsAfter:\n$devsAfter" >>$LOGFILE
-	
-	#la diferencia, son las Logical Units proporcionadas por el target iscsi
-	luns=""
-	for lun in $devsAfter
-	  do
-	  aux=$(echo $devsBefore | grep $lun)
-	  [ "$aux" == "" ] && luns=$luns" $lun"
-	done
-	
-	echo -e "LUNs:\n$luns" >>$LOGFILE
-
-	[ "$luns" == "" ] &&  systemPanic $"Error: el target iSCSI no devolvió ninguna unidad lógica."
-	
-	### Usar la primera primera unidad (machacando cualquier tabla
-	### de particiones) y ya (nada de pajas mentales, el que monte
-	### el target, que lo haga simple)
-
-        cryptdev=$(echo $luns | cut -d " " -f1)
-        ;;
-	
-	
-	"nfs" )  
-
-        # mount 127.0.0.1:/home/paco/.bin/nfsexp /mnt/nfsexported/ -w   -o "nolock"
-	# mount lab9054.inv.uji.es:/home/paco/.bin/nfsexp /mnt/nfsexported/ -w   -o "nolock"
-
-	#/etc/init.d/nfs-common start  #Esto es del servidor nfs, no del cliente
-        #[ $? -ne 0 ] &&  systemPanic $"Error grave: No se pudo activar el cliente de NFS."
-	
-	
-	#Lo de que no da acceso de escritura cuando se es root: http://bugs.debian.org/492970
-	#El admin deberá poner no_root_squash para poder acceder, bajo su propio riesgo
-	#/etc/exports:
-	#
-	#/exported/nfs/dir 150.128.49.192/26(rw,sync,no_subtree_check,no_root_squash)
-	
-	
-	#Por alguna razón no puedo lanzar el "/sbin/rpc.statd" (probablemente por el firewall, ya que lanza un daemon que escucha el puerto 40084), por lo que debo indicar que mantenga los locks en local (nolock). Esto no es un problema porque el directorio del voto debe ser de uso EXCLUSIVO, y mejor exponer el mínimo de servidores.
-	mount $NFSSERVER:$NFSPATH $mountpath -w -o "port=$NFSPORT"  -o "nolock"   >>$LOGFILE 2>>$LOGFILE 
-	ret=$?
-	[ "$ret" -ne 0 ] &&  systemPanic $"Error accediendo al directorio compartido." 
-
-	#Hacer touch de un fichero en el dir montado a ver si es rw y se ha montado bien
-	touch $mountpath/testwritability
-	ret=$?
-	rm $mountpath/testwritability
-	[ "$ret" -ne 0 ] &&  systemPanic $"Error: el directorio montado no tiene acceso de escritura."
-	
-	#Crear fichero de fs
-	manageLoopbackFS $1 $mountpath $NFSFILESIZE
-	cryptdev=$loopbackdev
-	;;
-
-
-	"samba" ) 
-
-	#mount.cifs //lab9054.inv.uji.es/test /mnt/smb/  -o "user=test,password=*****,rw"
-	
-        #El path: si empieza por [/]+, truncarla, porque no acepta  //
-	SMBPATH=$(echo $SMBPATH | sed -re "s|^[/]+||")
-	
-
-	#Siempre devuelve 0, aunque el recurso no exista
-        mount.cifs //$SMBSERVER/$SMBPATH $mountpath -o "user=$SMBUSER,password=$SMBPWD,port=$SMBPORT,rw"
-	ret=$?
-	[ "$ret" -ne 0 ] &&  systemPanic $"Error accediendo al recurso compartido." 
-
-	
-	#Hacer touch de un fichero en el dir montado a ver si es rw y se ha montado bien
-	touch $mountpath/testwritability
-	ret=$?
-	rm $mountpath/testwritability
-	[ "$ret" -ne 0 ] &&  systemPanic $"Error: el recurso compartido es de sólo lectura."
-	
-	#Crear fichero de fs
-	manageLoopbackFS $1 $mountpath $SMBFILESIZE
-	cryptdev=$loopbackdev
-	;;
-
-
-
-
-	"file" ) 
-	
-        #Monta la partición en que se halla/va a escribir el fichero de loopback
-        mount $FILEPATH $mountpath
-	ret=$?
-	[ "$ret" -ne "0" ] &&  systemPanic $"No se ha podido montar la partición."
-	
-	manageLoopbackFS $1 $mountpath $FILEFILESIZE
-	
-
-
-	cryptdev=$loopbackdev
-
-        ;;
-
-
-	
-	* ) 
-	choice=''
-	systemPanic $"No se ha reconocido el modo de acceso a los datos cifrados. Configuración probablemente manipulada."
-        ;;
-
-    esac
-
-    ## Una vez tenemos la 'particion' disponible como un dev, construimos o montamos el fs cifrado
-
-    #Si estamos construyendo el sistema, setup del fs cifrado dentro del fich loopback.
-    if [ "$1" == 'new' ]
-	then
-	#$dlg --infobox $"Cifrando zona de almacenamiento..." 0 0
-	echo $"Cifrando zona de almacenamiento..."  >>$LOGFILE 2>>$LOGFILE
-	#al poner el - delante del EOF, se ignorarán los TAB al inicio de cada línea del fichero (ojo: TAB, no SPC)
-	#Los delimitadores del here file no es al subcadena 'EOF', sino TODA la cadena (si tiene espacios o tabs detrás, los cuenta)
-	cryptsetup luksFormat $cryptdev   >>$LOGFILE 2>>$LOGFILE  <<-EOF
-		$PARTPWD
-		EOF
-        [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo cifrar la zona de almacenamiento." 
-    fi
-    
-    #Mapeamos el cryptoFS
-    cryptsetup luksOpen $cryptdev $mapperName   >>$LOGFILE 2>>$LOGFILE <<-EOF
-		$PARTPWD
-		EOF
-    [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo acceder a la zona de almacenamiento." 
-
-    #Si estamos construyendo el sistema, setup del fs cifrado dentro del fich loopback.
-    if [ "$1" == 'new' ]
-	then
-	#$dlg --infobox $"Creando sistema de ficheros..." 0 0
-	echo $"Creando sistema de ficheros..." >>$LOGFILE 2>>$LOGFILE
-	
-	mkfs.ext2 /dev/mapper/$mapperName   >>$LOGFILE 2>>$LOGFILE
-	[ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo dar formato al sistema de ficheros."
-    fi
-    
-    #Montamos el cryptoFS mapeado sobre una ruta del sistema.
-    mkdir -p $exposedpath 2>>$LOGFILE
-    mount  /dev/mapper/$mapperName $exposedpath
-    [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo montar el sistema de ficheros."
-
-
-    #Si todo ha ido bien, dejamos una copia de esta clave en un fichero en RAM, para los backups (y para autorizar el uso de ops priv)
-    echo -n "$PARTPWD" > $ROOTTMP/dataBackupPassword
-    chmod 400  $ROOTTMP/dataBackupPassword   >>$LOGFILE 2>>$LOGFILE
-   
-    #Retorno:
-    CRYPTDEV=$cryptdev
-
-    return 0
-} # end configureCryptoPartition ()
-
-
-
-if [ "$2" != 'new' -a "$2" != 'reset' ]
+    if [ "$2" != 'new' -a "$2" != 'reset' ]
     then 
-    echo "configureCryptoPartition: param ERR (exiting 1): 2=$2"   >>$LOGFILE 2>>$LOGFILE
-    exit 1
-fi
+        echo "configureCryptoPartition: param ERR: 2=$2"   >>$LOGFILE 2>>$LOGFILE
+        exit 1
+    fi
 
-parseInput path "$3"
-ret3=$?
-
-parseInput path "$4"
-ret4=$?
-
-parseInput path "$5"
-ret5=$?
-
-if [ "$ret3" -ne 0 -o "$ret4" -ne 0 -o "$ret5" -ne 0 ]
-    then
-    echo -e "param ERR (exiting 1): 3=$3\n4=$4\n5=$5"   >>$LOGFILE 2>>$LOGFILE
-    exit 1
-fi
-
-
-# //// borrar
-#checkParameterOrDie DRIVEMODE "${6}"
-#checkParameterOrDie DRIVELOCALPATH "${7}"
-#checkParameterOrDie NFSSERVER "${8}"
-#checkParameterOrDie NFSPORT "${9}"
-#checkParameterOrDie NFSPATH "${10}"
-#checkParameterOrDie NFSFILESIZE "${11}"
-#checkParameterOrDie SMBSERVER "${12}"
-#checkParameterOrDie SMBPORT "${13}"
-#checkParameterOrDie SMBPATH "${14}"
-#checkParameterOrDie SMBUSER "${15}"
-#checkParameterOrDie SMBPWD "${16}"
-#checkParameterOrDie SMBFILESIZE "${17}"
-#checkParameterOrDie ISCSISERVER "${18}"
-#checkParameterOrDie ISCSIPORT "${19}"
-#checkParameterOrDie ISCSITARGET "${20}"
-#checkParameterOrDie FILEPATH "${21}"
-#checkParameterOrDie FILEFILESIZE "${22}"
-#checkParameterOrDie PARTPWD "${23}"
-#checkParameterOrDie CRYPTFILENAME "${24}"
-
-
-
-
-getPrivVar c DRIVEMODE
-
-
-getPrivVar c DRIVELOCALPATH
-
-getPrivVar c NFSSERVER  
-getPrivVar c NFSPORT    
-getPrivVar c NFSPATH    
-getPrivVar c NFSFILESIZE
-
-getPrivVar c SMBSERVER  
-getPrivVar c SMBPORT    
-getPrivVar c SMBPATH    
-getPrivVar c SMBUSER    
-getPrivVar c SMBPWD     
-getPrivVar c SMBFILESIZE
-
-getPrivVar c ISCSISERVER
-getPrivVar c ISCSIPORT  
-getPrivVar c ISCSITARGET
-
-getPrivVar c FILEPATH    
-getPrivVar c FILEFILESIZE
-
-
-getPrivVar c CRYPTFILENAME
-
-
-
-getPrivVar r CURRENTSLOT
-keyfile="$ROOTTMP/slot$CURRENTSLOT/key"
-if [ -s  "$keyfile" ] 
-    then
-    :
-else
-    echo "Error: No existe una clave reconstruida en el slot activo!! ($CURRENTSLOT)"  >>$LOGFILE 2>>$LOGFILE
-    exit 1
-fi
-
-PARTPWD=$(cat "$keyfile")  #/////probar
-
-configureCryptoPartition "$2" "$3" "$4" "$5" 
-[ "$?" -ne 0 ] && exit 1
-
-
-
-##Config de seguridad de la part cifrada
-
-
-chmod 751  $DATAPATH  >>$LOGFILE 2>>$LOGFILE
-
-
-# //// Aquí, si new,  configurar las carpetas del cryptoFS (crearlas, propietarios, permisos, etc.)
-if [ "$2" == 'new' ]
-    then
-
+    #Load needed configuration variables
+    getPrivVar c DRIVEMODE
     
-
-    mkdir -p $DATAPATH/root >>$LOGFILE 2>>$LOGFILE
-    chown root:root $DATAPATH/root >>$LOGFILE 2>>$LOGFILE
-    chmod 710  $DATAPATH/root  >>$LOGFILE 2>>$LOGFILE
-
+    getPrivVar c DRIVELOCALPATH
     
-    mkdir -p $DATAPATH/webserver >>$LOGFILE 2>>$LOGFILE
-    chown root:www-data $DATAPATH/webserver >>$LOGFILE 2>>$LOGFILE
-    chmod 755  $DATAPATH/webserver  >>$LOGFILE 2>>$LOGFILE
+    getPrivVar c FILEPATH    
+    getPrivVar c FILEFILESIZE
+    getPrivVar c CRYPTFILENAME
+    
+    configureCryptoPartition  "$2" "$DRIVEMODE" "$FILEPATH" "$CRYPTFILENAME" "$MOUNTPATH" "$DRIVELOCALPATH" "$MAPNAME" "$DATAPATH" 
+    [ $? -ne 0 ] && exit $?
+    
+    #Setup permissions on the ciphered partition
+    chmod 751  $DATAPATH  >>$LOGFILE 2>>$LOGFILE
+    
+    #If new,setup cryptoFS directories, with proper owners and permissions
+    if [ "$2" == 'new' ]
+    then
+        mkdir -p $DATAPATH/root >>$LOGFILE 2>>$LOGFILE
+        chown root:root $DATAPATH/root >>$LOGFILE 2>>$LOGFILE
+        chmod 710  $DATAPATH/root  >>$LOGFILE 2>>$LOGFILE
+        
+    
+        mkdir -p $DATAPATH/webserver >>$LOGFILE 2>>$LOGFILE
+        chown root:www-data $DATAPATH/webserver >>$LOGFILE 2>>$LOGFILE
+        chmod 755  $DATAPATH/webserver  >>$LOGFILE 2>>$LOGFILE
 
-
-
-    mkdir -p $DATAPATH/rrds >>$LOGFILE 2>>$LOGFILE
-    chown root:root $DATAPATH/rrds >>$LOGFILE 2>>$LOGFILE
-    chmod 755  $DATAPATH/rrds  >>$LOGFILE 2>>$LOGFILE
-
-
-    mkdir -p $DATAPATH/wizard >>$LOGFILE 2>>$LOGFILE
-    chown vtuji:vtuji $DATAPATH/wizard >>$LOGFILE 2>>$LOGFILE
-    chmod 750  $DATAPATH/wizard  >>$LOGFILE 2>>$LOGFILE
-
+        
+        mkdir -p $DATAPATH/rrds >>$LOGFILE 2>>$LOGFILE
+        chown root:root $DATAPATH/rrds >>$LOGFILE 2>>$LOGFILE
+        chmod 755  $DATAPATH/rrds  >>$LOGFILE 2>>$LOGFILE
+        
+        mkdir -p $DATAPATH/wizard >>$LOGFILE 2>>$LOGFILE
+        chown vtuji:vtuji $DATAPATH/wizard >>$LOGFILE 2>>$LOGFILE
+        chmod 750  $DATAPATH/wizard  >>$LOGFILE 2>>$LOGFILE
+    fi
+    
+    exit 0
 fi
 
 
-
-
-#Retorno:
-doReturn $CRYPTDEV
-exit 0
-fi #configurecryptopartition
-
-
-
-
-
-
-
-
-
-
-
-#//// verif en mant: si
 
 
 if [ "$1" == "formatearClauer"  -o "$1" == "formatearUSB" ] 

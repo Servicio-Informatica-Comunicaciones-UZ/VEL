@@ -57,7 +57,7 @@ PCKGS="$PCKGS ""dialog sg3-utils usbutils postfix mailutils sysstat statgrab lm-
 PCKGS="$PCKGS ""apache2 mysql-server libapache2-mod-php5 php5-mysql php5-curl php5-cli php5-gd php-pear php5-dev php5-mcrypt"
 
 #Tools
-PCKGS="$PCKGS ""vim lsof psmisc pciutils mysql-client mutt less curl wget"
+PCKGS="$PCKGS ""vim lsof psmisc pciutils mysql-client mutt less curl wget bc"
 #PCKGS="$PCKGS ""openssh-client openssh-server"
 
 #Build tools

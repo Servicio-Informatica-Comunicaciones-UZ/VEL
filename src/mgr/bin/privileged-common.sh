@@ -167,9 +167,12 @@ checkRAIDs () {
 	       local ret=$?
         if ["$ret" -ne 0 ]
 	       then
-	           systemPanic "Error: failed RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot."
+            #Raid degraded, etc.
+            return $ret
         fi
     fi
+    
+    return 0
 }
 
 
@@ -507,3 +510,155 @@ verifyCert () {
     
 }
 
+
+
+
+
+#1 -> 'new': setup new loopback device
+#     'reset': load existing loopback device
+#2 -> path where the loopback filesystem is/will be allocated
+#3 -> size of the loopback file system (in MB)
+#Return: (stdout) Path of the loopback device (/dev/loopX) where the fs has been mounted
+manageLoopbackFS () {
+    
+    #If creating the device, fill FS with zeroes
+    if [ "$1" == 'new' ]
+	   then
+	       echo "Preparing storage space..."  >>$LOGFILE 2>>$LOGFILE
+        #Calculate number of 512 byte blocks will the fs have
+	       local FILEBLOCKS=$(($3 * 1024 * 1024 / 512))
+	       dd if=/dev/zero of=$2 bs=512 count=$FILEBLOCKS  >>$LOGFILE 2>>$LOGFILE
+    fi
+    
+    #Choose a free loopback device where to mount the file
+    local LOOPDEV=''
+    for l in 0 1 2 3 4 5 6 7
+    do
+        losetup /dev/loop$l  >>$LOGFILE 2>>$LOGFILE
+        [ $? -ne 0 ] && LOOPDEV=loop$l && break 
+    done
+    if [ "$LOOPDEV" == '' ]  ; then
+        echo "Error: no free loopback device"  >>$LOGFILE 2>>$LOGFILE
+        return 1
+    fi
+    
+    #Mount the file
+    losetup /dev/${LOOPDEV}  $2  >>$LOGFILE 2>>$LOGFILE
+    if [ $? -ne 0 ]  ; then
+        echo "Error: error $? returned while mounting loopback device"  >>$LOGFILE 2>>$LOGFILE
+        return 1
+    fi
+    
+    echo /dev/${LOOPDEV}
+    return 0
+}
+
+
+
+
+
+#Configure access to ciphered data
+#1 -> 'new': setup new ciphered device
+#     'reset': load existing ciphered device
+#2 -> drive mode, which method must be used to access the partition (local drive or loopback fs)
+#3 -> filedev, dev to be mounted where the loopback file can be found
+#4 -> filename, of the loopback file (if any)
+#5 -> size of the loopback filesystem (in MB)
+#6 -> mountpath, mount point of the partition where the loopback file can be located ($MOUNTPATH)
+#7 -> localdev, partition to be encrypted on local mode
+#8 -> mapperName, name of the mapped device over which the cryptsetup will be mounted  (any name)
+#9 -> exposedpath, the final path of the device, where data can be accesed ($DATAPATH)
+configureCryptoPartition () {
+    
+    local cryptdev=""
+
+    local drivemode="$2"
+    local filedev="$3"
+    local loopbackFilename="$4"
+    local filefilesize="$5"
+    local mountpath="$6"
+    
+    local localdev="$7"
+    
+    local mapperName="$8"
+    local exposedpath="$9"    
+    [ "$mountpath" == "" ] &&  echo "No param 2"  >>$LOGFILE 2>>$LOGFILE  && return 1
+    [ "$mapperName" == "" ] &&  echo "No param 3"  >>$LOGFILE 2>>$LOGFILE  && return 1
+    [ "$exposedpath" == "" ] &&  echo "No param 4"  >>$LOGFILE 2>>$LOGFILE  && return 1
+    
+    
+    #Get the partition encryption password (which is the shared key in the active slot)
+    getPrivVar r CURRENTSLOT
+    local keyfile="$ROOTTMP/slot$CURRENTSLOT/key"
+    if [ -s  "$keyfile" ] 
+    then
+        :
+    else
+        echo "Error: No rebuilt key in active slot!! ($CURRENTSLOT)"  >>$LOGFILE 2>>$LOGFILE
+        exit 1
+    fi
+    local PARTPWD=$(cat "$keyfile")
+    
+    
+    #Create mount point
+    mkdir -p $mountpath
+    
+    case "$drivemode" in 
+        
+	       "local" ) 
+            #If encrypted device is a partition, just set it
+            cryptdev="$localdev"
+            ;;
+        
+        "file" ) 
+	           #Mount the partition where the loopback file can be found
+            mount $filedev $mountpath
+	           [ $? -ne "0" ] &&  return 2            
+	           cryptdev=$( manageLoopbackFS $1 "$mountpath/$loopbackFilename" $filefilesize )
+	           [ $? -ne 0 ] && return 3
+            ;;
+        
+        * )
+            #Unknown mode
+	           return 4
+            ;;        
+    esac
+    
+    #Once the base partition is available as a dev,we build/mount the encrypted fs
+    if [ "$1" == 'new' ]
+	   then
+	       echo "Encrypting storage area..."  >>$LOGFILE 2>>$LOGFILE
+	     	 cryptsetup luksFormat $cryptdev   >>$LOGFILE 2>>$LOGFILE  <<-EOF
+$PARTPWD
+EOF
+        [ $? -ne 0 ] &&  return 5 #Error formatting encr part
+    fi
+    
+    #Map the cryptoFS
+    cryptsetup luksOpen $cryptdev $mapperName   >>$LOGFILE 2>>$LOGFILE <<-EOF
+$PARTPWD
+EOF
+    [ $? -ne 0 ] &&  return 6 #Error mapping the encr part
+    
+    #Setup the filesystem inside the encrypted drive
+    if [ "$1" == 'new' ]
+	   then
+	       echo "Creating filesystem..." >>$LOGFILE 2>>$LOGFILE
+	       mkfs.ext4 /dev/mapper/$mapperName >>$LOGFILE 2>>$LOGFILE
+	       [ $? -ne 0 ] &&  return 7
+    fi
+    
+    #Mount cryptoFS (exposed as a mapped device) to a system mount path.
+    mkdir -p $exposedpath 2>>$LOGFILE
+    mount  /dev/mapper/$mapperName $exposedpath
+    [ $? -ne 0 ] &&  return 8
+    
+    #If everything went fine, leave a copy of the password in a RAM file, so backups and op authorisation can be executed
+    echo -n "$PARTPWD" > $ROOTTMP/dataBackupPassword
+    chmod 400  $ROOTTMP/dataBackupPassword   >>$LOGFILE 2>>$LOGFILE
+    
+    #Return device path
+    echo -n $cryptdev
+
+    return 0
+}

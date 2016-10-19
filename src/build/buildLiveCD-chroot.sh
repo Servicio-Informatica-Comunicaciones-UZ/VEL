@@ -340,6 +340,15 @@ then
 fi
 
 
+#Add a daily cron for time adjust (besides any checks ntp daemon may do)
+ctell "****** Configure time adjustment"
+aux=$(cat /etc/crontab | grep hwclock)
+if [ "$aux" == "" ] 
+then
+    echo -e "\n0 0 * * * root  ntpdate-debian >/dev/null 2>/dev/null ; hwclock -w >/dev/null 2>/dev/null\n" >> /etc/crontab
+fi
+
+
 
 
 #The necessary ones are launched from the manager after system is

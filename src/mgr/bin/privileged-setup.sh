@@ -129,67 +129,70 @@ privilegedSetupPhase1 () {
 
 
 privilegedSetupPhase2 () {
-
+    
     #If there are RAIDS, check them before doing anything else
     checkRAIDs
+    [ $? -ne 0 ] && systemPanic "Error: failed RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot."
     
-    
-    # Para evitar la suplantación del sistema, copiaremos todo el
-    # sistema de ficheros del CD a RAM, pero ello requiere que exista un
-    # mínimo de espacio disponible.
-  
-    # Espacio disponible en el aufs creado sobre este sistema.
-    aufsSize=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 4)
-    
-    
-    # si aufsSize no tiene al menos 1200 MB solicitar autorización para copiar todo el FS en RAM.
-    
+    ###################################################################
+    # To avoid tampering, we will copy all the CD filesystem to RAM,  #
+    # but we need a minimum extra memory.                             #
+    # [Already using kernel toram option, but this will act as a      #
+    # double check and will also allow for a finer control when toram #
+    # option fails due to tight memory conditions]                    #
+    ###################################################################
     exec 4>&1 
-    $dlg  --msgbox $"Para evitar suplantaciones del CD que hace funcionar este sistema de voto, se va a copiar todo su contenido en memoria RAM." 0 0
+    $dlg  --msgbox $"To avoid tampering, all the CD content will be loaded to RAM memory" 0 0
+    local copyOnRAM=1    
     
-    copyOnRAM=1
-    if [ "$aufsSize" -lt 1200 ] #1200
-	then
-	copyOnRAM=0
-	if [ "$aufsSize" -lt 870 ] #870
-	    then
-	    $dlg  --msgbox $"Se ha detectado que la cantidad de memoria RAM presente en el sistema es peligrosamente baja. No se realizará este procedimiento" 0 0
-	else
-	    $dlg --yes-label $"Copiar en RAM"  --no-label $"No copiar en RAM" --yesno  $"Se ha detectado que la cantidad de memoria RAM presente en el sistema puede resultar insuficiente para su correcto funcionamiento en un período prolongado:\n\nMemoria disponible para sistema de ficheros: $aufsSize MB\nTamaño estimado del sistema de ficheros del CD: $ESTIMATEDCDFSSIZE MB\n\n¿Desea copiarlo o desea operar desde el CD?" 0 0
-	    [ "$?" -eq 0  ] && copyOnRAM=1
-	    
-	fi
-	
-    fi  
+    #Calculate free space (in MB) for the aufs (the stackable root filesystem)
+    local aufsSize=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 2)
+    local aufsFreeSize=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 4)
+
+    #Calculate size (in MB) of the uncompressed CD filesystem
+    local cdfsSize=$(du -s /lib/live/mount/rootfs/ | cut -f 1)
+
+    #Size of the CD
+    local cdandpad=$(python -c "print int( $cdfsSize + $aufsSize*0.3 )")
     
-    if [ "$copyOnRAM" -eq 1 ]
-	then
-	$dlg --infobox $"Copiando el CD en memoria..."  0 0
-	
-	find /  -xdev -type f -print0 | xargs -0 touch
-	
-        #Calculamos espacio disponible ahora
-	aufsSize=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 4)
-      
-	$dlg --msgbox $"Copia finalizada con éxito.\n\nEl sistema de ficheros en RAM dispone todavía de: $aufsSize MB." 0 0
-    else
-	$dlg --msgbox $"No se copiará el CD en memoria.\n\nEl sistema no puede garantizar su integridad ante una violación de la seguridad física. Tomen las medidas pertinentes: aumenten la cantidad de memoria RAM para poder realizar el procedimiento o restrinjan el acceso a la ubicación física del servidor." 0 0
-    fi
     
+    #If not enough free space, return
+    if [ "$aufsSize" -lt $cdfsSize ]
+    then
+	       $dlg  --msgbox $"Not enough free memory. CD content won't be copied. System physical tampering protection cannot be assured." 0 0
+	       copyOnRAM=0
         
+    #If copying the CD doesn't leave at least a 30% of the aufs
+    #original free space or aufs is smaller than a constant, let the
+    #user decide
+    elif [ "$aufsSize" -lt $MINAUFSSIZE -o  "$aufsFreeSize" -lt "$cdandpad" ]
+	   then
+	       copyOnRAM=0
+        
+	       $dlg --yes-label $"Copy"  --no-label $"Do not copy" --yesno  $"Amount of free memory may be insufficient for a proper functioning in certain conditions.""\n\n"$"Available memory:"" $aufsFreeSize MB\n"$"Size of the CD filesystem:"" $cdfsSize MB\n\n"$"Copy the system if you belive usage won't be affected" 0 0
+        [ "$?" -eq 0  ] && copyOnRAM=1    
+	   fi
+	   
+    if [ "$copyOnRAM" -eq 1 ]
+	   then
+        #Copy the filesystem to RAM
+	       $dlg --infobox $"Copying CD filesystem to system memory..."  0 0
+	       find /  -xdev -type f -print0 | xargs -0 touch
+	       
+        #Calculate available space at the end
+	       local aufsFinalFreeSize=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 4)
+        $dlg --msgbox $"Copy successful.""\n\n"$"Still available RAM filesystem space:"" $aufsFinalFreeSize MB." 0 0
+    fi
+    #Persist this variable (to the memory config file)
+    setPrivVar copyOnRAM "$copyOnRAM" r
     
-    #Workaround para el poltergist del directorio no listable a pesar de los permisos
-    mv /var/www /var/aux >>$LOGFILE 2>>$LOGFILE
-    mkdir /var/www >>$LOGFILE 2>>$LOGFILE
-    chmod a+rx /var/www >>$LOGFILE 2>>$LOGFILE
-    mv /var/aux/* /var/www/  >>$LOGFILE 2>>$LOGFILE
-    #Establecemos los permisos definitivos del directorio (lo hago en la instalación , pero este WA igual lo fastidia.)
-    chmod 550 /var/www/ >>$LOGFILE 2>>$LOGFILE
-    chown root:www-data /var/www/  >>$LOGFILE 2>>$LOGFILE  #//// probar
-
-
-    #Guardamos el estado de la copia en RAM en el fichero de variables en memoria
-    setPrivVar copyOnRAM "$copyOnRAM" r   #////probar que lo escribe.
+    #Workaround. This directory may not be listable despite the proper permissions  # TODO commented out. If problems detected, uncomment, otherwise, delete
+#    mv /var/www /var/aux >>$LOGFILE 2>>$LOGFILE
+#    mkdir /var/www >>$LOGFILE 2>>$LOGFILE
+#    chmod a+rx /var/www >>$LOGFILE 2>>$LOGFILE
+#    mv /var/aux/* /var/www/  >>$LOGFILE 2>>$LOGFILE
+#    chmod 550 /var/www/ >>$LOGFILE 2>>$LOGFILE
+#    chown root:www-data /var/www/  >>$LOGFILE 2>>$LOGFILE
 }
 
 
@@ -197,18 +200,15 @@ privilegedSetupPhase2 () {
 
 privilegedSetupPhase3 () {
     
+    #Force time adjust, system and hardware clocks
     /etc/init.d/openntpd stop  >>$LOGFILE 2>>$LOGFILE
     /etc/init.d/openntpd start >>$LOGFILE 2>>$LOGFILE
     ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
-   
-    #Establecemos la hora del reloj de la CPU ahora que ya se habrá ajustado con el openntpd
     hwclock -w >>$LOGFILE 2>>$LOGFILE
-
-    #Como no me fio del openntpd, pongo un cron diario de sincronización de hora
-    echo -e "\n0 0 * * * root  ntpdate-debian >/dev/null 2>/dev/null ; hwclock -w >/dev/null 2>/dev/null\n" >> /etc/crontab  2>>$LOGFILE
     
+#SEGUIR
     
-    #Por si acaso, rehasheamos los certificados  de todas las CAs 
+    #Por si acaso, rehasheamos los certificados  de todas las CAs # TODO hacer esto cuando pueda estar instalando un cert o una CA
     c_rehash >>$LOGFILE 2>>$LOGFILE
     
     #Por si acaso, al inicio de la instalación, sincronizamos el reloj (porque al lanzarse el ntpd no tenía conectividad)

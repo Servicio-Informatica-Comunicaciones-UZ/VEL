@@ -5,10 +5,13 @@
 #  Constants  #
 ###############
 
+#Actual version number of this voting system
 VERSION=$(cat /etc/vtUJIversion)
 
-
+#Block id used in the secure store for the key fragment
 KEYBID='eSurvey_eLection_keyshare'
+
+#Block id used in the secure store for the configuration
 CONFBID='eSurvey_eLection_config'
 
 
@@ -20,21 +23,16 @@ CONFBID='eSurvey_eLection_config'
 
 
 
-
-#### //// +++++ cada sitio en que aparezca esta func o las similares, debe reconvertirse para que todo vaya por privado en lo posible. Si no, permitir leer la var con una privop
-
-
-# REubica los logs del sistema en la part cifrada
-# $1 -> 'new' o 'reset'
+#Wrapper: move logs to privileged location
+# $1 ->   'new': new install (just moves logs)
+#       'reset': substitutes logs for the previous ones and saves apart current ones
 relocateLogs () {
     $PSETUP  relocateLogs "$1"
 }
 
-#//// Las ops de PSETUP que estén aquí es probable que se usen en mant. revisarlas y pasarlas a PVOPS si correpsonde (sobretodo cuando implenmente el newinnerkey).
 
 
-
-
+#Create unprivileged user tmp directory
 createUserTempDir (){
     #If it doesn't exist, create
     [ -e "$TMPDIR" ] || mkdir "$TMPDIR"
@@ -47,38 +45,32 @@ createUserTempDir (){
 
 
 
-######### Configurar acceso a datos cifrados ##########
-#1 -> 'new' or 'reset'
-#2 -> mountpath -> punto de montaje de las particiones donde está el loopback file
-#3 -> mapperName -> nombre del disp mapeado sobrwe elq ue montar el cryptsetup
-#4 -> exposedpath -> El path definitivo de los datos. Por lo general debe ser $DATAPATH
+#Configure access to ciphered data
+#1 -> 'new': setup new ciphered device
+#     'reset': load existing ciphered device
 configureCryptoPartition () {
-
+    
     if [ "$1" == 'new' ]
-	then
-	$dlg --infobox $"Creando zona de datos cifrados..." 0 0
+	   then
+	       $dlg --infobox $"Creating ciphered data device..." 0 0
     else
-	$dlg --infobox $"Accediendo a datos cifrados..." 0 0
+	       $dlg --infobox $"Accessing ciphered data device..." 0 0
     fi
     sleep 1
-
-    $PVOPS configureCryptoPartition "$1" "$2" "$3" "$4" #"$DRIVEMODE" "$DRIVELOCALPATH" "$NFSSERVER" "$NFSPORT" "$NFSPATH" "$NFSFILESIZE" "$SMBSERVER" "$SMBPORT" "$SMBPATH" "$SMBUSER" "$SMBPWD" "$SMBFILESIZE" "$ISCSISERVER" "$ISCSIPORT" "$ISCSITARGET" "$FILEPATH" "$FILEFILESIZE" "$PARTPWD" "$CRYPTFILENAME"  #////borrar
-    local retv=$?
-
-    if [ "$retv" -ne 0 ]
-	then  systemPanic "Error invoking configureCryptoPartition function (1)."
-    fi
     
-    CRYPTDEV=$(getReturn)
+    #Setup the partition
+    $PVOPS configureCryptoPartition "$1"
+    local ret=$?
+    [ "$ret" -eq 2 ] && systemPanic $"Error mounting base drive."
+    [ "$ret" -eq 3 ] && systemPanic $"Critical error: no empty loopback device found"
+    [ "$ret" -ne 4 ] && systemPanic $"Unknown data access mode. Configuration is corrupted or tampered."
+    [ "$ret" -ne 5 ] && systemPanic $"Couldn't encrypt the storage area."
+    [ "$ret" -ne 6 ] && systemPanic $"Couldn't access storage area." 
+    [ "$ret" -ne 7 ] && systemPanic $"Couldn't format the filesystem."
+    [ "$ret" -ne 8 ] && systemPanic $"Couldn't mount the filesystem."
+    [ "$ret" -ne 0 ] && systemPanic $"Error configuring encrypted drive."
     
-    echo "CRYPTDEV? $CRYPTDEV" >>$LOGFILE  2>>$LOGFILE
-    echo "retv? $retv" >>$LOGFILE  2>>$LOGFILE
-    
-    if [ "$CRYPTDEV" == "" ]
-	then  systemPanic "Error invoking configureCryptoPartition function."
-    fi
-
-} # end configureCryptoPartition ()
+}
 
 
 
@@ -221,13 +213,10 @@ testForDeadShares () {
 #2 -> Ruta donde se monta el dev que contiene el fichero de loopback "$MOUNTPATH" (puede ser cadena vacía)
 #3 -> Nombre del mapper device donde se monta el sistema cifrado "$MAPNAME"
 #4 -> Path donde se monta la partición final "$DATAPATH"
-#5 -> Ruta al dev loop que contiene la part cifrada "$CRYPTDEV"  (puede ser cadena vacía)
-#6 -> iscsitarget   (puede ser cadena vacía)
-#7 -> iscsiserver   (puede ser cadena vacía)
-#8 -> iscsiport     (puede ser cadena vacía)
+#5 -> Ruta al dev loop que contiene la part cifrada "$CRYPTDEV"  (puede ser cadena vacía)  # TODO this var is no maintained on the private part. just ignore it
 umountCryptoPart () {
 
-    $PVOPS umountCryptoPart "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8"
+    $PVOPS umountCryptoPart "$1" "$2" "$3" "$4" "$5"
 
 }
 
@@ -368,6 +357,7 @@ clauerConnect(){
 	       #    continue
 	       #    
 	       #fi
+        :
     fi
     
     #Si todo ha ido correcto
@@ -1367,8 +1357,8 @@ writeClauers () {
 
 	#Generamos los parámetros no interactivos.
        
-        #Establecemos el nombre del fichero de loopback (necesariamente único)
-	CRYPTFILENAME="$CRYPTFILENAMEBASE"$(date +%s)
+        #Establecemos el nombre del fichero de loopback (necesariamente único), siempre en la raiz
+	CRYPTFILENAME="$CRYPTFILENAMEBASE"$(date +%s) # TODO Do not use as global in functions. make sure it is written in config before gbiulding the ciph part. -Also, try to move this to the privileged part (as they are written there, if I remember well)
 
 
 	#echo "Crypto drive mode: $DRIVEMODE"  >>$LOGFILE 2>>$LOGFILE

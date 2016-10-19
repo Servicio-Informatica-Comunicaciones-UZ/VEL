@@ -110,3 +110,29 @@ getPartitionDev () {
     
     echo -n $dirn/$(echo $devn | sed -re  "s/(^[a-z]+)[0-9]+$/\1/g")
 }
+
+
+#Shows info of the loop dev,exits with 0 if it can be shown (it is an occupied loop dev) or with 1 if it fails to show the info (it is a free loop dev)
+losetup /dev/loop$X
+
+
+
+#Putting - before EOF, will ignore TABs at the beginning of the
+#here file (notice that TABs will be ignored, but not SPC)
+#Delimiter for the here file is not only the string ('EOF'), but ALL
+#the string (including trailing spaces and tabs)
+cryptsetup luksFormat $cryptdev   >>$LOGFILE 2>>$LOGFILE  <<-EOF
+$PARTPWD
+EOF
+
+
+
+
+
+#Workaround. This directory may not be listable despite the proper permissions
+mv /var/www /var/aux >>$LOGFILE 2>>$LOGFILE
+mkdir /var/www >>$LOGFILE 2>>$LOGFILE
+chmod a+rx /var/www >>$LOGFILE 2>>$LOGFILE
+mv /var/aux/* /var/www/  >>$LOGFILE 2>>$LOGFILE
+chmod 550 /var/www/ >>$LOGFILE 2>>$LOGFILE
+chown root:www-data /var/www/  >>$LOGFILE 2>>$LOGFILE

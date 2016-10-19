@@ -35,8 +35,9 @@ VARFILE="$DATAPATH/root/vars.conf"
 LOCKOPSFILE="/root/lockPrivileged"
 
 
-#Approximate size of FS once it is loaded to RAM
-ESTIMATEDCDFSSIZE=760 # TODO recalculate
+#In MB, minimum size of the AUFS to automatically copy the CD to RAM
+#(AUFS reserves 50% of the system memory)
+MINAUFSSIZE=1800
 
 
 #Source of random input
@@ -52,7 +53,7 @@ DATAPATH="/media/crypStorage"
 
 #Encrypted FS parameters
 CRYPTFILENAMEBASE="eLectionCryptFS-"
-CRYPTDEV=""
+CRYPTDEV=""  # TODO see if this global can be supressed
 
 
 
@@ -228,7 +229,7 @@ parseInput () {
 	           [ $? -ne 0 ] && ret=1
 	           ;;
         
-        "crypfilename" ) #Filename of an encrypted filesystem
+        "crypfilename" ) #Filename of an encrypted filesystem (base name and a set of numbers)
 	           echo "$2" | grep -oEe "^$CRYPTFILENAMEBASE[0-9]+$" 2>&1 >/dev/null
 	           [ $? -ne 0 ] && ret=1
 	           ;;
@@ -317,7 +318,7 @@ checkParameter () {
 	           fi
 	           ;;	
 	       
-	       "DRIVELOCALPATH" | "FILEPATH" | "CRYPTFILENAME" )
+	       "DRIVELOCALPATH" | "FILEPATH" )
             parseInput path "$2"
 	           ret=$?
 	           ;;
@@ -418,7 +419,7 @@ doReturn () {
 }
 
 
-#Print and delete the last string returned by a privileged op
+#Print and delete the last string returned by a privileged op   # TODO probably will be useless. check usage, and try to delete it
 getReturn () {
     if [ -e "$RETBUFFER" ]
 	   then
@@ -516,14 +517,13 @@ detectUsbExtraction (){
 
 
 
-# SEGUIR: revisar de nuevo lo que he hecho hoy, a ver si me he colado
 
 #Detect insertion of a usb device
 # $1 --> "Insert device" message.
 # $2 --> "No" label message.
 #Stdout: dev path of the inserted usb device
 #Return code 0: selected device/partition is writable
-#            1: nothing selected (the 'no' option has been selected)
+#            1: nothing selected/insertion cancelled (the 'no' option has been selected)
 #            2: selected device needs to be formatted
 insertUSB () {  # TODO extinguish usage of $DEV and $ISCLAUER
     
@@ -590,22 +590,23 @@ insertUSB () {  # TODO extinguish usage of $DEV and $ISCLAUER
 
 
 
-
-
-
+#Convert a hexadecimal string (dfrom stdin) into base64 (to stdout)
 hex2b64 () {  
     python -c "
 import sys
 import binascii
 import base64
 import re
+
 p = re.compile('\s+')
+
 hex_string = sys.stdin.read()
 hex_string = hex_string.strip()
 if len(hex_string)%2 == 1:
   hex_string = '0'+hex_string
+
 hex_string = p.sub('', hex_string)
-sys.stdout.write(base64.b64encode(binascii.unhexlify(hex_string)))
-    
+
+sys.stdout.write(base64.b64encode(binascii.unhexlify(hex_string)))    
 "
 }

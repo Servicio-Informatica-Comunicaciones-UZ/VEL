@@ -671,8 +671,8 @@ doSystemConfiguration (){
 
 	
     #Abrimos o creamos la zona segura de datos.
-    configureCryptoPartition "$1"   "$MOUNTPATH"  "$MAPNAME"  "$DATAPATH"
-    #En $CRYPTDEV está el dev empleado, para desmontarlo
+    configureCryptoPartition "$1"
+    #En $CRYPTDEV está el dev empleado, para desmontarlo  # TODO cambiar este retorno, ahora no es una global. De hecho, quitar y mantener en la parte priv, en una var de ram si hace falta
 
 
     
