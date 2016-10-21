@@ -640,6 +640,15 @@ rm -rf /var/www/tmp/
 
 
 
+ctell "####### Miscellany #########"
+
+#Rehash certificate directory # TODO hacer esto cuando pueda estar instalando un cert o una CA
+c_rehash
+
+#Update mail aliases BD.
+/usr/bin/newaliases
+
+
 
 
 

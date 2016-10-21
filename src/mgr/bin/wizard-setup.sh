@@ -700,7 +700,7 @@ doSystemConfiguration (){
 
 
 	    #Recuperamos el fichero y lo desciframos
-	    $PSETUP recoverSSHBackupFile 
+	    $PSETUP recoverSSHBackup_phase1 
 	    if [ $? -ne 0 ] 
 		then
 		$dlg --msgbox $"Error durante la recuperación del backup. Vuelva a intentarlo." 0 0
@@ -768,7 +768,7 @@ doSystemConfiguration (){
 
     if [ "$DORESTORE" -eq 1 ] ; then
 
-	$PSETUP recoverDbBackup
+	$PSETUP recoverSSHBackup_phase2
 	
     fi
 

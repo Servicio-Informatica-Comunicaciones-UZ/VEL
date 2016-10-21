@@ -205,21 +205,6 @@ privilegedSetupPhase3 () {
     /etc/init.d/openntpd start >>$LOGFILE 2>>$LOGFILE
     ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
     hwclock -w >>$LOGFILE 2>>$LOGFILE
-    
-#SEGUIR
-    
-    #Por si acaso, rehasheamos los certificados  de todas las CAs # TODO hacer esto cuando pueda estar instalando un cert o una CA
-    c_rehash >>$LOGFILE 2>>$LOGFILE
-    
-    #Por si acaso, al inicio de la instalación, sincronizamos el reloj (porque al lanzarse el ntpd no tenía conectividad)
-    #$dlg   --infobox $"Sincronizando la hora del sistema..." 0 0
-    #ntpdate-debian >>$LOGFILE 2>>$LOGFILE
-    #if [ "$?" -ne "0" ] ; then
-#	$dlg   --msgbox $"Error sincronizando la hora. Se intentará más tarde." 0 0
-#    else
-#	hwclock -w >>$LOGFILE 2>>$LOGFILE
-#    fi
-    
 }
 
 
@@ -228,47 +213,50 @@ privilegedSetupPhase3 () {
 
 privilegedSetupPhase4 () {
     
-    #Actualizamos la BD de aliases.
-    /usr/bin/newaliases    >>$LOGFILE 2>>$LOGFILE
+    #Load initial whitelist # TODO add gui form to spec the admin's ip and add it permanently to the whitelist. Add that as an option on the edit admin op. IF necessary move these calls ahead until we have the admin's IP
+	   bash /usr/local/bin/whitelistLCN.sh >>$LOGFILE 2>>$LOGFILE
+    bash /usr/local/bin/updateWhitelist.sh>>$LOGFILE 2>>$LOGFILE
     
     
-    #Creamos la Whitelist inicial de nodos de la LCN 
-    bash /usr/local/bin/firewallWhitelist.sh  >>$LOGFILE 2>>$LOGFILE
-	   	    
-    # TODO maybe, if we i18n all files, add here a warning to the root user, that he must receive an e-mail with the test for the raid # TODO we should really avoid UI from root. Move all UI to user space
-    
-    #Test the RAID arrays if any and generate a test message for the administrator
+    #Test the RAID arrays, if any, and generate a test message for the administrator
     mdadm --monitor  --scan  --oneshot --syslog --mail=root  --test  >>$LOGFILE 2>>$LOGFILE
+    #If RAIDS are found, Warn the admin that he must receive an e-mail with the test  # TODO Make sure mailer is configured by now
+    mdadm --examine --scan --config=partitions >/tmp/mdadm.conf  2>>$LOGFILE
+    if [ "$(cat /tmp/mdadm.conf)" != "" ] 
+	   then
+	       $dlg --msgbox $"RAID arrays detected. You will receive an e-mail with the test result." 0 0
+    fi
     
-
-    #Activamos el bloqueo de ejecución de operaciones privilegiadas. Ahora, 
-    #cualquier operación que se ejecute verificará antes que puede reconstruir 
-    #la clave de cifrado del disco
+    
+    #Activate privileged operations execution lock. Any op invoked
+    #from now on will first check for a valid rebuilt cipherkey
     echo -n "1" > $LOCKOPSFILE
     chmod 400 $LOCKOPSFILE
-
-
 }
 
 
 
 
 privilegedSetupPhase5 () {
-
-     
-#Una vez acabado el uso de los scripts de setup, los inutilizamos
-
-#TODO Remove sudo capabilities to privileged setup so it cannot be invoked by user
-sed -i -re 's|(^\s*vtuji\s*ALL.*NOPASSWD:[^,]+),.*$|\1|g' /etc/sudoers  >>$LOGFILE 2>>$LOGFILE  #TODO Probar que no fastidie al que está en ejecución y probar que no pueda ejecutarlo de nuevo.
-
-#Quitamos los permisos de ejec al wizard.
-chmod 550 /usr/local/bin/wizard-setup.sh
     
+    # TODO add some more useful info on the e-mail?
+    emailAdministrator $"Test" $"This is a test e-mail to prove that the messaging system works end to end."
+    $dlg --msgbox $"You must receive an e-mail as a proof for the notification system working properly. Check your inbox" 0 0
+    
+    ### Now, neuter the setup scripts to reduce attack vectors ###
+    
+    #Remove sudo capabilities to privileged setup so it cannot be invoked by user
+    #(actually, removing all items from the sudo line but the first, which is privileged-ops and actually needed)
+    sed -i -re 's|(^\s*vtuji\s*ALL.*NOPASSWD:[^,]+),.*$|\1|g' /etc/sudoers  >>$LOGFILE 2>>$LOGFILE
+    
+    #Remove read and execution permissions on wizard
+    chmod 550 /usr/local/bin/wizard-setup.sh
 }
 
 
 
-
+# TODO review this better when implementing and testing  the backup recovery
+# TODO: on backup: overwrite file? add a new file with unique name such as timestamp? implement a round robin?
 #Gets all needed recover parameters and calls the backup download and
 #decipher procedure, then restores files and variables
 recoverSSHBackupFileOp () {
@@ -307,15 +295,13 @@ recoverSSHBackupFileOp () {
         #recover those that are not going to be overwritten (ssh,
         #dbpwd and mailrelay will be written later with their new
         #values).
-        mv -f "$ROOTTMP/backupRecovery/$DATAPATH/*"  $DATAPATH/
-
-        #TODO Asegurarme de que al restaurar se mantienen los permisos. especialmente los extendidos.
+        mv -f "$ROOTTMP/backupRecovery/$DATAPATH/*"  $DATAPATH/  # TODO change this. aufs may not be big enough to hold all of this. Write directly on the peristent data dev, also download the encrypted bak file there
         
         #Restore temporarily saved variables
         setPrivVar SSHBAKPASSWD "$SSHBAKPASSWDaux" d 
 }
 
-
+# TODO review this better when implementing and testing  the backup recovery.
 #Downloads backup file and untars it on the specified dir
 # $2 -> Password de cifrado de los datos
 # $3 -> user
@@ -351,7 +337,10 @@ recoverSSHBackupFile () {
 	       $dlg --msgbox $"Error descifrando el fichero de Copia de Seguridad: fichero corrupto o llave incorrecta." 0 0 
 	       return 1
     fi
+
+# TODO hacer que se guarden copias en round robin o infinitas. Sea como sea, aquí hacer un ls y sacar un selector de qué fichero de bak usar
     
+    rm -rf "$ROOTTMP/bak/vtUJI_backup.tgz.aes"
     rm -rf "$6"
     mkdir  "$6"
     
@@ -362,7 +351,6 @@ recoverSSHBackupFile () {
 	       return 1
     fi
     
-    rm -rf "$ROOTTMP/bak/vtUJI_backup.tgz.aes"
     rm -rf "$ROOTTMP/bak/vtUJI_backup.tgz"
     
     rmdir $ROOTTMP/bak
@@ -415,42 +403,83 @@ then
     fi
     relocateLogs "$2"
 
-    
-#Mark webapp to force a backup
-elif [ "$1" == "forceBackup" ]
-then
-    # TODO make sure this works fine and the pwd is there
-    echo "update eVotDat set backup="$(date +%s) | mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
 
-    
-#setup admin's password as the recipient for all system notification e-mails
+
+#Set admin e-mail as the recipient for all system notification e-mails  # TODO Add this to the update admin maint op
 elif [ "$1" == "setupNotificationMails" ]
 then
     getPrivVar d MGREMAIL
-    echo -e "\nroot: $MGREMAIL" >> /etc/aliases   2>>$LOGFILE    
-
-
+    #Check for a previous entry, and overwrite
+    found=$(cat /etc/aliases | grep -Ee "^\s*root:")
+    if [ "$found" != "" ] ; then
+        sed -i -re "s/^(\s*root: ).*$/\1$MGREMAIL/g" /etc/aliases
+    else
+        echo -e "\nroot: $MGREMAIL" >> /etc/aliases 2>>$LOGFILE
+    fi
+    #Update mail aliases BD.
+    /usr/bin/newaliases >>$LOGFILE 2>>$LOGFILE
+    
+    
 #loads a keyboard keymap
 elif [ "$1" == "loadkeys" ]
 then
     loadkeys "$2"  >>$LOGFILE 2>>$LOGFILE
-
+    
 #Configure pm-utils to be able to suspend the computer
 elif [ "$1" == "pmutils" ] 
 then
-    #Reinstall and reconfigure package
+    #Reinstall and reconfigure package # TODO probably a reconfigure would be-enough
     dpkg -i /usr/local/bin/pm-utils*  >>$LOGFILE  2>>$LOGFILE
     
-
- #Recover the system from a backup file retrieved through SSH  #  TODO test
-elif [ "$1" == "recoverSSHBackupFile" ]
-then
-    recoverSSHBackupFileOp
     
+#Recover the system from a backup file retrieved through SSH  #  TODO test
+elif [ "$1" == "recoverSSHBackup_phase1" ]
+then
+    recoverSSHBackupFileOp # TODO backup recovery process: get parameters from user when recovering, forget clauer conf move ssh bak paramsfrom clauer conf to disk conf and allow to modify them during operation theough a menu option
+    
+
+elif [ "$1" == "recoverSSHBackup_phase2" ]
+then
+    
+    #restore database dump
+    mysql -f -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection  <"$ROOTTMP/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
+    [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos."
+    
+    #Delete backup directory # TODO. this may change
+    rm -rf "$ROOTTMP/backupRecovery/"
+
+
+
+elif [ "$1" == "enableBackup" ]
+then
+    #Write cron to check every minute for a pending backup
+    aux=$(cat /etc/crontab | grep backup.sh)
+    if [ "$aux" == "" ]
+    then
+        echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO review this script
+    fi
+    
+  
+elif [ "$1" == "disableBackup" ]
+then
+    #Delete backup cron line (if exists)
+    sed -i -re "/backup.sh/d" /etc/crontab  #SEGUIR
+      
+    
+#Mark system to force a backup
+elif [ "$1" == "forceBackup" ]
+then
+    #Backup cron reads database for next backup date. Set date to now. # TODO make sure this works fine and the pwd is there
+    echo "update eVotDat set backup="$(date +%s) | mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
+    
+
+
     
 else
-    :
+    echo "Bad privileged setup operation: $1" >>$LOGFILE  2>>$LOGFILE
 fi
+
+
 exit 0
 
 
@@ -475,32 +504,9 @@ exit 0
 
 
 
-if [ "$1" == "recoverDbBackup" ]
-    then
-
-    #restore database dump
-    mysql -f -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection  <"$ROOTTMP/backupRecovery/$ROOTTMP/dump.*" 2>>/tmp/mysqlRestoreErr
-    
-    [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos."
-
-    #Borramos el directorio donde estaba el backup recuperado 
-    rm -rf "$ROOTTMP/backupRecovery/"
-
-fi
 
 
 
-
-
-
-
-if [ "$1" == "enableBackup" ]
-    then
-
-    #Escribimos la línea al final del fichero crontab del sistema
-    echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    
-    
-fi
 
 
 

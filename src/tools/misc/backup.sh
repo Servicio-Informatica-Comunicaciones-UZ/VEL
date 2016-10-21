@@ -7,7 +7,7 @@ ROOTTMP="/root/"
 DATAPATH="/media/crypStorage"
 VARFILE="$DATAPATH/root/vars.conf"
 
-
+# TODO load common scripts and try to avoid code multiplicity
 
 DBPWD=$(cat $DATAPATH/root/DatabaseRootPassword)
 DATAPWD=$(cat $ROOTTMP/dataBackupPassword)

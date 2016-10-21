@@ -1,4 +1,8 @@
 #!/bin/bash
+
+. /usr/local/bin/common.sh
+
+
 PATH=$PATH:/sbin:/usr/sbin
 
 x=$(wget -q 2>/dev/null -O - https://esurvey.nisu.org/nodes.xml |

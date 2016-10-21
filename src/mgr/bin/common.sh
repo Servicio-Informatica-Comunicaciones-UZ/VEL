@@ -100,6 +100,14 @@ export DIALOG_ITEM_HELP=1
 ###############
 
 
+#Send a mail to the root user (which will be forwarded to the
+#administrator's e-mail address)
+# 1-> subject
+# 2-> body of the message
+emailAdministrator(){
+    echo "$2" | mail -s "$1" root 
+}
+
 
 #Wrapper for the privileged  op
 # 1-> h: halts the system (default)

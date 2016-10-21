@@ -1,4 +1,8 @@
 #!/bin/bash
+
+. /usr/local/bin/common.sh
+
+
 PATH=$PATH:/sbin:/usr/sbin
 
 
