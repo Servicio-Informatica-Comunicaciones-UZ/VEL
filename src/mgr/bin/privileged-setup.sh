@@ -128,11 +128,7 @@ privilegedSetupPhase1 () {
 
 
 
-privilegedSetupPhase2 () {
-    
-    #If there are RAIDS, check them before doing anything else
-    checkRAIDs
-    [ $? -ne 0 ] && systemPanic "Error: failed RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot."
+moveToRAM () {
     
     ###################################################################
     # To avoid tampering, we will copy all the CD filesystem to RAM,  #
@@ -370,9 +366,9 @@ if [ "$1" == "init1" ]
 then
     privilegedSetupPhase1
     
-elif [ "$1" == "init2" ]
+elif [ "$1" == "moveToRAM" ]
 then
-    privilegedSetupPhase2
+    moveToRAM
     
 elif [ "$1" == "init3" ]
 then
@@ -392,6 +388,8 @@ elif [ "$1" == "halt" ]
 then
     halt
 
+
+    
     
 #System logs are relocated from the RAM fs to the ciphered partition on the hard drive
 elif [ "$1" == "relocateLogs" ]
@@ -405,6 +403,8 @@ then
 
 
 
+
+    
 #Set admin e-mail as the recipient for all system notification e-mails  # TODO Add this to the update admin maint op
 elif [ "$1" == "setupNotificationMails" ]
 then
@@ -418,12 +418,18 @@ then
     fi
     #Update mail aliases BD.
     /usr/bin/newaliases >>$LOGFILE 2>>$LOGFILE
+
+
+
     
     
 #loads a keyboard keymap
 elif [ "$1" == "loadkeys" ]
 then
     loadkeys "$2"  >>$LOGFILE 2>>$LOGFILE
+
+
+
     
 #Configure pm-utils to be able to suspend the computer
 elif [ "$1" == "pmutils" ] 
@@ -431,6 +437,20 @@ then
     #Reinstall and reconfigure package # TODO probably a reconfigure would be-enough
     dpkg -i /usr/local/bin/pm-utils*  >>$LOGFILE  2>>$LOGFILE
 
+
+
+
+
+
+#If there are RAIDS, check them before doing anything else
+elif [ "$1" == "checkRAIDs" ]
+then
+    checkRAIDs
+    exit $?
+
+    
+
+    
 
 #Setup timezone and store variable
 elif [ "$1" == "setupTimezone" ]

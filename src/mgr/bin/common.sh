@@ -539,7 +539,7 @@ detectUsbExtraction (){
 #Detect insertion of a usb device
 # $1 --> "Insert device" message.
 # $2 --> "No" label message.
-#Stdout: dev path of the inserted usb device
+#$USBDEV: dev path of the inserted usb device or partition
 #Return code 0: selected device/partition is writable
 #            1: nothing selected/insertion cancelled (the 'no' option has been selected)
 #            2: selected device needs to be formatted
@@ -575,13 +575,13 @@ insertUSB () {  # TODO extinguish usage of $DEV and $ISCLAUER
         if [ $nparts -le 0 ]
 	       then
             #One device, no writable partitions: return it and mark that format is needed
-            echo -n $usbs
+            USBDEV=$usbs
             return 2
             
         elif [ $nparts -eq 1 ]
 	       then
             #One device, with one writable partition: return it
-            echo -n $parts
+            USBDEV=$parts
             return 0
 
         else
@@ -596,7 +596,7 @@ insertUSB () {  # TODO extinguish usage of $DEV and $ISCLAUER
             local part=$($dlg --cancel-label "$2" --menu $"Choose one partition:" 0 0 3 $options  2>&1 >&4)
             [ $? -ne 0 ] && break
             
-            echo -n $part
+            USBDEV=$part
             return 0
         fi
         

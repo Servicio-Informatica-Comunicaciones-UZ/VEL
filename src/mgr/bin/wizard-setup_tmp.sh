@@ -1198,7 +1198,11 @@ $PSETUP   2
 
 
 ESVYCFG=''
+
+
+# TODO review this var, try to make it non-global
 PASSWD=''
+
 DOFORMAT=0
 DORESTORE=0
 
