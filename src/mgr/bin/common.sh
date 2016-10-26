@@ -247,6 +247,11 @@ parseInput () {
 	           [ $? -ne 0 ] && ret=1
 	           ;;
         
+ 	       "timezone" ) #Timezone descriptor
+	           echo "$2" | grep -oEe "^[-+/a-zA-Z0-9]+$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+         
         * )
 	           echo "parseInput: Wrong type -$1-"  >>$LOGFILE 2>>$LOGFILE
 	           return 1
@@ -400,6 +405,11 @@ checkParameter () {
         
 	       "DEV" ) #This is no variable
             parseInput dev "$2"
+	           ret=$?
+	           ;;
+
+        "TIMEZONE" )
+            parseInput timezone "$2"
 	           ret=$?
 	           ;;
         

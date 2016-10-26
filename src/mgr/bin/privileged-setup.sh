@@ -430,6 +430,28 @@ elif [ "$1" == "pmutils" ]
 then
     #Reinstall and reconfigure package # TODO probably a reconfigure would be-enough
     dpkg -i /usr/local/bin/pm-utils*  >>$LOGFILE  2>>$LOGFILE
+
+
+#Setup timezone and store variable
+elif [ "$1" == "setupTimezone" ]
+then
+    
+    #No timezone passed, it is a system load
+    if [ "$2" == "" ] ; then
+        #Read it from usb config (it is already settled)  # TODO check if settled, otherwise read from active slot.
+        getPrivVar c TIMEZONE
+    else
+        #Check passed timezone
+        checkParameterOrDie TIMEZONE "$2"
+        #Set it on usb config var (and set the global variable)
+        setPrivVar TIMEZONE "$TIMEZONE" c  # TODO make sure this is not overwritten later. As this is setup, vars should be written here and then shared on the devices, not overwritten by anything
+    fi
+    
+    echo "$TIMEZONE" > /etc/timezone
+    rm -f /etc/localtime
+    ln -s "/usr/share/zoneinfo/right/$TIMEZONE" /etc/localtime
+    
+
     
     
 #Recover the system from a backup file retrieved through SSH  #  TODO test
@@ -459,12 +481,12 @@ then
         echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO review this script
     fi
     
-  
+    
 elif [ "$1" == "disableBackup" ]
 then
     #Delete backup cron line (if exists)
-    sed -i -re "/backup.sh/d" /etc/crontab  #SEGUIR
-      
+    sed -i -re "/backup.sh/d" /etc/crontab
+    
     
 #Mark system to force a backup
 elif [ "$1" == "forceBackup" ]
@@ -472,8 +494,8 @@ then
     #Backup cron reads database for next backup date. Set date to now. # TODO make sure this works fine and the pwd is there
     echo "update eVotDat set backup="$(date +%s) | mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
     
-
-
+    
+    
     
 else
     echo "Bad privileged setup operation: $1" >>$LOGFILE  2>>$LOGFILE

@@ -177,7 +177,7 @@ checkRAIDs () {
 
 
 
-
+#Check if a parameter fits the expected syntax or kill the process
 #$1 -> variable: variable is uniquely recognized to belong to a data type
 #$2 -> value:    to set in the variable if fits the data type
 #$3 -> 0:           don't set the variable value, just check if it fits.
@@ -305,21 +305,25 @@ parseConfigFile () {
 #                               'c' if we want it on the usb config file;
 #                               's' in the active slot configuration
 setPrivVar () {
-    
+
+    #Vars written on the ramdisk
     local file="$ROOTTMP/vars.conf"
     
     if [ "$3" == "d" ]
 	   then
+        #Vars written on the encrypted drive
 	       file="$DATAPATH/root/vars.conf"
     fi
     
     if [ "$3" == "c" ]
 	   then
+        #Vars written on the keysharing stores (the file being used for operation)
 	       file="$ROOTTMP/config"
     fi
     
     if [ "$3" == "s" ]
 	   then
+        #Vars written on the keysharing stores (the file loaded on the currently active keybuilding slot)
 	       getPrivVar r CURRENTSLOT
 	       slotPath=$ROOTTMP/slot$CURRENTSLOT/
 	       file="$slotPath/config"

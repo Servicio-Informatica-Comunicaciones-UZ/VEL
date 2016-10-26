@@ -169,8 +169,6 @@ cp -fv /root/src/sys/config/webserver/000-default.conf  /etc/apache2/sites-avail
 cp -fv /root/src/sys/config/webserver/default-ssl.conf  /etc/apache2/sites-available/
 cp -fv /root/src/sys/config/webserver/security.conf     /etc/apache2/conf-available/
 
-cp -fv /root/src/sys/config/php/timezones              /usr/local/share/
-
 cp -fv /root/src/sys/config/ntpd/ntpd.conf             /etc/openntpd/
 
 cp -fv /root/src/sys/config/mailer/main.cf             /etc/postfix/
