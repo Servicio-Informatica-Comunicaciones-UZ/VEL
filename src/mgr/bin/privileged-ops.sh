@@ -9,20 +9,6 @@
 
 # TODO extinguir WWWMODE. Siempre ssl (aunque sea snakeoil)
 
-#Fatal error function. It is redefined on each script with the
-#expected behaviour, for security reasons.
-#$1 -> error message
-systemPanic () {
-
-    #Show error message to the user
-    $dlg --msgbox "$1" 0 0
-    
-    # TODO check if any privvars need to be destroyed after an operation, and add them here as well (as a failed peration may leave an unconsistent state)
-    
-    #Exit immediately the privileged operations script and return
-    #control back to the user script
-    exit 99
-}
 
 
 
@@ -181,30 +167,80 @@ fi
 
 ######################## Operaciones #######################
 
-
+# Lists usb drives or mountable partitions, returns either list of drives/partitions or the number of them
+#2 -> mode: 'devs' to list devices or 'parts' to list mountable partitions
+#3 -> operation: 'list' to get list of devs/partitions and 'count' to get the number of them
 if [ "$1" == "listUSBDrives" ] 
-    then
-
-        listUSBS  # TODO reimplement correctly. Also implement the count, to list all drives
-
-        # TODO now $2 can be 'devs' or 'parts' to list drives or writabñle partitions
-        
-  if [ "$3" == "list" ]
-      then
-      echo $CLS
-      exit 0
-  elif [ "$3" == "count" ]
-      then
-      echo $NCLS
-      exit 0
-  else
-      exit 1
-  fi
-
-
-  exit 0
+then
+    
+    if [ "$2" == "devs" ] ; then
+        mode='devs'
+    elif [ "$3" == "parts" ] ; then
+        mode='valid'
+    else
+        echo "listUSBDrives: bad mode: $2" >>$LOGFILE 2>>$LOGFILE
+        exit 1
+    fi
+    
+    usbs=$(listUSBS $mode)
+    nusbs=$?
+    
+    if [ "$3" == "list" ] ; then
+        echo $usbs
+    elif [ "$3" == "count" ] ; then
+        echo $nusbs
+    else
+        echo "listUSBDrives: bad op: $3" >>$LOGFILE 2>>$LOGFILE
+        exit 1
+    fi
+    
+    exit 0
 fi
 
+
+
+
+#Handles mounting or umounting of USB drive partitions
+#2 -> 'mount' or 'umount'
+#3 -> partition path (will be checked against the list of valid ones)
+if [ "$1" == "mountUSB" ] 
+then
+
+    if [ "$3" == "" ] ; then
+        echo "mountUSB: Missing partition path" >>$LOGFILE 2>>$LOGFILE
+        exit 1
+    fi
+    
+    usbs=$(listUSBS valid)
+    found=0
+    for part in $usbs ; do
+        [ $part == "$3" ] && found=1 && break
+    done
+    if [ "$found" -eq 0 ] ; then
+        echo "mountUSB: Partition path '$3' not valid" >>$LOGFILE 2>>$LOGFILE
+        exit 1
+    fi
+    
+    if [ "$2" == "mount" ] ; then
+        mount  "$3" /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       if [ "$?" -ne "0" ] ; then
+            echo "mountUSB: Partition '$3' mount error" >>$LOGFILE 2>>$LOGFILE
+            exit 1
+        fi
+        
+    elif [ "$2" == "umount" ] ; then
+        umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       if [ "$?" -ne "0" ] ; then
+            echo "mountUSB: Partition '$3' umount error" >>$LOGFILE 2>>$LOGFILE
+            exit 1
+        fi
+    else
+        echo "mountUSB: Bad op code: $2" >>$LOGFILE 2>>$LOGFILE  
+        exit 1
+    fi
+    
+    exit 0
+fi
 
 
 
@@ -217,15 +253,13 @@ fi
 #4 -> Nombre del mapper device donde se monta el sistema cifrado "$MAPNAME"
 #5 -> Path donde se monta la partición final "$DATAPATH"
 #6 -> Ruta al dev loop que contiene la part cifrada "$CRYPTDEV"  (puede ser cadena vacía)
-#7 -> iscsitarget   (puede ser cadena vacía)
-#8 -> iscsiserver   (puede ser cadena vacía)
-#9 -> iscsiport     (puede ser cadena vacía)
+
 if [ "$1" == "umountCryptoPart" ] 
     then
 
     #*-*- revisar qué parámetros cojo de los ficheros (ver si lo llamo antes de que haya ficheros)
 
-    umountCryptoPart "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9"
+    umountCryptoPart "$2" "$3" "$4" "$5" "$6"
     
     exit 0
 fi
@@ -1574,17 +1608,17 @@ fetchCSR () {
 
 
 	pk10copied=0
-	mkdir -p /media/testusb  >>$LOGFILE 2>>$LOGFILE
+	mkdir -p /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # TODO now it is created once on boot. modify
 	while [ "$pk10copied" -eq 0 ]
 	  do
-	  umount /media/testusb  >>$LOGFILE 2>>$LOGFILE # Lo desmontamos por si se ha quedado montado
+	  umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE # Lo desmontamos por si se ha quedado montado
 
 	  insertUSB $"Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\n(Puede ser uno de los Clauer que acaban de emplear)" "none"
 
 	  #intentar montar la part 1 del DEV. # TODO ahora devuelve directamente la partición, hay que mirar el ret de la func para ver si es part o dev (en cuyo caso debe dar error porque seria un dev sin particiones montables)
 	  part="$DEV""1"
 	  #echo "DEv: $DEV"
-	  mount  $part /media/testusb  >>$LOGFILE 2>>$LOGFILE
+	  mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 	  ret=$?
 	  if [ "$ret" -ne "0" ]
 	      then
@@ -1594,13 +1628,13 @@ fetchCSR () {
 	      $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
 	      ret=$?
 	      [ $ret -eq 0 ] && continue # Elegir otro
-	      umount /media/testusb  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
+	      umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
 	      $dlg --infobox $"Formateando dispositivo..." 0 0 
 	      ret=$($PVOPS formatearUSB "$DEV")
 	      [ "$ret" -ne 0 ] && continue
-	      mount  $part /media/testusb  >>$LOGFILE 2>>$LOGFILE
+	      mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 	  fi
-	  echo "a" > /media/testusb/testwritability 2>/dev/null
+	  echo "a" > /media/usbdrive/testwritability 2>/dev/null
 	  ret=$?
 	  if [ "$ret" -ne "0" ]
 	      then
@@ -1610,13 +1644,13 @@ fetchCSR () {
 	      $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
 	      ret=$?
 	      [ $ret -eq 0 ] && continue # Elegir otro
-	      umount /media/testusb  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
+	      umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
 	      $dlg --infobox $"Formateando dispositivo..." 0 0 
 	      ret=$($PVOPS formatearUSB "$DEV")
 	      [ "$ret" -ne 0 ] && continue
-	      mount  $part /media/testusb  >>$LOGFILE 2>>$LOGFILE
+	      mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 	  else
-	      rm -f /media/testusb/testwritability
+	      rm -f /media/usbdrive/testwritability
 	  fi
 	  
 	  #Es correcta. Escribimos el pk10
@@ -1624,12 +1658,12 @@ fetchCSR () {
 	  tries=10
 	  while  [ $pk10copied -eq 0 ]
 	    do
-	    cp -f "$1" /media/testusb/server.csr  >>$LOGFILE 2>>$LOGFILE
+	    cp -f "$1" /media/usbdrive/server.csr  >>$LOGFILE 2>>$LOGFILE
 	    
 	    #Añadimos, junto a la CSR, un Readme indicando las instrucciones
-	    cp -f /usr/share/doc/eLectionLiveCD-README.txt.$LANGUAGE  /media/testusb/VTUJI-README.txt
+	    cp -f /usr/share/doc/eLectionLiveCD-README.txt.$LANGUAGE  /media/usbdrive/VTUJI-README.txt
 	    
-	    if [ -s  "/media/testusb/server.csr" ] 
+	    if [ -s  "/media/usbdrive/server.csr" ] 
 		then
 		:
 	    else 
@@ -1648,13 +1682,13 @@ fetchCSR () {
 	      continue
 	  fi
 	  
-	  umount /media/testusb  >>$LOGFILE 2>>$LOGFILE
+	  umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 
 	  #TODO get these messages out of here or decide on how to handle i18n
 	  detectUsbExtraction $DEV $"Petición de certificado escrita con éxito.\nRetire el dispositivo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
 
 	done
-	rmdir /media/testusb  >>$LOGFILE 2>>$LOGFILE
+	rmdir /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 
 
 
@@ -1682,7 +1716,7 @@ fi
 
 #++++
 
-if [ "$1" == "clops" ] 
+if [ "$1" == "clops" ]   # TODO cambiar clops por otra cosa, sustituir en todos los ficheros
     then
 
     echo "llamando a clops $2 ..."  >>$LOGFILE 2>>$LOGFILE
@@ -1743,7 +1777,7 @@ if [ "$1" == "clops" ]
     fi
 
 
-    #Resetea el slot activo. 
+    #Resetea todos los slots. 
     if [ "$2" == "resetAllSlots" ] 
 	then
 	
@@ -2343,38 +2377,28 @@ fi
 
 
 
-#////Con verificación de llave
 
+#Grant or remove privileged admin access to webapp
+#2-> 'grant' or 'remove'
 if [ "$1" == "grantAdminPrivileges" ] 
     then
     
     getPrivVar d DBPWD
 
-    echo "giving privileges."  >>$LOGFILE 2>>$LOGFILE
-    mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr  <<EOF
-update eVotDat set mante=1;
-EOF
-    #//// Por qué mante 1? en todo caso, hablar con manolo lo de las imágenes sin restricción (mante 2) 
-    exit 0
-fi
-
-
-
-#////SIN verificación de llave
-
-
-if [ "$1" == "retireAdminPrivileges" ] 
-    then
+    privilege=0 
+    if [ "$2" == "grant" ] ; then
+        # TODO el grant Con verificación de llave
+        privilege=1
+    fi
     
-    getPrivVar d DBPWD
-    
-    echo "retiring privileges."  >>$LOGFILE 2>>$LOGFILE
+    echo "giving/removing webapp privileges ($2)."  >>$LOGFILE 2>>$LOGFILE
     mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr  <<EOF
-update eVotDat set mante=0;
+update eVotDat set mante=$privilege;
 EOF
     
     exit 0
 fi
+
 
 
 

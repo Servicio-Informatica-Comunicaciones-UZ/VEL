@@ -1005,7 +1005,7 @@ configureServers () {
 
 	
         #Ejecutamos la cesión o denegación de privilegios al adminsitrador de la aplicación
-	grantAdminPrivileges
+	grantAdminPrivileges  # TODO now, it expects the value here. do it aprpopiately depending on what's expected
 
     fi
 

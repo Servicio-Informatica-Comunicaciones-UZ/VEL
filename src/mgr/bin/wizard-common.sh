@@ -76,6 +76,86 @@ configureCryptoPartition () {
 
 
 
+#Will try to mount
+#Retorno:
+#0  Éxito conectando con el Clauer. en PASSWD estará la contraseña correcta introducida por el usuario
+#1  Conexión Cancelada por el usuario
+# $1 -> el dev al que conectar
+# $2 -> modo (auth, newpwd)
+# $3 -> getpwd msg (optional)
+storeConnect(){
+    
+    PASSWD=''
+    
+    errmsg=''
+    while true   #2
+      do
+
+      #Acceder al Clauer      
+      if [ "$2" == 'auth' ]
+	  then 
+	  getPwd "$errmsg" 0 "$3" 0 # 0 es 'pwd para autenticar'	
+	  ret=$?
+      elif [ "$2" == 'newpwd' ]
+	  then
+	  getPwd "$errmsg" 1 "$3" 0  # 0 es 'pwd para renovar'
+	  ret=$?
+      fi
+      #$dlg --infobox $"El password: ""$pwd"  0 0
+      #sleep 1
+    
+    #Si se cancela la insercion de pwd, salimos
+    [ $ret -ne 0 ] && return 1
+	
+	
+    if [ "$2" == 'auth' ]
+	   then
+        #Si el pwd es incorrecto, lo vuelve a pedir
+        $PVOPS clops checkPwd "$1" "$pwd"    2>>$LOGFILE  #0 ok  1 bad pwd  #////probar
+	       ret=$?
+        
+	       if [ $ret -eq 1 ]
+	       then
+	           errmsg=$"Contraseña incorrecta."
+	           continue
+	       fi
+    elif [ "$2" == 'newpwd' ]
+	   then
+	       #No hay que hacer nada de lo de abajo. Cambio de funcionalidad de este modo
+        #$OPSEXE checkDev -d $1  2>>$LOGFILE
+	       #dummyretval 0 # TODO cuando lo rehaga, ver si hace falta que $? valga 0 por alguna razón, pero comentado lo de abajo, lo dudo
+	       
+	       #ret=$?
+        
+	       #if [ $ret -eq 1 ]
+	       #    then
+	       #    errmsg=$"El dispositivo no es un clauer"
+	       #    continue
+	       #    
+	       #fi
+        :
+    fi
+    
+    #Si todo ha ido correcto
+    PASSWD="$pwd"
+    pwd="" #///probar
+    return
+    
+    done # 2
+
+    
+    pwd=""
+    return
+}
+
+
+
+
+
+
+
+
+#SEGUIR
 
 #Sets a config variable on disk file. these vars override those read from Clauer
 # $1 -> variable
@@ -154,19 +234,11 @@ stopServers () {
 }
 
 
-#////Pasar a privop
-#Ejecutamos la cesión o denegación de privilegios al adminsitrador de la aplicación
+#Grant admin user a privileged admin status on the web app
+#1-> 'grant' or 'remove'
 grantAdminPrivileges () {
-
-    echo "value of privs flag: $SETAPPADMINPRIVILEGES."  >>$LOGFILE 2>>$LOGFILE
-
-    if [ "$SETAPPADMINPRIVILEGES" -eq 1 ]
-	then
-	$PVOPS  grantAdminPrivileges 	
-    else
-	$PVOPS  retireAdminPrivileges
-    fi
-
+    echo "Setting web app privileged admin status to: $1"  >>$LOGFILE 2>>$LOGFILE
+	   $PVOPS  grantAdminPrivileges "$1"	
 }
 
 
@@ -231,54 +303,30 @@ pwd=''
 #$2 --> es un password para autenticar (0) o para cambiar (1)?
 #$3 --> Override message value  Si '', lo ignora
 #$4 --> 0 --> cancel button on  1 --> cancel button off
-getPwd () {
 
-    exec 4>&1
-
-    nocancelbutton=" --no-cancel "
+#Get a password from user
+#1 -> mode:  (auth) will ask once, (new) will ask twice and check for equality
+#2 -> message to be shown
+#3 -> cancel button? 0 no, 1 yes
+# Return 0 if ok, 1 if cancelled
+# $PASSWD : inserted password
+getPassword () {
     
-    [ "$4" == "0" ] && nocancelbutton=""
-
-    msg=''$1
-    pass=''
+    exec 4>&1
+    
+    local nocancelbutton=" --no-cancel "    
+    [ "$3" == "0" ] && nocancelbutton=""
+    
     while true; do
-
-	msg2=$"$msg\nIntroduzca la contraseña del Clauer."
-	[ "$2" -eq 1 ] && msg2=$"$msg\nIntroduzca una contraseña nueva."
-
-	[ "$3" != "" ] && msg2="$msg\n$3"
-	
-	pass=$($dlg $nocancelbutton --max-input 32 --passwordbox "$msg2" 10 40 2>&1 >&4)
-	sal=$?
-	#echo $sal
-	[ "$sal" -ne 0 ] && return $sal 
-	
-	[ "$pass" == "" ] && continue
-
-	if [ $2 -eq 1 ] 
-	    then
-	    if [ ${#pass} -lt 8 ]        #  ${#StrVar}  --> strlen(StrVar)
-	        then    
-		msg=$"Contraseña demasiado corta."
-		continue
-	    fi
-
-	    #//// probar
-	    if [ ${#pass} -gt 32 ]        #  ${#StrVar}  --> strlen(StrVar)
-	        then    
-		msg=$"Contraseña demasiado larga."
-		continue
-	    fi
-
-	    #//// probar
-	    #Ahora compruebo el contenido del pwd tb para el clauer
-	    if $(parseInput pwd "$pass")
-	        then
-		:
-	    else    
-		msg=$"Contraseña no válida. Use: ""$ALLOWEDCHARSET"
-		continue
-	    fi
+        
+	       pass=$($dlg $nocancelbutton --max-input 32 --passwordbox "$2" 10 40 2>&1 >&4)
+	       [ "$?" -ne 0 ] && return 1 
+	       
+	       [ "$pass" == "" ] && continue
+        
+	       if [ $1 == 'new' ] 
+	       then
+	        
 	    
 	    pass2=$($dlg $nocancelbutton  --max-input 32 --passwordbox $"Vuelva a escribir su contraseña." 10 40 2>&1 >&4)
 	    sal=$?
@@ -300,77 +348,33 @@ getPwd () {
 }
 
 
-
-#Retorno:
-#0  Éxito conectando con el Clauer. en PASSWD estará la contraseña correcta introducida por el usuario
-#1  Conexión Cancelada por el usuario
-# $1 -> el dev al que conectar
-# $2 -> modo (auth, newpwd)
-# $3 -> getpwd msg (optional)
-clauerConnect(){
+#Check validity and strength of password
+#1 -> password to check
+#Returns 0 if OK, 1 if error
+#Stdout: Error message to be displayed
+checkPassword () {
+    local pass=$1
     
-    PASSWD=''
+    if [ ${#pass} -lt 8 ] ; then
+		      echo $"Password too short (min. 8 chars)."
+	       return 1
+	   fi
     
-    errmsg=''
-    while true   #2
-      do
-
-      #Acceder al Clauer      
-      if [ "$2" == 'auth' ]
-	  then 
-	  getPwd "$errmsg" 0 "$3" 0 # 0 es 'pwd para autenticar'	
-	  ret=$?
-      elif [ "$2" == 'newpwd' ]
-	  then
-	  getPwd "$errmsg" 1 "$3" 0  # 0 es 'pwd para renovar'
-	  ret=$?
-      fi
-      #$dlg --infobox $"El password: ""$pwd"  0 0
-      #sleep 1
+	   if [ ${#pass} -gt 32 ] ; then
+    		  echo $"Password too long (max. 32 chars)."
+		      return 1
+	   fi
     
-    #Si se cancela la insercion de pwd, salimos
-    [ $ret -ne 0 ] && return 1
-	
-	
-    if [ "$2" == 'auth' ]
-	   then
-        #Si el pwd es incorrecto, lo vuelve a pedir
-        $PVOPS clops checkPwd "$1" "$pwd"    2>>$LOGFILE  #0 ok  1 bad pwd  #////probar
-	       ret=$?
-        
-	       if [ $ret -eq 1 ]
-	       then
-	           errmsg=$"Contraseña incorrecta."
-	           continue
-	       fi
-    elif [ "$2" == 'newpwd' ]
-	   then
-	       #No hay que hacer nada de lo de abajo. Cambio de funcionalidad de este modo
-        #$OPSEXE checkDev -d $1  2>>$LOGFILE
-	       #dummyretval 0 # TODO cuando lo rehaga, ver si hace falta que $? valga 0 por alguna razón, pero comentado lo de abajo, lo dudo
-	       
-	       #ret=$?
-        
-	       #if [ $ret -eq 1 ]
-	       #    then
-	       #    errmsg=$"El dispositivo no es un clauer"
-	       #    continue
-	       #    
-	       #fi
-        :
-    fi
+	   if $(parseInput pwd "$pass") ; then
+		      :
+	   else    
+		      echo $"Password not valid. Use: ""$ALLOWEDCHARSET"
+		      return 1
+	   fi
     
-    #Si todo ha ido correcto
-    PASSWD="$pwd"
-    pwd="" #///probar
-    return
-    
-    done # 2
-
-    
-    pwd=""
-    return
+    return 0
 }
+
 
 
 genNfragKey () {
@@ -421,7 +425,7 @@ writeNextClauer () {
       #Pedir pasword nuevo
       
       #Acceder
-      clauerConnect $DEV "newpwd" $"Miembro número $member:\nIntroduzca una contraseña nueva:"
+      storeConnect $DEV "newpwd" $"Miembro número $member:\nIntroduzca una contraseña nueva:"
       ret=$?
       
       #Si el acceso se cancela, pedimos que se inserte otro
@@ -1992,7 +1996,7 @@ readNextClauer () {
       
       
       #Acceder
-      clauerConnect $DEV auth
+      storeConnect $DEV auth
       ret=$?
       
       echo "clauer access: $ret" >>$LOGFILE 2>>$LOGFILE

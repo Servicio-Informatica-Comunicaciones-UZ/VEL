@@ -24,7 +24,7 @@ systemPanic () {
     
     #Return to the maintenance idle loop
 	   exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
-    shutdownServer "h" #This will never execute
+    shutdownServer "h" #This will never be executed
 }
 
 
@@ -701,7 +701,7 @@ standBy () {
 }
 
 
-#Si la acción es no privilegiada, se ejecuta y se resetea el bucle.
+#Si la acción es no privilegiada, se ejecuta y se resetea el bucle.  # TODO refactor this. Create a verify key function and call it before any op that requires to
 executeUnprivilegedAction () {
 
 #  non: sslcert-getcurrcsr sslcert-getnewcsr
@@ -797,8 +797,8 @@ executeSystemAction (){
       ######### Otorga privilegios al admin de la app por una sesión ########
       "grantadminprivs" )
         
-        SETAPPADMINPRIVILEGES=1
-        grantAdminPrivileges     
+
+        grantAdminPrivileges grant
 	
 	while true; do
 	    
@@ -808,8 +808,8 @@ executeSystemAction (){
 	    [ "$?" -eq "1" ] && break
 	done
 	
-        SETAPPADMINPRIVILEGES=0
-        grantAdminPrivileges     
+
+        grantAdminPrivileges remove
         
       ;;
 
@@ -822,8 +822,7 @@ executeSystemAction (){
       setAdmin 0
       
       #Además, da privilegios al administrador
-      SETAPPADMINPRIVILEGES=1
-      grantAdminPrivileges     
+      grantAdminPrivileges grant
       
       $dlg --msgbox $"Adicionalmente, el sistema ha otorgado privilegios para el administrador. Estos se invalidarán en cuanto realice alguna otra operación de mantenimiento." 0 0
       
@@ -838,8 +837,7 @@ executeSystemAction (){
       setAdmin 1
       
       #Además, da privilegios al administrador
-      SETAPPADMINPRIVILEGES=1
-      grantAdminPrivileges     
+      grantAdminPrivileges grant
       
       $dlg --msgbox $"Adicionalmente, el sistema ha otorgado privilegios para el administrador. Estos se invalidarán en cuanto realice alguna otra operación de mantenimiento." 0 0
       
@@ -1171,8 +1169,7 @@ standBy
 
 
 #De forma preventiva, anulamos los privilegios de admin. (Si se han elegido en el menu, lo hace en executesystemaction)
-SETAPPADMINPRIVILEGES=0
-grantAdminPrivileges
+grantAdminPrivileges remove
 
 
 #Reactivamos el daemonde entropía, por si hace falta

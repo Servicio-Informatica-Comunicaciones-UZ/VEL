@@ -9,34 +9,22 @@
 
 . /usr/local/bin/wizard-common.sh
 
-#Terminal is being set to dumb, although we change it on the
-#bootstrapper. We need to set it here as well to allow for curses to
+
+
+
+
+##################################
+#  Global Variables / Constants  #
+##################################
+
+#Terminal is being set to dumb. Although we change it on the
+#bootstrapper, we need to set it here as well to allow for curses to
 #work
 export TERM=linux
 
 
 
-###############
-#  Constants  #
-###############
-
-
-
-#Determines if an action on the idle menu doesn't need authorization by key reuilding  
-BYPASSAUTHORIZATION=0 ### TODO Esta variable debe desaparecer. El control de autorización  pasa por completo al prog priv.
-
-
-
-
-######################
-#  Global Variables  #
-######################
-
-
-#Current config file accepted as in use (in case of mismatch) # TODO quitar este asco de variable. Cuando elija la config, renombrar a un nombre genérico e ignorar el resto
-CURRINUSE=0
-
-SETAPPADMINPRIVILEGES=''
+# TODO Cuando elija la config, renombrar a un nombre genérico e ignorar el resto
 
 
 
@@ -59,47 +47,21 @@ systemPanic () {
     keyyS=''
     MYSQLROOTPWD=''
 
-    #Offer emergency administration choices
-    exec 4>&1 
-    selec=$($dlg --no-cancel  --menu $"Select an option." 0 0  3  \
-	                1 $"Shutdown system." \
-	                2 $"Reboot system." \
-	                3 $"Launch an administration terminal." \
-	                2>&1 >&4)
-    
-    case "$selec" in
-	       
-	       "1" )
-            #Shutdown
-            shutdownServer "h"
-	           ;;
-
-	       "2" )
-	           #Reboot
-            shutdownServer "r"
-            ;;
-	       
-	       "3" )
-            #Launch a root terminal (with a disclaimer for the overseers)
-	           $dlg --yes-label $"Yes" --no-label $"No"  --yesno  $"WARNING: This action may allow the user access to sensitive data until it is rebooted. Make sure it is not operated without supervision from a qualified overseer. ¿Do you wish to continue?." 0 0
-	           [ "$?" -eq 0 ] && exec $PVOPS rootShell
-            ;;	
-	       * )
-	           echo "systemPanic: Bad selection"  >>$LOGFILE 2>>$LOGFILE
-	           $dlg --msgbox "BAD SELECTION" 0 0
-	           shutdownServer "h"
-	           ;;
-	   esac
-    
-    shutdownServer "h"
+   
 }
 
 
 
 
+# TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
 
-#Main setup menu  # TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
+
+#Main setup menu
 chooseMaintenanceAction () {
+    
+    DOBUILDKEY=0
+    DOFORMAT=0
+    DORESTORE=0
     
     exec 4>&1
     while true; do
@@ -108,7 +70,8 @@ chooseMaintenanceAction () {
                      2 $"Setup new voting system." \
 	                    3 $"Recover a voting system backup." \
 	                    4 $"Launch administrator terminal." \
-	                    5 $"Shutdown computer." \
+                     5 $"Reboot system." \
+	                    6 $"Shutdown system." \
 	                    2>&1 >&4)
         
         case "$selec" in
@@ -146,11 +109,17 @@ chooseMaintenanceAction () {
                 ;;
 	           
 	           "5" )	
-	               $dlg --yes-label $"Cancel"  --no-label $"Shutdown" --yesno $"Are you sure to go on?" 0 0
-	               [ "$?" -eq 1 ] && shutdownServer "h"
+	               $dlg --yes-label $"Cancel"  --no-label $"Reboot" --yesno $"Are you sure to go on?" 0 0
+	               [ "$?" -eq 1 ] && shutdownServer "r"
 	               continue
 	               ;;	
 		          
+	           "6" )	
+	               $dlg --yes-label $"Cancel"  --no-label $"Shutdown" --yesno $"Are you sure to go on?" 0 0
+	               [ "$?" -eq 1 ] && shutdownServer "h"
+	               continue
+	               ;;
+	           
 	           * )
 	               echo "systemPanic: bad selection"  >>$LOGFILE 2>>$LOGFILE
 	               $dlg --msgbox "BAD SELECTION" 0 0
@@ -250,7 +219,10 @@ esac
 
 #Check any existing RAID arrays
 $PSETUP checkRAIDs
-[ $? -ne 0 ] && systemPanic $"Error: failed RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot."
+if [ $? -ne 0 ] ; then
+    $dlg --msgbox $"Error: failed RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot. You will be prompted with a root shell. Reboot when finished." 0 0
+    exec $PVOPS rootShell
+fi
 
 
 #If possible, Move CD filesystem to system memory
@@ -259,23 +231,43 @@ $PSETUP moveToRAM
 
 
 #Main action loop
-DOFORMAT=0
-DORESTORE=0
-DOBUILDKEY=0
 while true
 do
+
+    #Clean active slot, to avoid inconsistencies
+    $PVOPS clops resetSlot #TODO maybe call here function that cleans all slots? decide once finished. (resetAllSlots)
     
     #Select startup action
     chooseMaintenanceAction
     
-    #We need to obtain a cipherkey and config parameters from a set of usb stores
+    #We need to obtain a cipherkey and config parameters from a set of usb stores # TODO enclose as much as possible in functions
     if [ "$DOBUILDKEY" -eq 1 ] ; then
+        $dlg --msgbox $"The cipher key needs to be rebuilt.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
+
         
-          insertUSB $"Insert USB key storage device" $"Cancel"
+        while true
+        do
+            insertUSB $"Insert USB key storage device" $"Cancel"
+            [ $? -eq 1 ] && continue 2 #Cancelled. Go back to the menu
+            if [ $? -eq 2 ] ; then
+                #No readable partitions. Ask for another one
+                $dlg --msgbox $"Device contained no readable partitions. Please, insert another one." 0 0
+                continue 
+            fi
+            
+            #Mount the device
+            $PVOPS mountUSB mount $USBDEV
+            
+            #Access the store, if any
+            storeConnect $USBDEV auth
+            
+  ret=$?
+  
 
-          #SEGUIR
-
-
+            #Read config and 
+            
+            
+        done
 
 
 
@@ -291,46 +283,10 @@ do
 done #Main action loop
 
 
+  
+  
 
-# TODO devolverá una part a montar y ret 0 o un dev a formatear con ret 2
-  
-# TODO review. use list usbs
-  #$dlg --infobox "Devs detected""($NDEVS):\n$DEVS\n""Clauers detected""($NCLS):\n$CLS"  0 0
-  #sleep 1
-  #$dlg --infobox "Dev chosen"": $DEV\n""Clauer?"" $ISCLAUER"  0 0
-  #sleep 1
-# TODO also, check return 1 and not only the returneddev (which by the way is no longer a global, but a stdout)
-  if [ "$DEV" == "" ]
-      then
-      confirmSystemFormat $"Ha pulsado formatear."
-      #Si lo confirma, salta a la sección de formatear sistema completo
-      [ $DOFORMAT -eq 1  ] &&  break
-      continue; #Sino, vuelve a pedir un dev
-  #Si no es clauer,preguntar y repetir o saltar
-  elif [ $ISCLAUER -eq 0 ]
-      then
-      confirmSystemFormat $"Este dispositivo no es un Clauer."
-      #Si lo confirma, salta a la sección de formatear sistema completo
-      [ $DOFORMAT -eq 1  ] &&  break
-      continue; #Sino, vuelve a pedir un dev
-  fi
-  
-  
-  
-  #Es un Clauer. Conectar con el clauer y pedir contraseña
-  clauerConnect $DEV auth
-  
-  ret=$?
-  
-  #Si se cancela la insercion de pwd, preguntar.
-  if [ $ret -eq 1 ] 
-      then
-      confirmSystemFormat $"Ha elegido no proporcionar una contraseña." 
-      #Si lo confirma, salta a la sección de formatear sistema completo
-      [ $DOFORMAT -eq 1  ] &&  break
-      continue; #Sino, vuelve a pedir un dev
-  fi
-  
+
   
   $dlg --infobox $"Leyendo configuración del sistema..."  0 0
   sleep 1
@@ -382,7 +338,7 @@ if [ "$DOFORMAT" -eq 0 ]
     then 
     
     #Si el sistema se está reiniciando, por defecto invalida los privilegios de admin
-    SETAPPADMINPRIVILEGES=0
+    SETAPPADMINPRIVILEGES=0 # TODO later, call setadmin... remove
 
     #Leemos la pieza de la clave del primer clauer (del que acabamos de sacar la config)
     clauerFetch $DEV k 
@@ -495,7 +451,7 @@ else
     #echo "Se formatea" 
     
     #Cuando el sistema se esté instalando, y hasta que se instale el cert SSL correcto, el admin tendrá privilegios
-    SETAPPADMINPRIVILEGES=1
+    SETAPPADMINPRIVILEGES=1 # TODO later, call setadmin... grant
     
     
     #Pedimos que acepte la licencia
@@ -615,7 +571,7 @@ else
           #Pedir pasword nuevo
 	  
           #Acceder
-	  clauerConnect $DEV "newpwd" $"Introduzca una contraseña nueva:"
+	  storeConnect $DEV "newpwd" $"Introduzca una contraseña nueva:"
 	  ret=$?
 	  
           #Si el acceso se cancela, pedimos que se inserte otro

@@ -10,6 +10,10 @@ set -x
 
 
 # Debugging tool: Every time a command return value is non-zero, it will stop and show the prompt on stderr
+#   ERR , on every non-zero return/exit
+#  EXIT , on every zero return/exit
+# DEBUG , on every simple command
+#RETURN , on every function return
 trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" ERR
 
 
@@ -136,3 +140,8 @@ chmod a+rx /var/www >>$LOGFILE 2>>$LOGFILE
 mv /var/aux/* /var/www/  >>$LOGFILE 2>>$LOGFILE
 chmod 550 /var/www/ >>$LOGFILE 2>>$LOGFILE
 chown root:www-data /var/www/  >>$LOGFILE 2>>$LOGFILE
+
+
+
+#  ${#StrVar}  --> strlen(StrVar)
+

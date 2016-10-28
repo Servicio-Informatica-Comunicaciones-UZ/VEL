@@ -19,55 +19,7 @@
 . /usr/local/bin/privileged-common.sh
 
 
-# See if this function can be deleted. We would need an error message passback system to let the invoker script handle this. Leave for alter
 
-#Fatal error function. It is redefined on each script with the
-#expected behaviour, for security reasons.
-#$1 -> error message
-systemPanic () {
-
-    #Show error message to the user
-    $dlg --msgbox "$1" 0 0
-    
-    #Destroy sensitive variables  # TODO review if this is needed or list of vars must be updated
-    keyyU=''
-    keyyS=''
-    MYSQLROOTPWD=''
-
-    #Offer emergency administration choices
-    exec 4>&1 
-    selec=$($dlg --no-cancel  --menu $"Select an option." 0 0  3  \
-	                1 $"Shutdown system." \
-	                2 $"Reboot system." \
-	                3 $"Launch an administration terminal." \
-	                2>&1 >&4)
-    
-    case "$selec" in
-	       
-	       "1" )
-            #Shutdown
-            shutdownServer "h"
-	           ;;
-
-	       "2" )
-	           #Reboot
-            shutdownServer "r"
-            ;;
-	       
-	       "3" )
-            #Launch a root terminal (with a disclaimer for the overseers)
-	           $dlg --yes-label $"Yes" --no-label $"No"  --yesno  $"WARNING: This action may allow the user access to sensitive data until it is rebooted. Make sure it is not operated without supervision from a qualified overseer. ¿Do you wish to continue?." 0 0
-	           [ "$?" -eq 0 ] && exec $PVOPS rootShell
-            ;;	
-	       * )
-	           echo "systemPanic: Bad selection"  >>$LOGFILE 2>>$LOGFILE
-	           $dlg --msgbox "BAD SELECTION" 0 0
-	           shutdownServer "h"
-	           ;;
-	   esac
-    
-    shutdownServer "h"
-}
 
 
 
@@ -104,6 +56,9 @@ privilegedSetupPhase1 () {
     /etc/init.d/smartmontools stop   >>$LOGFILE 2>>$LOGFILE
     /etc/init.d/smartmontools start  >>$LOGFILE 2>>$LOGFILE
     
+    
+    ##### Prepare display #####
+    
     # Clear terminal 7 (and 1 just in case), so no text is seen after plymouth quits
     #<RELEASE>
     clear > /dev/tty7
@@ -115,6 +70,12 @@ privilegedSetupPhase1 () {
     
     #Jump to terminal 7 (the graphic one, where we run our curses GUI)
     chvt 7
+
+
+    ##### Last pre-setup steps #####
+    
+    #Create dir where usbs will be mounted
+	   mkdir -p /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
     
     #Prepare root user tmp dir
     chmod 700 $ROOTTMP/ >>$LOGFILE 2>>$LOGFILE

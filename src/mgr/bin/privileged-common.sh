@@ -26,6 +26,23 @@ SHAREMAXSLOTS=2
 
 
 
+#Fatal error function. It is redefined on each script with the
+#expected behaviour, for security reasons.
+#$1 -> error message
+systemPanic () {
+
+    #Show error message to the user # TODO See if this dialog can be deleted. We would need an error message passback system to let the invoker script handle this. Leave for later
+    $dlg --msgbox "$1" 0 0  # TODO should pass the message and let the panic be held 
+    
+    # TODO check if any privvars need to be destroyed after an operation, and add them here as well (as a failed peration may leave an unconsistent state)
+    
+    #Exit immediately the privileged operations script and return
+    #control back to the user script
+    exit 99
+}
+
+
+
 #Umount encrypted partition in any of the supported modes
 #1 -> Partition acces mode "$DRIVEMODE"
 #2 -> [May be empty string] Path where the dev containing the loopback file is mounted "$MOUNTPATH"
@@ -94,13 +111,14 @@ setPerm () {
 # TODO all calls to this funct. now receive a list of valid mountable partitions, not devs. Change all instances.  # TODO make a version that retrieves all devs, not partitions. Then, on the business logic, if no writable partitions found, offer to format a drive. !!!!!!
 
 
-#Returns usb connected storage devices
+#List of usb connected storage devices ( printed on stdout) and the number (return value)
 #$1 -> 'devs'  : show all usb storage devices, not partitions (default)
 #      'valid' : show partitions from usb devices that can be mounted
 listUSBs  () {
     
     local USBDEVS=""
     local devs=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
+    local count=0
     if [ "$1" == 'valid' ] ; then
         #Check all devices and partitions to be mountable
         for f in $devs
@@ -109,6 +127,7 @@ listUSBs  () {
             mount $currdev /mnt  >>$LOGFILE 2>>$LOGFILE
             if [ "$?" -eq 0 ] ; then
                 USBDEVS="$USBDEVS $currdev"
+                count=$((count+1))
                 umount /mnt >>$LOGFILE 2>>$LOGFILE
             fi
         done
@@ -120,10 +139,12 @@ listUSBs  () {
             if [ $(echo "$currdev" | grep -Ee "/dev/[a-z]+[0-9]+") ] ; then :
             else
                 USBDEVS="$USBDEVS $currdev"
+                count=$((count+1))
             fi
         done
     fi
     echo -n "$USBDEVS"
+    return $count
 }
 
 
@@ -132,7 +153,7 @@ listHDDs () {
     local drives=""
     
     local usbs=''
-    usbs=$(listUSBs)
+    usbs=$(listUSBs devs)
 
     for n in a b c d e f g h i j k l m n o p q r s t u v w x y z 
       do
