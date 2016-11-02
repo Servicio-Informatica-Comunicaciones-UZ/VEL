@@ -235,7 +235,7 @@ while true
 do
 
     #Clean active slot, to avoid inconsistencies
-    $PVOPS clops resetSlot #TODO maybe call here function that cleans all slots? decide once finished. (resetAllSlots)
+    $PVOPS storops resetSlot #TODO maybe call here function that cleans all slots? decide once finished. (resetAllSlots)
     
     #Select startup action
     chooseMaintenanceAction
@@ -243,10 +243,11 @@ do
     #We need to obtain a cipherkey and config parameters from a set of usb stores # TODO enclose as much as possible in functions
     if [ "$DOBUILDKEY" -eq 1 ] ; then
         $dlg --msgbox $"The cipher key needs to be rebuilt.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
-
+        
         
         while true
         do
+            #Detect device insertion
             insertUSB $"Insert USB key storage device" $"Cancel"
             [ $? -eq 1 ] && continue 2 #Cancelled. Go back to the menu
             if [ $? -eq 2 ] ; then
@@ -255,13 +256,20 @@ do
                 continue 
             fi
             
-            #Mount the device
+            #Mount the device (will do on /media/usbdrive)
             $PVOPS mountUSB mount $USBDEV
             
-            #Access the store, if any
-            storeConnect $USBDEV auth
-            
-  ret=$?
+            #Ask for device password
+            getPassword auth $"Please, insert the password for the connected USB device" 0
+            if [ $? -ne 0 ] ; then
+                $dlg --msgbox $"Password insertion cancelled. Please, insert another one." 0 0
+                continue
+            fi
+	           
+            #Access the store on the mounted path and check password
+            #(store name is a constant expected by the store handler)
+            $PVOPS storops checkPwd /media/usbdrive/ "$pwd" 2>>$LOGFILE  #0 ok  1 bad pwd
+            ret=$?
   
 
             #Read config and 
@@ -309,7 +317,7 @@ done #Main action loop
 
  
   #Verificamos que la última config leída tiene una estructura aceptable.
-  $PVOPS clops parseConfig  >>$LOGFILE 2>>$LOGFILE
+  $PVOPS storops parseConfig  >>$LOGFILE 2>>$LOGFILE
   if [ $? -ne 0 ]
       then
       #si la config no era adecuada, proponer format
@@ -381,7 +389,7 @@ if [ "$DOFORMAT" -eq 0 ]
 	  then
 	  
 	  #Compara la última config leída con la aceptada actualmente (y si hay diferencias, pregunta cuál usar)
-	  $PVOPS clops compareConfigs
+	  $PVOPS storops compareConfigs
 
       fi	  
       
@@ -396,7 +404,7 @@ if [ "$DOFORMAT" -eq 0 ]
     $dlg   --infobox $"Examinando los datos de configuración..." 0 0
 
     #Parsear la config y almacenarla
-    $PVOPS clops parseConfig  >>$LOGFILE 2>>$LOGFILE
+    $PVOPS storops parseConfig  >>$LOGFILE 2>>$LOGFILE
 
     if [ $? -ne 0 ]
 	then
@@ -405,12 +413,12 @@ if [ "$DOFORMAT" -eq 0 ]
     
     #Una vez están todos leídos, la config elegida como válida (si había incongruencias)
     #se almacena para su uso oficial de ahora en adelante (puede cambiarse con comandos)
-    $PVOPS clops settleConfig  >>$LOGFILE 2>>$LOGFILE
+    $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
     
   
     $dlg   --infobox $"Reconstruyendo la llave de cifrado..." 0 0
 
-    $PVOPS clops rebuildKey #//// probar
+    $PVOPS storops rebuildKey #//// probar
     stat=$? 
 
     #Si falla la primera reconstrucción, probamos todas
@@ -570,7 +578,7 @@ else
       
           #Pedir pasword nuevo
 	  
-          #Acceder
+          #Acceder  # TODO esto es un mount, checkdev y getpwd
 	  storeConnect $DEV "newpwd" $"Introduzca una contraseña nueva:"
 	  ret=$?
 	  
@@ -584,7 +592,7 @@ else
           #Formatear y particionar el dev
 
 	  $dlg   --infobox $"Preparando Clauer..." 0 0
-	  formatearClauer "$DEV" "$PASSWD"	  
+	  formatearClauer "$DEV" "$PASSWD"	# TODO ahora la op de format sólo formatea el fichero. Si he de permitir formatear el devie, implementar eso aparte. quitar lo de las dos particiones, ahora sólo una de datos. Para asegurarse, que ponga a cero toda la unidad o que haga un wipe del fichero de store  
 	  if [ $? -ne 0 ] 
 	      then
 	      $dlg --msgbox $"Error durante el formateo." 0 0
@@ -614,7 +622,7 @@ fi #if se formatea el sistema
 $PSETUP 5
 
 #Limpiamos los slots antes de pasar a mantenimiento (para anular las claves reconstruidas que pueda haber)
-$PVOPS clops resetAllSlots  #//// probar que ya limpie y pueda ejecutar al menos una op de mant correctamente.
+$PVOPS storops resetAllSlots  #//// probar que ya limpie y pueda ejecutar al menos una op de mant correctamente.
 
 
 #Una vez acabado el proceso de instalación/reinicio, lanzamos el proceso de mantenimiento. 

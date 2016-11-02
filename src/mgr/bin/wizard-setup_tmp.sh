@@ -288,7 +288,7 @@ sysadminParams () {
       fi
 
 
-      getPwd '' 1 $"Introduzca la contraseña para\nel administrador del sistema de voto.\nEs imprescindible que la recuerde." 1
+      getPassword 'new' $"Introduzca la contraseña para\nel administrador del sistema de voto." 1
       MGRPWD="$pwd"
       pwd=''
       
@@ -441,7 +441,7 @@ esurveyParamsAndRequest () {
 	      if [ "$generatePWD" -eq 0 ]
 		  then
 	      # Pide la contraseña
-		  getPwd '' 1 $"Contraseña de acceso a eSurveySites.\nSi ya posee una cuenta, escriba la contraseña." 1
+		      getPassword 'new' $"Contraseña de acceso a eSurveySites.\nSi ya posee una cuenta, escriba la contraseña." 1
 		  SITESPWD="$pwd"
 		  pwd=''
 	      else
@@ -679,7 +679,7 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
 	    $dlg --msgbox $"Prepare ahora los Clauers del sistema anterior. Vamos a recuperar los datos." 0 0
 
             #La llave y la config a restaurar las metemos en el slot 2
-	    $PVOPS clops switchSlot 2
+	    $PVOPS storops switchSlot 2
 
 	   
 
@@ -704,7 +704,7 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
 	    
 	
 	    #Volvemos al Slot de la instalación nueva (sobre la que estamso restaurando la vieja)
-	    $PVOPS clops switchSlot 1
+	    $PVOPS storops switchSlot 1
 
 
 	    break
@@ -1279,7 +1279,7 @@ do
 
  
   #Verificamos que la última config leída tiene una estructura aceptable.
-  $PVOPS clops parseConfig  >>$LOGFILE 2>>$LOGFILE
+  $PVOPS storops parseConfig  >>$LOGFILE 2>>$LOGFILE
   if [ $? -ne 0 ]
       then
       #si la config no era adecuada, proponer format
@@ -1377,7 +1377,7 @@ if [ "$DOFORMAT" -eq 0 ]
 	  then
 	  
 	  #Compara la última config leída con la aceptada actualmente (y si hay diferencias, pregunta cuál usar)
-	  $PVOPS clops compareConfigs
+	  $PVOPS storops compareConfigs
 
       fi	  
       
@@ -1392,7 +1392,7 @@ if [ "$DOFORMAT" -eq 0 ]
     $dlg   --infobox $"Examinando los datos de configuración..." 0 0
 
     #Parsear la config y almacenarla
-    $PVOPS clops parseConfig  >>$LOGFILE 2>>$LOGFILE
+    $PVOPS storops parseConfig  >>$LOGFILE 2>>$LOGFILE
 
     if [ $? -ne 0 ]
 	then
@@ -1401,12 +1401,12 @@ if [ "$DOFORMAT" -eq 0 ]
     
     #Una vez están todos leídos, la config elegida como válida (si había incongruencias)
     #se almacena para su uso oficial de ahora en adelante (puede cambiarse con comandos)
-    $PVOPS clops settleConfig  >>$LOGFILE 2>>$LOGFILE
+    $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
     
   
     $dlg   --infobox $"Reconstruyendo la llave de cifrado..." 0 0
 
-    $PVOPS clops rebuildKey #//// probar
+    $PVOPS storops rebuildKey #//// probar
     stat=$? 
 
     #Si falla la primera reconstrucción, probamos todas
@@ -1610,7 +1610,7 @@ fi #if se formatea el sistema
 $PSETUP 5
 
 #Limpiamos los slots antes de pasar a mantenimiento (para anular las claves reconstruidas que pueda haber)
-$PVOPS clops resetAllSlots  #//// probar que ya limpie y pueda ejecutar al menos una op de mant correctamente.
+$PVOPS storops resetAllSlots  #//// probar que ya limpie y pueda ejecutar al menos una op de mant correctamente.
 
 
 #Una vez acabado el proceso de instalación/reinicio, lanzamos el proceso de mantenimiento. 

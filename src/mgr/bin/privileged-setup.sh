@@ -79,7 +79,7 @@ privilegedSetupPhase1 () {
     
     #Prepare root user tmp dir
     chmod 700 $ROOTTMP/ >>$LOGFILE 2>>$LOGFILE
-    $PVOPS clops init
+    $PVOPS storops init
 }
 
 

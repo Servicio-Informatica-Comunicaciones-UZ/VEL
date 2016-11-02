@@ -504,8 +504,8 @@ int StoreHandler::init(const char * devicePath)
   }
 
   //Causes a memory leak that I still don't understand (nothing to do
-  //with the sizeo of the buffer. DON'T USE)
-  //strncpy(storePath, devicePath, MAX_UNIX_PATH_LEN);
+  //with the sizeo of the buffer).
+  //DON'T USE strncpy(storePath, devicePath, MAX_UNIX_PATH_LEN);
   memcpy(storePath, devicePath, strnlen(devicePath, MAX_UNIX_PATH_LEN)+1);
   strcat(storePath, "/");
   strcat(storePath, storeFilename);

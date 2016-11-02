@@ -76,80 +76,84 @@ configureCryptoPartition () {
 
 
 
-#Will try to mount
-#Retorno:
-#0  Éxito conectando con el Clauer. en PASSWD estará la contraseña correcta introducida por el usuario
-#1  Conexión Cancelada por el usuario
-# $1 -> el dev al que conectar
-# $2 -> modo (auth, newpwd)
-# $3 -> getpwd msg (optional)
-storeConnect(){
-    
-    PASSWD=''
-    
-    errmsg=''
-    while true   #2
-      do
 
-      #Acceder al Clauer      
-      if [ "$2" == 'auth' ]
-	  then 
-	  getPwd "$errmsg" 0 "$3" 0 # 0 es 'pwd para autenticar'	
-	  ret=$?
-      elif [ "$2" == 'newpwd' ]
-	  then
-	  getPwd "$errmsg" 1 "$3" 0  # 0 es 'pwd para renovar'
-	  ret=$?
-      fi
-      #$dlg --infobox $"El password: ""$pwd"  0 0
-      #sleep 1
+
+
+
+#Get a password from user
+#1 -> mode:  (auth) will ask once, (new) will ask twice and check for equality
+#2 -> message to be shown
+#3 -> cancel button? 0 no, 1 yes
+# Return 0 if ok, 1 if cancelled
+# $PASSWD : inserted password
+getPassword () {
     
-    #Si se cancela la insercion de pwd, salimos
-    [ $ret -ne 0 ] && return 1
-	
-	
-    if [ "$2" == 'auth' ]
-	   then
-        #Si el pwd es incorrecto, lo vuelve a pedir
-        $PVOPS clops checkPwd "$1" "$pwd"    2>>$LOGFILE  #0 ok  1 bad pwd  #////probar
-	       ret=$?
+    exec 4>&1
+    
+    local nocancelbutton=" --no-cancel "    
+    [ "$3" == "0" ] && nocancelbutton=""
+    
+    while true; do
         
-	       if [ $ret -eq 1 ]
-	       then
-	           errmsg=$"Contraseña incorrecta."
-	           continue
-	       fi
-    elif [ "$2" == 'newpwd' ]
-	   then
-	       #No hay que hacer nada de lo de abajo. Cambio de funcionalidad de este modo
-        #$OPSEXE checkDev -d $1  2>>$LOGFILE
-	       #dummyretval 0 # TODO cuando lo rehaga, ver si hace falta que $? valga 0 por alguna razón, pero comentado lo de abajo, lo dudo
+	       local pass=$($dlg $nocancelbutton --max-input 32 --passwordbox "$2" 10 40 2>&1 >&4)
+	       [ "$?" -ne 0 ] && return 1 
 	       
-	       #ret=$?
+	       [ "$pass" == "" ] && continue
         
-	       #if [ $ret -eq 1 ]
-	       #    then
-	       #    errmsg=$"El dispositivo no es un clauer"
-	       #    continue
-	       #    
-	       #fi
-        :
-    fi
-    
-    #Si todo ha ido correcto
-    PASSWD="$pwd"
-    pwd="" #///probar
-    return
-    
-    done # 2
+        #If this is a new password dialog
+        if [ $1 == 'new' ] 
+	       then
+            #Check password strength
+            local errmsg=$(checkPassword "$pass")
+            if [ "$?" -ne 0 ] ; then
+                $dlg --msgbox "$errmsg" 0 0
+                continue
+            fi
+            
+	           local pass2=$($dlg $nocancelbutton  --max-input 32 --passwordbox $"Vuelva a escribir su contraseña." 10 40 2>&1 >&4)
+	           [ $? -ne 0 ] && return 1 
 
+            #If not matching, ask again
+            if [ "$pass" != "$pass2" ] ; then
+                $dlg --msgbox $"Passwords don't match." 0 0
+	               continue
+            fi
+	    	  fi
+        
+        break
+    done
     
-    pwd=""
-    return
+    PASSWD=$pass
+    return 0
 }
 
 
-
+#Check validity and strength of password
+#1 -> password to check
+#Returns 0 if OK, 1 if error
+#Stdout: Error message to be displayed
+checkPassword () {
+    local pass=$1
+    
+    if [ ${#pass} -lt 8 ] ; then
+		      echo $"Password too short (min. 8 chars)."
+	       return 1
+	   fi
+    
+	   if [ ${#pass} -gt 32 ] ; then
+    		  echo $"Password too long (max. 32 chars)."
+		      return 1
+	   fi
+    
+	   if $(parseInput pwd "$pass") ; then
+		      :
+	   else    
+		      echo $"Password not valid. Use: ""$ALLOWEDCHARSET"
+		      return 1
+	   fi
+    
+    return 0
+}
 
 
 
@@ -252,7 +256,7 @@ grantAdminPrivileges () {
 retrieveKeywithAllCombs () {
 
 
-        $PVOPS clops rebuildKeyAllCombs 2>>$LOGFILE  #0 ok  1 bad pwd  #////probar
+        $PVOPS storops rebuildKeyAllCombs 2>>$LOGFILE  #0 ok  1 bad pwd  #////probar
 	local ret=$?
 	
 	[ "$ret" -eq 10 ] && systemPanic $"Error interno. Faltan datos de configuración para realizar la resconstrucción."
@@ -268,7 +272,7 @@ retrieveKeywithAllCombs () {
 #Comprueba todas las shares existentes en el slot activo
 testForDeadShares () {
     
-    $PVOPS clops testForDeadShares
+    $PVOPS storops testForDeadShares
     local ret="$?"
 
     [ "$ret" -eq 2 ] && systemPanic $"Error interno. Faltan datos de configuración para realizar la resconstrucción."
@@ -293,87 +297,6 @@ umountCryptoPart () {
 }
 
 
-
-
-
-#Retorno
-pwd=''
-
-#$1 --> error message (may be empty str.)
-#$2 --> es un password para autenticar (0) o para cambiar (1)?
-#$3 --> Override message value  Si '', lo ignora
-#$4 --> 0 --> cancel button on  1 --> cancel button off
-
-#Get a password from user
-#1 -> mode:  (auth) will ask once, (new) will ask twice and check for equality
-#2 -> message to be shown
-#3 -> cancel button? 0 no, 1 yes
-# Return 0 if ok, 1 if cancelled
-# $PASSWD : inserted password
-getPassword () {
-    
-    exec 4>&1
-    
-    local nocancelbutton=" --no-cancel "    
-    [ "$3" == "0" ] && nocancelbutton=""
-    
-    while true; do
-        
-	       pass=$($dlg $nocancelbutton --max-input 32 --passwordbox "$2" 10 40 2>&1 >&4)
-	       [ "$?" -ne 0 ] && return 1 
-	       
-	       [ "$pass" == "" ] && continue
-        
-	       if [ $1 == 'new' ] 
-	       then
-	        
-	    
-	    pass2=$($dlg $nocancelbutton  --max-input 32 --passwordbox $"Vuelva a escribir su contraseña." 10 40 2>&1 >&4)
-	    sal=$?
-	    [ $sal -ne 0 ] && return $sal 
-	    [ "$pass" == "$pass2" ] && break
-	    msg=$"Las contraseñas no coinciden."
-	    
-	    continue
-	    
-	    
-	fi
-	
-	break
-    done
-
-    pwd=$pass
-
-    return 0
-}
-
-
-#Check validity and strength of password
-#1 -> password to check
-#Returns 0 if OK, 1 if error
-#Stdout: Error message to be displayed
-checkPassword () {
-    local pass=$1
-    
-    if [ ${#pass} -lt 8 ] ; then
-		      echo $"Password too short (min. 8 chars)."
-	       return 1
-	   fi
-    
-	   if [ ${#pass} -gt 32 ] ; then
-    		  echo $"Password too long (max. 32 chars)."
-		      return 1
-	   fi
-    
-	   if $(parseInput pwd "$pass") ; then
-		      :
-	   else    
-		      echo $"Password not valid. Use: ""$ALLOWEDCHARSET"
-		      return 1
-	   fi
-    
-    return 0
-}
 
 
 
@@ -454,7 +377,7 @@ writeNextClauer () {
 
 	  $dlg   --infobox $"Escribiendo fragmento de llave..." 0 0
           #0 succesully set  1 write error
-	  $PVOPS clops writeKeyShare "$DEV" "$PASSWD"  "$1"
+	  $PVOPS storops writeKeyShare "$DEV" "$PASSWD"  "$1"
 	  ret=$?
 	  sync
 	  sleep 1
@@ -473,7 +396,7 @@ writeNextClauer () {
 	  
 	  $dlg   --infobox $"Almacenando la configuración del sistema..." 0 0
 
-	  $PVOPS clops writeConfig "$DEV" "$PASSWD"
+	  $PVOPS storops writeConfig "$DEV" "$PASSWD"
 	  ret=$?
 	  sync
 	  sleep 1
@@ -1883,7 +1806,7 @@ getClauersRebuildKey () {
 
       #Si todo ha ido bien y ha leido config, compararlas
       if [ "$1" == "c" -o "$1" == "b" ] ; then
-	  $PVOPS clops compareConfigs
+	  $PVOPS storops compareConfigs
       fi
       
       #Preguntar si quedan más dispositivos
@@ -1897,7 +1820,7 @@ getClauersRebuildKey () {
     
     $dlg   --infobox $"Reconstruyendo la llave de cifrado..." 0 0
         
-    $PVOPS clops rebuildKey #//// probar
+    $PVOPS storops rebuildKey #//// probar
     stat=$? 
     
     #Si falla la primera reconstrucción, probamos todas
@@ -1938,7 +1861,7 @@ clauerFetch () {
     if [ "$2" == "b"  -o "$2" == "c" ]
 	then
         # Leer config del sistema   
-	$PVOPS clops readConfigShare "$1" "$PASSWD" >>$LOGFILE 2>>$LOGFILE
+	$PVOPS storops readConfigShare "$1" "$PASSWD" >>$LOGFILE 2>>$LOGFILE
 	ret=$?
         #Si ha habido un error, volvemos a pedir un clauer
 	if [ $ret -ne 0 ] 
@@ -1953,7 +1876,7 @@ clauerFetch () {
     if [ "$2" == "b"  -o "$2" == "k" ]
 	then
         # Leer piezas de la clave
-	$PVOPS clops readKeyShare "$1" "$PASSWD" >>$LOGFILE 2>>$LOGFILE
+	$PVOPS storops readKeyShare "$1" "$PASSWD" >>$LOGFILE 2>>$LOGFILE
 	ret=$?
         #Si no se ha obtenido la keyshare, volvemos a pedir un clauer
 	if [ $ret -ne 0 ] 

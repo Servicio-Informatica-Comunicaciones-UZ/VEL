@@ -348,7 +348,7 @@ setAdmin () {
 	  fi
 	  
 	  
-	  getPwd '' 1 $"Introduzca la contraseña para\nel administrador del sistema de voto.\nEs imprescindible que la recuerde." 1
+	  getPassword 'new' $"Introduzca la contraseña para\nel administrador del sistema de voto." 1
 	  auxMGRPWD="$pwd"
 	  pwd=''
 	  
@@ -762,7 +762,7 @@ obtainClearance () {
 	doLoop
     fi
 
-    $PVOPS clops checkClearance
+    $PVOPS storops checkClearance
     ret=$?    
 
 
@@ -1158,7 +1158,7 @@ sslCertState=$($PVOPS getSslCertState)
 $PVOPS randomSoundStop
 
 #Revocamos el permiso para ejecutar ops privilegiadas.
-$PVOPS clops resetAllSlots
+$PVOPS storops resetAllSlots
 
 
 
@@ -1193,7 +1193,7 @@ executeSystemAction "running"
 
 
 #Revocamos el permiso para ejecutar ops privilegiadas (por paranoia).
-$PVOPS clops resetAllSlots
+$PVOPS storops resetAllSlots
 
 #Relanzamos el bucle.
 doLoop

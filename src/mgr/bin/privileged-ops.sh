@@ -1714,48 +1714,40 @@ fi
 
 
 
-#++++
-
-if [ "$1" == "clops" ]   # TODO cambiar clops por otra cosa, sustituir en todos los ficheros
-    then
-
-    echo "llamando a clops $2 ..."  >>$LOGFILE 2>>$LOGFILE
-
+if [ "$1" == "storops" ]
+then
+    
+    echo "Calling storops $2 ..."  >>$LOGFILE 2>>$LOGFILE
+    
     if [ "$2" == "" ]
-	then
-	echo "ERROR clops: No op code defined"  >>$LOGFILE 2>>$LOGFILE
-	exit 1
+	   then
+	       echo "ERROR storops: No op code defined"  >>$LOGFILE 2>>$LOGFILE
+	       exit 1
     fi
-	    
-
-    
-    
-    #inicializa los datos persistentes de la gestión de piezas
+	   
+    #Init persistent key slot management data
     if [ "$2" == "init" ] 
-	then
-
-	#Empieza en 1
-	for i in $(seq $SHAREMAXSLOTS)
-	  do
-	  	  
-	  mkdir -p "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
-	  chmod 600 "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
-	  echo -n "0" > "$ROOTTMP/slot$i/NEXTSHARENUM"
-  	  echo -n "0" > "$ROOTTMP/slot$i/NEXTCONFIGNUM"
-
-	done
-	
-	CURRENTSLOT=1
-	setPrivVar CURRENTSLOT "$CURRENTSLOT" r   #////probar
-	
-	exit 0
+	   then
+        #Start on slot 1
+	       for i in $(seq $SHAREMAXSLOTS)
+	       do
+	  	    	   mkdir -p "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
+	           chmod 600 "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
+	           echo -n "0" > "$ROOTTMP/slot$i/NEXTSHARENUM"
+  	         echo -n "0" > "$ROOTTMP/slot$i/NEXTCONFIGNUM"
+        done
+	       
+	       CURRENTSLOT=1
+	       setPrivVar CURRENTSLOT "$CURRENTSLOT" r
+	       
+	       exit 0
     fi
+    
+    
 
-
-
-
-
-
+    
+    
+    
     #Variables globales a estas operaciones
     
     getPrivVar r CURRENTSLOT
@@ -2166,19 +2158,13 @@ fi
     #4-> password
     checkParameterOrDie DEVPWD "${4}" "0"
 
-
-
-
-
-
-
+    
+    
     if [ "$2" == "checkPwd" ] 
-	then
-
+	   then
         $OPSEXE checkPwd -d "$3"  -p "$4"    2>>$LOGFILE #0 ok  1 bad pwd  #////PROBAR
-	ret=$?
-	
-	exit "$ret"
+	       ret=$?	       
+	       exit "$ret"
     fi
 
 
