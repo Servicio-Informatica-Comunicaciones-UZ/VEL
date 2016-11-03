@@ -242,45 +242,37 @@ do
     
     #We need to obtain a cipherkey and config parameters from a set of usb stores # TODO enclose as much as possible in functions
     if [ "$DOBUILDKEY" -eq 1 ] ; then
-        $dlg --msgbox $"The cipher key needs to be rebuilt.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
-        
+        $dlg --msgbox $"We need to rebuild the shared cipher key.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
         
         while true
         do
-            #Detect device insertion
-            insertUSB $"Insert USB key storage device" $"Cancel"
-            [ $? -eq 1 ] && continue 2 #Cancelled. Go back to the menu
-            if [ $? -eq 2 ] ; then
-                #No readable partitions. Ask for another one
-                $dlg --msgbox $"Device contained no readable partitions. Please, insert another one." 0 0
-                continue 
-            fi
-            
-            #Mount the device (will do on /media/usbdrive)
-            $PVOPS mountUSB mount $USBDEV
-            
-            #Ask for device password
-            getPassword auth $"Please, insert the password for the connected USB device" 0
-            if [ $? -ne 0 ] ; then
-                $dlg --msgbox $"Password insertion cancelled. Please, insert another one." 0 0
-                continue
-            fi
-	           
-            #Access the store on the mounted path and check password
-            #(store name is a constant expected by the store handler)
-            $PVOPS storops checkPwd /media/usbdrive/ "$pwd" 2>>$LOGFILE  #0 ok  1 bad pwd
+            #Ask to insert a device and read config and key share
+            readNextUSB
             ret=$?
-  
+            [ $ret -eq 1 ] && continue   #Read error: ask for another usb
+            [ $ret -eq 2 ] && continue   #Password error: ask for another usb
+            [ $ret -eq 3 ] && continue   #Read config/keyshare error: ask for another usb
+            [ $ret -eq 4 ] && continue   #Config syntax error: ask for another usb
+            
+            #User cancel
+            if [ $ret -eq 9 ] ; then
+                $dlg --yes-label $"Insert another device" --no-label $"Back to the main menu" \
+                     --yesno  $"Do you want to insert a new device or cancel the procedure?" 0 0  
 
-            #Read config and 
+                [ $? -eq 1 ] && continue 2 #Cancel, go back to the menu
+                continue #Go on, ask for another usb
+            fi
             
+            #Successfully read and removed, ask if any remaining
+            $dlg --yes-label $"Insert another device" --no-label $"No more left" \
+                 --yesno  $"Successfully read. Are there any devices left?" 0 0
             
+            [ $? -eq 1 ] && break #None left, go on
+            continue #Any left, ask for another usb
         done
-
-
-
-
-
+        
+        #When all read, rebuild key
+        
 
 
     fi
@@ -296,40 +288,7 @@ done #Main action loop
 
 
   
-  $dlg --infobox $"Leyendo configuración del sistema..."  0 0
-  sleep 1
-  
-  
-  #Se puede acceder al Clauer. Leemos la configuración.  
-  ESVYCFG=''
  
-  
-  clauerFetch $DEV c
-  #Si falla, pedimos otro clauer
-  if [ $? -ne 0 ] 
-      then
-      confirmSystemFormat $"No se han podido leer los datos de configuración de este Clauer." 
-      #Si lo confirma, salta a la sección de formatear sistema completo
-      [ $DOFORMAT -eq 1  ] &&  break
-      continue; #Sino, vuelve a pedir un dev
-  fi
-  
-
- 
-  #Verificamos que la última config leída tiene una estructura aceptable.
-  $PVOPS storops parseConfig  >>$LOGFILE 2>>$LOGFILE
-  if [ $? -ne 0 ]
-      then
-      #si la config no era adecuada, proponer format
-      confirmSystemFormat $"La información de configuración leida estaba corrupta o manipulada." 
-      #Si lo confirma, salta a la sección de formatear sistema completo
-      [ $DOFORMAT -eq 1  ] &&  break
-      continue; #Sino, vuelve a pedir un dev
-  fi
-
-
-
-
 
 
 
@@ -349,7 +308,7 @@ if [ "$DOFORMAT" -eq 0 ]
     SETAPPADMINPRIVILEGES=0 # TODO later, call setadmin... remove
 
     #Leemos la pieza de la clave del primer clauer (del que acabamos de sacar la config)
-    clauerFetch $DEV k 
+    ------Fetch $DEV k # TODO refactor this, avoid these calls
     
     detectUsbExtraction $DEV $"Clauer leido con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
     #Insertar un segundo dispositivo (jamás se podrá cargar el sistema con uno solo)
@@ -364,7 +323,7 @@ if [ "$DOFORMAT" -eq 0 ]
     while [ $ret -ne 1 ]
       do
       
-      readNextClauer 0 b
+      readNextUSB b
       status=$?
       
       
@@ -578,7 +537,7 @@ else
       
           #Pedir pasword nuevo
 	  
-          #Acceder  # TODO esto es un mount, checkdev y getpwd
+          #Acceder  # TODO esto es un mount, checkdev y getpwd (y luego un format usb + format store)
 	  storeConnect $DEV "newpwd" $"Introduzca una contraseña nueva:"
 	  ret=$?
 	  

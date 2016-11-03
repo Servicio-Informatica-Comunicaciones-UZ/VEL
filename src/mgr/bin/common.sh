@@ -514,22 +514,20 @@ randomPassword () { # TODO eliminar usos var $pw
 }
 
 
-
+#Detect removal of a usb device
 # $1 -> The dev path to oversee
 # $2 -> Message to show
 # $3 -> The "you didn't remove it" message
 detectUsbExtraction (){    
-    sync
     didnt=""
     
-    #While dev is on th list of usbs, refresh and wait
+    #While dev is on the list of usbs, refresh and wait
     locdev=$( listUSBDrives | grep -o "$1" )
-    while [ "$locdev" != "" ]
-    do
+    while [ "$locdev" != "" ] ; do
         $dlg --msgbox "$2""\n$didnt"  0 0
         
         locdev=$( listUSBDrives | grep -o "$1" )
-        didnt=$3
+        didnt="$3"
     done
 }
 

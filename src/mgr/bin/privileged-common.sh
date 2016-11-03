@@ -309,6 +309,11 @@ setAllConfigVariables () {
 
 
 #Parse any configuration file, to ensure syntax is adequate
+        # Al filtrar el fichero de configuración, sólo cogemos el primer
+        # elemento de cada línea ej: a="aa" "bb" b=123 456 --> a="aa"
+        # b=123 para evitar inyección de comandos. Además, no se aceptan
+        # $ dentro de una cadena, para evitar el acceso a variables de
+        # entorno	
 parseConfigFile () {
     
     cat "$1" | grep -oEe '^[a-zA-Z][_a-zA-Z0-9]*?=("([^"$]|[\]")*?"|""|[^ "$]+)'

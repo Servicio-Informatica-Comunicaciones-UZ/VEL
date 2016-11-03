@@ -77,15 +77,12 @@ configureCryptoPartition () {
 
 
 
-
-
-
 #Get a password from user
 #1 -> mode:  (auth) will ask once, (new) will ask twice and check for equality
 #2 -> message to be shown
 #3 -> cancel button? 0 no, 1 yes
 # Return 0 if ok, 1 if cancelled
-# $PASSWD : inserted password
+# $PASSWD : inserted password (due to dialog handling the stdout)
 getPassword () {
     
     exec 4>&1
@@ -128,6 +125,8 @@ getPassword () {
 }
 
 
+
+
 #Check validity and strength of password
 #1 -> password to check
 #Returns 0 if OK, 1 if error
@@ -154,6 +153,113 @@ checkPassword () {
     
     return 0
 }
+
+
+
+
+#Detects insertion of a device and reads the config/keyshare/both to the current slot 
+#1 -> 'c': read the config olny
+#     'k': read the keyshare only
+#     'b' or '': read both
+#Returns  0: OK
+#         1: read error
+#         2: password error
+#         9: cancelled
+readNextUSB () {
+    
+    #Detect device insertion
+    insertUSB $"Insert USB key storage device" $"Cancel"
+    [ $? -eq 1 ] && return 9
+    if [ $? -eq 2 ] ; then
+        #No readable partitions.
+        $dlg --msgbox $"Device contained no readable partitions." 0 0
+        return 1 
+    fi
+    
+    #Mount the device (will do on /media/usbdrive)
+    $PVOPS mountUSB mount $USBDEV
+
+    #Ask for device password
+    while true ; do
+        #Returns passowrd in $PASSWD
+        getPassword auth $"Please, insert the password for the connected USB device" 0
+        if [ $? -ne 0 ] ; then
+            $dlg --msgbox $"Password insertion cancelled." 0 0
+            $PVOPS mountUSB umount
+            return 2
+        fi
+	       
+        #Access the store on the mounted path and check password
+        #(store name is a constant expected by the store handler)
+        $PVOPS storops checkPwd /media/usbdrive/ "$PASSWD" 2>>$LOGFILE
+        if [ $? -ne 0 ] ; then
+            #Keep asking until cancellation or success
+            $dlg --msgbox $"Password not correct." 0 0
+            continue
+        fi
+        break
+    done
+    
+    #Read config
+    if [ "$1" != "k" ] ; then
+	       $PVOPS storops readConfigShare /media/usbdrive/ "$PASSWD" >>$LOGFILE 2>>$LOGFILE
+        ret=$?
+	       if [ $ret -ne 0 ] ; then
+	           $dlg --msgbox $"Error ($ret) while reading configuration from USB." 0 0
+            $PVOPS mountUSB umount
+	           return 3
+	       fi
+
+        #Check config syntax
+        $PVOPS storops parseConfig  >>$LOGFILE 2>>$LOGFILE
+        if [ $? -ne 0 ] ; then
+            $dlg --msgbox $"Configuration file tampered or corrupted." 0 0
+            $PVOPS mountUSB umount
+            return 4
+        fi
+    fi
+    
+    #Read keyshare
+    if [ "$1" != "c" ] ; then
+       	$PVOPS storops readKeyShare /media/usbdrive/ "$PASSWD" >>$LOGFILE 2>>$LOGFILE
+	       ret=$?
+       	if [ $ret -ne 0 ] ; then
+	           $dlg --msgbox $"Error ($ret) while reading keyshare from USB." 0 0
+            $PVOPS mountUSB umount
+	           return 3
+	       fi
+	   fi
+
+    #Umount the device once done reading
+    $PVOPS mountUSB umount
+    
+    #Detect extraction before returning control to main program
+    detectUsbExtraction $USBDEV $"USB device successfully read. Remove it and press RETURN." $"Didn't remove it. Please, do it and press RETURN."
+    
+    return 0
+}
+
+
+
+
+#Grant admin user a privileged admin status on the web app
+#1-> 'grant' or 'remove'
+grantAdminPrivileges () {
+    echo "Setting web app privileged admin status to: $1"  >>$LOGFILE 2>>$LOGFILE
+	   $PVOPS  grantAdminPrivileges "$1"	
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -238,12 +344,6 @@ stopServers () {
 }
 
 
-#Grant admin user a privileged admin status on the web app
-#1-> 'grant' or 'remove'
-grantAdminPrivileges () {
-    echo "Setting web app privileged admin status to: $1"  >>$LOGFILE 2>>$LOGFILE
-	   $PVOPS  grantAdminPrivileges "$1"	
-}
 
 
 
@@ -347,7 +447,7 @@ writeNextClauer () {
       
       #Pedir pasword nuevo
       
-      #Acceder
+      #Acceder  # TODO esto es un mount, checkdev y getpwd (y format usb + format store), además esto coincide con lo visto fuera, seguramente lo pueda meter todo en una func y/o hacer un bucle
       storeConnect $DEV "newpwd" $"Miembro número $member:\nIntroduzca una contraseña nueva:"
       ret=$?
       
@@ -1771,7 +1871,7 @@ generateCSR () { #*-*-adaptando al  nuevo conjunto de datos
 #Reconstruye la clave, con fines de comprobar la autorización de realizar acciones 
 # de mantenimiento sin reiniciar el equipo o para recuperar los datos del backup
 
-# 1 -> el modo de readClauer (k, c, o b (ambos))
+# 1 -> el modo de readClauer (k, c, o b (ambos))  # Quizá pasar al flujo directo, ver dónde se usa
 getClauersRebuildKey () {
     
     
@@ -1781,7 +1881,7 @@ getClauersRebuildKey () {
     while [ $ret -ne 1 ]
       do
       
-      readNextClauer "$firstcl"  "$1"  
+      readNextUSB  "$1"  
       status=$?
       
       [ "$firstcl" -eq 1 ] && firstcl=0
@@ -1847,99 +1947,6 @@ getClauersRebuildKey () {
 }
 
 
-
-#//// En setup, libremente. Que la cadena con la config la devuelva un servicio. El partpwd, intentar que siempre se use desde priv (tenerlo en el dir y accederlo desde allí. quitarlo de los params de todos los servicios) 
-
-# 1- > el dev
-# 2- > b -> ambos,  c -> sólo la config  ,k -> sólo la llave
-#Retorno: Escribe en ficheros las shares y la config leídas (no accesibles por vtuji)
-# 0  ok - 0x01 config readerr  - 0x02 share readerr
-clauerFetch () {  
-
-
-    retval=0
-    if [ "$2" == "b"  -o "$2" == "c" ]
-	then
-        # Leer config del sistema   
-	$PVOPS storops readConfigShare "$1" "$PASSWD" >>$LOGFILE 2>>$LOGFILE
-	ret=$?
-        #Si ha habido un error, volvemos a pedir un clauer
-	if [ $ret -ne 0 ] 
-	    then
-	    $dlg --msgbox $"Error ($ret) leyendo la configuración del Clauer." 0 0
-	    retval=$(( $retval | 1 ))
-	fi
-            
-    fi
-  
-
-    if [ "$2" == "b"  -o "$2" == "k" ]
-	then
-        # Leer piezas de la clave
-	$PVOPS storops readKeyShare "$1" "$PASSWD" >>$LOGFILE 2>>$LOGFILE
-	ret=$?
-        #Si no se ha obtenido la keyshare, volvemos a pedir un clauer
-	if [ $ret -ne 0 ] 
-	    then
-	    $dlg --msgbox $"Error ($ret) leyendo la pieza de llave del Clauer" 0 0
-	    retval=$(( $retval | 2 ))
-	fi
-	
-    fi
-
-
-    return $retval
-}
-
-# 1- > 1-> first 0-> not first
-# 2- > b  -> ambos,  c -> sólo la config  ,k -> sólo la llave
-# retorno: 0: OK  9: cancelled  resto: error de lectura
-readNextClauer () {
-
-      ret=0
-
-
-
-      clauerpos=$"el siguiente"
-      [ "$1" -eq 1 ] && clauerpos=$"el primer"
-      
-      insertUSB $"Inserte $clauerpos Clauer a leer y pulse INTRO." $"Abortar" #////Esta func está ya en priv.
-      cancelled=$?
-      # TODO comprobar con nuevo funcionamiento de esta func
-      [ "$cancelled" -eq 1 ]  && return 9 
-      
-      
-      until [ $ISCLAUER -eq 1 ]
-	do
-	$dlg --msgbox $"Debe elegir un dispositivo que sea Clauer" 0 0
-	insertUSB $"Inserte el siguiente Clauer a leer y pulse INTRO." $"Abortar"
-       # TODO comprobar con nuevo funcionamiento de esta func
-      done
-      
-      
-      
-      #Acceder
-      storeConnect $DEV auth
-      ret=$?
-      
-      echo "clauer access: $ret" >>$LOGFILE 2>>$LOGFILE
-      
-      #Si el acceso falla, pedimos otro
-      [ $ret -ne 0 ] && return $ret
-
-      echo "clauer access granted" >>$LOGFILE 2>>$LOGFILE
-
-      #Leer datos
-      clauerFetch $DEV "$2"
-      ret=$?
-      
-      #Si falla, pedimos otro clauer
-      [ $? -ne 0 ] && return $ret
-      
-      detectUsbExtraction $DEV $"Clauer leido con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
-
-      return $ret
-}
 
 
 

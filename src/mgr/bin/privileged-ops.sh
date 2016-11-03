@@ -202,15 +202,26 @@ fi
 
 #Handles mounting or umounting of USB drive partitions
 #2 -> 'mount' or 'umount'
-#3 -> partition path (will be checked against the list of valid ones)
+#3 -> [on mount only] partition path (will be checked against the list of valid ones)
 if [ "$1" == "mountUSB" ] 
 then
-
+    
+    #Umount doesn't need parameters
+    if [ "$2" == "umount" ] ; then
+        sync
+        umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       if [ "$?" -ne "0" ] ; then
+            echo "mountUSB: Partition '$3' umount error" >>$LOGFILE 2>>$LOGFILE
+            exit 1
+        fi
+        exit 0
+    fi
+    
+    #Check if dev to mount is appropiate
     if [ "$3" == "" ] ; then
         echo "mountUSB: Missing partition path" >>$LOGFILE 2>>$LOGFILE
         exit 1
-    fi
-    
+    fi   
     usbs=$(listUSBS valid)
     found=0
     for part in $usbs ; do
@@ -220,18 +231,12 @@ then
         echo "mountUSB: Partition path '$3' not valid" >>$LOGFILE 2>>$LOGFILE
         exit 1
     fi
-    
+
+    #Do the mount
     if [ "$2" == "mount" ] ; then
         mount  "$3" /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 	       if [ "$?" -ne "0" ] ; then
             echo "mountUSB: Partition '$3' mount error" >>$LOGFILE 2>>$LOGFILE
-            exit 1
-        fi
-        
-    elif [ "$2" == "umount" ] ; then
-        umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	       if [ "$?" -ne "0" ] ; then
-            echo "mountUSB: Partition '$3' umount error" >>$LOGFILE 2>>$LOGFILE
             exit 1
         fi
     else
@@ -2100,39 +2105,39 @@ fi
 
 
 
-    #Verifica la estructura de la última config leída
+    #Validate structure of the last read config file
     if [ "$2" == "parseConfig" ] 
-	then
-	NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
-	lastConfigRead=$((NEXTCONFIGNUM-1))
-
-	echo "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
-	echo "***** #### lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
-
-	if [ "$NEXTCONFIGNUM" -eq 0 ]
-	    then
-	    echo "parseConfig: no configuration file read yet!"  >>$LOGFILE 2>>$LOGFILE
-	    exit 1
-	fi
-
-
-        # Al filtrar el fichero de configuración, sólo cogemos el primer
-        # elemento de cada línea ej: a="aa" "bb" b=123 456 --> a="aa"
-        # b=123 para evitar inyección de comandos. Además, no se aceptan
-        # $ dentro de una cadena, para evitar el acceso a variables de
-        # entorno	
-	ESVYCFG=$(parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE)
-	
-	if [ "$ESVYCFG" == "" ]
-	    then
-	    echo "parseConfig: esurveyconfiguration was manipulated!"  >>$LOGFILE 2>>$LOGFILE
-	    exit 1
-	fi
-	
-	exit 0
+	   then
+	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
+	       lastConfigRead=$((NEXTCONFIGNUM-1))
+	       echo "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
+	       echo "***** #### lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
+        
+	       if [ "$NEXTCONFIGNUM" -eq 0 ]
+	       then
+	           echo "parseConfig: no configuration file read yet!"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
+        
+	       config=$(parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE)
+	       
+	       if [ "$config" == "" ]
+	       then
+	           echo "parseConfig: Configuration tampered or corrupted"  >>$LOGFILE 2>>$LOGFILE
+	           exit 2
+	       fi
+	       
+	       exit 0
     fi
     
 
+
+
+
+
+
+
+    
     #Establece la config elegida del slot activo como la config a usar en adelante.
     if [ "$2" == "settleConfig" ] 
 	then
@@ -2169,52 +2174,43 @@ fi
 
 
 
-
+    #Reads a configuration block from the usb store
     if [ "$2" == "readConfigShare" ] 
-	then
-	
-	NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")   #////probar
-	
-	$OPSEXE readConfig -d "$3"  -p "$4" >$slotPath/config$NEXTCONFIGNUM  2>>$LOGFILE	
-	ret=$?
-
-        #Si se ha leído bien la config	
-	if [  -s $slotPath/config$NEXTCONFIGNUM   ] 
-	    then
-	    #aumentamos el num
-	    NEXTCONFIGNUM=$(($NEXTCONFIGNUM+1))
-	    echo -n "$NEXTCONFIGNUM" > "$slotPath/NEXTCONFIGNUM"
-
-	    
-
-
-	else
-	    ret=42
-	fi
-
-	exit $ret
+	   then
+	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
+	       
+	       $OPSEXE readConfig -d "$3"  -p "$4" >$slotPath/config$NEXTCONFIGNUM  2>>$LOGFILE	
+	       ret=$?
+        
+        #If properly read, increment config copy number
+	       if [ -s $slotPath/config$NEXTCONFIGNUM ] ; then
+	           NEXTCONFIGNUM=$(($NEXTCONFIGNUM+1))
+	           echo -n "$NEXTCONFIGNUM" > "$slotPath/NEXTCONFIGNUM"
+        else
+	           exit 42
+	       fi
+        
+	       exit $ret
     fi
-
-
-
+    
+    
+    #Read a key share block from the usb store
     if [ "$2" == "readKeyShare" ] 
-	then
-
-	NEXTSHARENUM=$(cat "$slotPath/NEXTSHARENUM")   #////probar
-
-	$OPSEXE readKeyShare -d "$3"  -p "$4" >$slotPath/keyshare$NEXTSHARENUM  2>>$LOGFILE
-	ret=$?
-
-        #Si se ha leído bien la keyshare, aumentamos el num
-	if [  -s $slotPath/keyshare$NEXTSHARENUM  ] 
-	    then
-	    NEXTSHARENUM=$(($NEXTSHARENUM+1))
-	    echo -n "$NEXTSHARENUM" > "$slotPath/NEXTSHARENUM"
-	else
-	    ret=42
-	fi
-
-	exit $ret
+	   then
+        NEXTSHARENUM=$(cat "$slotPath/NEXTSHARENUM")
+        
+	       $OPSEXE readKeyShare -d "$3" -p "$4" >$slotPath/keyshare$NEXTSHARENUM  2>>$LOGFILE
+	       ret=$?
+        
+        #If properly read, increment share number
+	       if [ -s $slotPath/keyshare$NEXTSHARENUM ] ; then
+	           NEXTSHARENUM=$(($NEXTSHARENUM+1))
+	           echo -n "$NEXTSHARENUM" > "$slotPath/NEXTSHARENUM"
+	       else
+	           exit 42
+	       fi
+        
+	       exit $ret
     fi
     
 
@@ -2272,9 +2268,9 @@ fi
 	    exit 1
 	fi
 
-	ESVYCFG=$(cat "$file" 2>>$LOGFILE)
+	config=$(cat "$file" 2>>$LOGFILE)  ## TODO ???
 	
-	echo -e "CHECK1: esvycfg:  --" >>$LOGFILE 2>>$LOGFILE
+	echo -e "CHECK1: cfg:  --" >>$LOGFILE 2>>$LOGFILE  # TODO Only in debug
 	cat "$file" >>$LOGFILE 2>>$LOGFILE #*-*- verificar que lo que imprimia era por esto. quitar este cat en prod. 
 	echo "--" >>$LOGFILE 2>>$LOGFILE
 

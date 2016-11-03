@@ -187,39 +187,6 @@ selectTimezone () {
 #SEGUIR
 
 
-# $1 -> Parte 1 del mensaje de confirmación.
-
-confirmSystemFormat (){
-    
-    $dlg --no-label $"Inicio"  --yes-label $"Formatear" --yesno  $"$1\nEsto implica que, o el sistema esta vacio, o desea reinstalarlo. \nSi elige continuar, se destruirán todos los datos\n del sistema si los hubiese y se instalará\nel sistema de voto totalmente de cero. \n\n¿Desea continuar o desea volver al inicio?" 0 0
-    button=$?
-
-    #echo "Pulsado $button"
-
-    #Desea insertar otro disp.
-    if [ $button -eq 1 ]
-	then
-	DOFORMAT=0  
-	return
-    fi
-	
-    #Doble confirmación
-    $dlg   --yes-label $"Sí" --no-label $"No" --yesno  $"¿Seguro que desea continuar?" 0 0  
-    button=$?
-    
-    #echo "Pulsado $button"
-
-    #Desea insertar otro disp.
-    if [ $button -eq 1 ] 
-	then
-	DOFORMAT=0
-	return
-    fi
-    
-    DOFORMAT=1
-    return
-}
-
 
 #//// revisar todas las func que quedan: ver si van a commons o deben convertirse en ops priv o privsetup+++
 
@@ -1197,7 +1164,6 @@ $PSETUP   2
 
 
 
-ESVYCFG=''
 
 
 # TODO review this var, try to make it non-global
@@ -1262,11 +1228,9 @@ do
   sleep 1
   
   
-  #Se puede acceder al Clauer. Leemos la configuración.  
-  ESVYCFG=''
  
   
-  clauerFetch $DEV c
+  --------------
   #Si falla, pedimos otro clauer
   if [ $? -ne 0 ] 
       then
@@ -1337,7 +1301,7 @@ if [ "$DOFORMAT" -eq 0 ]
     SETAPPADMINPRIVILEGES=0
 
     #Leemos la pieza de la clave del primer clauer (del que acabamos de sacar la config)
-    clauerFetch $DEV k 
+--------
     
     detectUsbExtraction $DEV $"Clauer leido con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
     #Insertar un segundo dispositivo (jamás se podrá cargar el sistema con uno solo)
@@ -1352,7 +1316,7 @@ if [ "$DOFORMAT" -eq 0 ]
     while [ $ret -ne 1 ]
       do
       
-      readNextClauer 0 b
+      readNextUSB b
       status=$?
       
       
