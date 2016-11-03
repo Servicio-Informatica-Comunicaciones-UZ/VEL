@@ -375,7 +375,7 @@ rm $BINDIR/launch-debug-console.sh
 cat > $BINDIR/launch-debug-console.sh <<EOF
 
 TERM=linux
-export $TERM
+export \$TERM
 /bin/bash -i </dev/tty2 >/dev/tty2 2>&1 &
 /bin/bash -i </dev/tty3 >/dev/tty3 2>&1 &
 /bin/bash -i </dev/tty4 >/dev/tty4 2>&1 &
