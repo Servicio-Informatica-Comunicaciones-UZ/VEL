@@ -59,10 +59,6 @@ systemPanic () {
 #Main setup menu
 chooseMaintenanceAction () {
     
-    DOBUILDKEY=0
-    DOFORMAT=0
-    DORESTORE=0
-    
     exec 4>&1
     while true; do
         selec=$($dlg --no-cancel  --menu $"Select an action:" 0 80  6  \
@@ -77,22 +73,27 @@ chooseMaintenanceAction () {
         case "$selec" in
 	           "1" )
                 DOBUILDKEY=1
+                DOFORMAT=0
+                DORESTORE=0
 	               return 1
                 ;;
             
 	           "2" )
                 #Double check option if user chose to format
-                $dlg --yes-label $"Back" --no-label $"Format system" --yesno  $"You chose NEW system.\nThis will destroy any previous installation of the voting system. Do you wish to continue?" 0 0
+                $dlg --yes-label $"Back" --no-label $"Format system" \
+                     --yesno  $"You chose NEW system.\nThis will destroy any previous installation of the voting system. Do you wish to continue?" 0 0
                 [ $? -eq 0 ] && continue
                 
                 DOBUILDKEY=0
 	               DOFORMAT=1
+                DORESTORE=0
 	               return 2
                 ;;
             
             "3" )
                 #Double check option if user chose to recover
-                $dlg --yes-label $"Back" --no-label $"Recover backup" --yesno  $"You chose to RECOVER a backup.\nThis will destroy any changes on a previously existing system. Do you wish to continue?" 0 0
+                $dlg --yes-label $"Back" --no-label $"Recover backup" \
+                     --yesno  $"You chose to RECOVER a backup.\nThis will destroy any changes on a previously existing system. Do you wish to continue?" 0 0
                 [ $? -eq 0 ] && continue
                 
                 DOBUILDKEY=1
@@ -102,7 +103,8 @@ chooseMaintenanceAction () {
                 ;;
 	           
 	           "4" )
-	               $dlg --yes-label $"Yes" --no-label $"No"  --yesno  $"WARNING:\n\nYou chose to open a terminal. This gives free action powers to the administrator. Make sure he does not operate it without proper technical supervision. Do you wish to continue?" 0 0
+	               $dlg --yes-label $"Yes" --no-label $"No"  \
+                     --yesno  $"WARNING:\n\nYou chose to open a terminal. This gives free action powers to the administrator. Make sure he does not operate it without proper technical supervision. Do you wish to continue?" 0 0
 	               [ "$?" -eq 1 ] && continue
 	               [ "$?" -eq 0 ] && exec $PVOPS rootShell
                 exec /bin/false
@@ -132,7 +134,7 @@ chooseMaintenanceAction () {
 
 
 
-#Let user select his timezone
+#Lets user select his timezone
 selectTimezone () {
 
     local defaultItem="Europe"
@@ -157,6 +159,14 @@ selectTimezone () {
     #Need to use return global because stdout cannot be redirected due to dialog using it
     TIMEZONE="$tzArea/$tz"
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -230,6 +240,9 @@ $PSETUP moveToRAM
 
 
 
+
+
+
 #Main action loop
 while true
 do
@@ -239,6 +252,10 @@ do
     
     #Select startup action
     chooseMaintenanceAction
+
+
+
+
     
     #We need to obtain a cipherkey and config parameters from a set of usb stores # TODO enclose as much as possible in functions
     if [ "$DOBUILDKEY" -eq 1 ] ; then
@@ -271,24 +288,83 @@ do
             continue #Any left, ask for another usb
         done
         
-        #When all read, rebuild key
+        #All devices read, set read config as the working config
+        $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
+        
+        #Try to rebuild key (first a simple attempt and then an all combinations)
+        $dlg --infobox $"Reconstructing ciphering key..." 0 0
+        rebuildKey
+        [ $? -ne 0 ] && continue #Failed, go back to the menu
+        
+        $dlg --msgbox $"Key successfully rebuilt." 0 0 
+    fi
+    
+    
+    # TODO Remember to set all variables from config that we need, here from usb config and, when set up, from crypto part config
+    
+    
+    
+    if [ "$DOFORMAT" -eq 1 ]   # TODO when finished,  put this before the rebuild key section
+    then 
+        
+        #On fresh install, show EULA
+        if [ "$DORESTORE" -eq 0 ] ; then
+            $dlg --extra-button --extra-label $"I do not agree" --no-cancel \
+                 --ok-label $"I agree"  --textbox /usr/share/doc/License.$LANGUAGE 0 0
+            #Does not accept EULA, halt
+            [ $? -eq 3 ] && $PSETUP halt
+        else
+            #On restore, inform about the procedure
+            $dlg --msgbox $"You chose to restore a backup. A fresh installation will be performed first, where you will be able to change basic configuration. Please, use a NEW SET of usb drives on it. You will be asked to insert the OLD SET at the end to perform the restoration." 0 0
+        fi
+        
+
+        # Get all configuration parameters # TODO (move here all user input and make it selectable through a menu)
+
+        selectTimezone #Will set the global var TIMEZONE        
         
 
 
+        #Execute configuration phase # TODO (does anything need to be done before getting any data? like network or partition?)
+        
+        
+        
+
+        # TODO remember to store all config variables, both those in usb and in hard drive
+        
     fi
+    
 
 
+
+
+
+    #Saltar a  la sección de config de red/cryptfs  # TODO refactor this function, inside or outside the loop?
+    doSystemConfiguration "reset/new"   
+    
+    
+    # TODO give or remove privileges to the admin user, make sure this var is erradicated: SETAPPADMINPRIVILEGES=0
+
+
+    
+    
     break # TODO invoke here the maintenance script?
     
 done #Main action loop
 
 
+
+#Test e-mail notifications with admin, neuter setup scripts
+$PSETUP init5
+
+#Clean slots before going into maintenance mode (to void any rebuilt keys that may remain)
+$PVOPS storops resetAllSlots     # TODO implement a delayed rebuilt key anulation? this way, multiple privileged actions can be performed without bothering the keyholders. think about this calmly
+
+
+#Go into the maintenance mode. Process context is overriden with a new
+#one for security reasons
+exec /bin/bash  /usr/local/bin/wizard-maintenance.sh  
   
-  
-
-
-  
- 
 
 
 
@@ -297,113 +373,9 @@ done #Main action loop
 
 
 
-###### Sistema ya creado #####
-	
-	
-# Es clauer y sí hay configuración previa. Se piden más clauers para iniciar el sistema.
-if [ "$DOFORMAT" -eq 0 ] 
-    then 
-    
-    #Si el sistema se está reiniciando, por defecto invalida los privilegios de admin
-    SETAPPADMINPRIVILEGES=0 # TODO later, call setadmin... remove
-
-    #Leemos la pieza de la clave del primer clauer (del que acabamos de sacar la config)
-    ------Fetch $DEV k # TODO refactor this, avoid these calls
-    
-    detectUsbExtraction $DEV $"Clauer leido con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
-    #Insertar un segundo dispositivo (jamás se podrá cargar el sistema con uno solo)
-    
-    
-    
-    #Preguntar si quedan más dispositivos (a priori no sabemos el número de clauers que habrá presentes, así que simplificamos y dejamos que ellos decidan cuántos quedan). Una vez leídos todos, ya veremos si hay bastantes o no.
-    $dlg   --yes-label $"Sí" --no-label $"No" --yesno  $"¿Quedan más Clauers por leer?" 0 0  
-    ret=$?
-    
-    #mientras queden dispositivos
-    while [ $ret -ne 1 ]
-      do
-      
-      readNextUSB b
-      status=$?
-      
-      
-      if [ "$status" -eq 9 ]
-	  then
-	  $dlg --yes-label $"Reanudar" --no-label $"Finalizar"  --yesno  $"Ha cancelado la inserción de un Clauer.\n¿Desea finalizar la inserción de dispositivos?" 0 0  
-	  
-	  #Si desea finalizar, salimos del bucle
-	  [ $? -eq 1 ] && break;
-	  
-      fi
-
-      #Error
-      if [ "$status" -ne 0  ]
-	  then
-	  $dlg --msgbox $"Error de lectura. Pruebe con otro dispositivo" 0 0
-	  continue
-      fi
-
-      #Si todo es correcto
-      if [ "$status" -eq 0  ] 
-	  then
-	  
-	  #Compara la última config leída con la aceptada actualmente (y si hay diferencias, pregunta cuál usar)
-	  $PVOPS storops compareConfigs
-
-      fi	  
-      
-      #Preguntar si quedan más dispositivos
-      $dlg   --yes-label $"Sí" --no-label $"No" --yesno  $"¿Quedan más Clauers por leer?" 0 0  
-      ret=$?
-      
-    done
-    
-    #echo "Todos leidos"
-    
-    $dlg   --infobox $"Examinando los datos de configuración..." 0 0
-
-    #Parsear la config y almacenarla
-    $PVOPS storops parseConfig  >>$LOGFILE 2>>$LOGFILE
-
-    if [ $? -ne 0 ]
-	then
-	systemPanic  $"Los datos de configuración están corruptos o manipulados."
-    fi
-    
-    #Una vez están todos leídos, la config elegida como válida (si había incongruencias)
-    #se almacena para su uso oficial de ahora en adelante (puede cambiarse con comandos)
-    $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
-    
-  
-    $dlg   --infobox $"Reconstruyendo la llave de cifrado..." 0 0
-
-    $PVOPS storops rebuildKey #//// probar
-    stat=$? 
-
-    #Si falla la primera reconstrucción, probamos todas
-    if [ $stat -ne 0 ] 
-	then
-
-	$dlg --msgbox $"Se ha producido un error durante la reconstrucción de la llave por la presencia de fragmentos defectuosos. El sistema intentará recuperarse." 0 0 
-
-        retrieveKeywithAllCombs
-	ret=$?
-
-	#Si no se logra con ninguna combinación, pánico y adiós.
-         if [ "$ret" -ne 0 ] 
-	    then
-	     systemPanic $"No se ha podido reconstruir la llave de la zona cifrada."
-	 fi
-	 
-    fi
-
-    $dlg --msgbox $"Se ha logrado reconstruir la llave. Se prosigue con la carga del sistema." 0 0 
-
-    #Saltar a  la sección de config de red/cryptfs
-    doSystemConfiguration "reset"   
 
 
-        
+
 
 
 
@@ -415,23 +387,8 @@ if [ "$DOFORMAT" -eq 0 ]
     
 #Se formatea el sistema 
 else 
-    #echo "Se formatea" 
     
-    #Cuando el sistema se esté instalando, y hasta que se instale el cert SSL correcto, el admin tendrá privilegios
-    SETAPPADMINPRIVILEGES=1 # TODO later, call setadmin... grant
-    
-    
-    #Pedimos que acepte la licencia
-    $dlg --extra-button --extra-label $"No acepto la licencia" --no-cancel --ok-label $"Acepto la licencia"  --textbox /usr/share/doc/License.$LANGUAGE 0 0
-    #No acepta la licencia (el extra-button retorna con cod. 3)
-    [ "$?" -eq 3 ] && $PSETUP halt;  #////probar
 
-
-
-    if [ "$DORESTORE" -eq 1 ] ; then
-	$dlg --msgbox $"Ha elegido restaurar una copia de seguridad del sistema. Primero se instalará un sistema totalmente limpio. Podrá alterar los parámetros básicos. Emplee un conjunto de Clauers NUEVOS. Al final se le solicitarán los clauers antiguos para proceder a restaurar los datos." 0 0
-    fi
-    
     
     #BUCLE PRINCIPAL
 
@@ -441,9 +398,6 @@ else
 
     declare -a crydrivemodeArr
     declare -a localcryconfArr
-    declare -a iscsiconfArr
-    declare -a sambaconfArr
-    declare -a nfsconfArr
     declare -a fileconfArr
     crydrivemodeArr=(null on off off off off)
     
@@ -495,7 +449,7 @@ else
 
     
     #Ejecutamos elementos de configuración
-    $PSETUP   3
+    $PSETUP init3
     
     
     genNfragKey
@@ -519,7 +473,7 @@ else
     $PSETUP   forceBackup
 
 
-    #Avisar al admin de que necesita un Clauer, y permitirle formatear uno en blanco.
+    #Avisar al admin de que necesita un Clauer, y permitirle formatear uno en blanco. # TODO esto ya no. Darle un punto adicional por privileged
     $dlg --yes-label $"Omitir este paso" --no-label $"Formatear dispositivo"  --yesno  $"El administrador del sistema de voto necesita poseer un dispositivo Clauer propio con fines identificativos frente a la aplicación, aunque no contenga certificados. Si no posee ya uno, tiene la posibilidad de insertar ahora un dispositivo USB y formatearlo como Clauer." 0 0
     formatClauer=$?
 
@@ -577,17 +531,6 @@ fi #if se formatea el sistema
 
 
 
-#Realizamos los ajustes de seguridad comunes
-$PSETUP 5
-
-#Limpiamos los slots antes de pasar a mantenimiento (para anular las claves reconstruidas que pueda haber)
-$PVOPS storops resetAllSlots  #//// probar que ya limpie y pueda ejecutar al menos una op de mant correctamente.
-
-
-#Una vez acabado el proceso de instalación/reinicio, lanzamos el proceso de mantenimiento. 
-# El uso del exec resulta de gran importancia dado que al sustituír el contexto del proceso 
-# por el de este otro, destruye cualquier variable sensible que pudiese haber quedado en memoria.
-exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 
 
 

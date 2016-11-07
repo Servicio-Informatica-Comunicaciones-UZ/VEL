@@ -317,7 +317,6 @@ setAllConfigVariables () {
 parseConfigFile () {
     
     cat "$1" | grep -oEe '^[a-zA-Z][_a-zA-Z0-9]*?=("([^"$]|[\]")*?"|""|[^ "$]+)'
-    
 }
 
 

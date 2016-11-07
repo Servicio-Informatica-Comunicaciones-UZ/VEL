@@ -165,7 +165,20 @@ fi
 
 
 
-######################## Operaciones #######################
+######################## Operations #######################
+
+
+
+#Launch a root shell for maintenance purposes
+if [ "$1" == "rootShell" ] 
+then
+    export TERM=linux        
+    exec /bin/bash
+    exit 1
+fi
+
+
+
 
 # Lists usb drives or mountable partitions, returns either list of drives/partitions or the number of them
 #2 -> mode: 'devs' to list devices or 'parts' to list mountable partitions
@@ -251,7 +264,46 @@ fi
 
 
 
-#//// verif en mant: si
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Umounts persistent data unit
 
 #2 -> Modo de acceso a la partición cifrada "$DRIVEMODE"
 #3 -> Ruta donde se monta el dev que contiene el fichero de loopback "$MOUNTPATH" (puede ser cadena vacía)
@@ -331,16 +383,6 @@ if [ "$1" == "stopServers" ]
 
 fi
 
-
-#//// verif en mant: si
-
-if [ "$1" == "rootShell" ] 
-    then
-
-    exec /bin/bash
-
-    exit 1
-fi
 
 
 #//// verif en mant: no
@@ -1753,7 +1795,7 @@ then
     
     
     
-    #Variables globales a estas operaciones
+    #Variables globales a estas operaciones  # TODO, de esto nada, pasarlo a cada sitio donde se emplee, por si luego lo meto en función
     
     getPrivVar r CURRENTSLOT
     slotPath=$ROOTTMP/slot$CURRENTSLOT/
@@ -1822,97 +1864,102 @@ then
 
 
 
-    #Reconstruye las llaves con las piezas que hay en el slot activo en un intento simple 
+    
+    #Tries to rebuild a key with the available shares on the current
+    #slot, single attempt
     if [ "$2" == "rebuildKey" ] 
-	then
-		
-	numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
+	   then
+		      getPrivVar r CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        
+	       numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
+        
+        #Rebuild key and store it (it expects a set of files named
+        #keyshare[0-9]+, starting from zero until the specified
+        #number - 1)
+	       $OPSEXE retrieve $numreadshares $slotPath  2>>$LOGFILE > $slotPath/key
+	       exit $? 
+	   fi
     
-        #Reconstruir llave de cifrado y mapearla a su variable. 
-	$OPSEXE retrieve $numreadshares $slotPath  2>>$LOGFILE > $slotPath/key
-	exit $? 
-	
-    fi
-
-
-    #Reconstruye las llaves con las piezas que hay en el slot activo en un intento simple 
+    
+    
+    
+    
+    #Tries to rebuild a key with the available shares on the current
+    #slot, will try all available combinations
     if [ "$2" == "rebuildKeyAllCombs" ] 
-	then
-		
-
-
-#1->THRESHOLD
-#2->numreadshares
-#3->directorio origen de las shares
-#Retorno 0 -> ok 1 -> Error
-retrieveKeywithAllCombs () {  
-    
-	echo "Retrievekeyswithallcombs:"  >>$LOGFILE 2>>$LOGFILE
-	echo "Threshold:     $1"  >>$LOGFILE 2>>$LOGFILE
-	echo "numreadshares: $2"  >>$LOGFILE 2>>$LOGFILE
-	
-	
-	[ "$1" == "" ] && exit 10
-    
-	[ "$1" -gt "$2" ] && exit 11
-	
-	mkdir -p $3/testcombdir  >>$LOGFILE 2>>$LOGFILE
-	
-	
-	#Verificamos todas las combinaciones:
-	combs=$(/usr/local/bin/combs.py $1 $2)
-
-	echo "Number of combinations: "$(echo $combs | wc -w)  >>$LOGFILE 2>>$LOGFILE
-
-	gotit=0
-	for comb in $combs
-	  do
-	  poslist=$(echo "$comb" | sed "s/-/ /g")
-	  offset=0
-	  for pos in $poslist
-	    do
-	    #copiamos keyshare$pos a $3/testcombdir", con el nombre cambiado para que sean secuenciales, por el retrieve
-	    echo "copying keyshare$pos to $3/testcombdir named keyshare$offset"  >>$LOGFILE 2>>$LOGFILE
-	    cp -f $3/keyshare$pos $3/testcombdir/keyshare$offset
-
-	    offset=$((offset+1))
-
-	  done
-	  
-          #Reconstruir llave de cifrado y mapearla a su variable. 
-	  $OPSEXE retrieve $1 $3/testcombdir  2>>$LOGFILE > $3/key
-	  stat=$? 
-	  
-	  #limpiamos el directorio
-	  rm -f $3/testcombdir/*  >>$LOGFILE 2>>$LOGFILE
-	  
-          #Si logra reconstruir, sale.
-	  [ $stat -eq 0 ] && gotit=1 && break 
-	  
-	done
-	
-	rm -rf  $3/testcombdir  >>$LOGFILE 2>>$LOGFILE
-	
-        #Si no se logra con ninguna combinación, error.
-        [ $gotit -ne 1 ] && return 1
-
-	return 0	
-	
-}
-
-
-        #////probar
+	   then
+		      getPrivVar r CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
 
         getPrivVar c THRESHOLD	
-	numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
-    
-	retrieveKeywithAllCombs "$THRESHOLD" "$numreadshares" "$slotPath/"
-	exit $? 
-	
+	       numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
+        
+        echo "rebuildKeyAllCombs:"  >>$LOGFILE 2>>$LOGFILE
+	       echo "Threshold:     $THRESHOLD"  >>$LOGFILE 2>>$LOGFILE
+	       echo "numreadshares: $numreadshares"  >>$LOGFILE 2>>$LOGFILE
+	       
+        #If no threshold, something must be very wrong on the cinfig 
+        [ "$THRESHOLD" == "" ] && exit 10
+        
+        #If not enough read shares, can't go on
+        [ "$THRESHOLD" -gt "$numreadshares" ] && exit 11
+        
+        
+        #Create temporary dir for the combinations
+	       mkdir -p $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
+	       
+	       #Calculate all possible combinations
+	       combs=$(/usr/local/bin/combs.py $THRESHOLD $numreadshares)
+        echo "Number of combinations: "$(echo $combs | wc -w)  >>$LOGFILE 2>>$LOGFILE
+        
+        #Try to rebuild with each combination
+	       gotit=0
+	       for comb in $combs
+	       do
+            
+            #The rebuild tool needs the shares to be named
+            #sequentially, so we copy each share of the combination to
+            #a temp location and name them as needed
+	           poslist=$(echo "$comb" | sed "s/-/ /g")
+	           offset=0
+	           for pos in $poslist
+	           do
+                echo "copying keyshare$pos to $slotPath/testcombdir named keyshare$offset"  >>$LOGFILE 2>>$LOGFILE
+	               cp -f $slotPath/keyshare$pos $slotPath/testcombdir/keyshare$offset
+	               offset=$((offset+1))
+            done
+	           
+            #Try to rebuild key and store it
+	           $OPSEXE retrieve $THRESHOLD $slotPath/testcombdir  2>>$LOGFILE > $slotPath/key
+	           stat=$? 
+	           
+	           #Clean temp dir
+	           rm -f $slotPath/testcombdir/*  >>$LOGFILE 2>>$LOGFILE
+	           
+            #If successful, we are done
+	           [ $stat -eq 0 ] && gotit=1 && break 
+	       done
+        
+        #Delete temp dir
+	       rm -rf  $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
+	       
+        #If no combination was successful, return error.
+        [ $gotit -ne 1 ] && return 1
+        
+	       return 0	
     fi
+    
+    
 
 
 
+
+
+
+
+
+    
     
     if [ "$2" == "testForDeadShares" ] 
 	then
@@ -2025,89 +2072,87 @@ fi
 
 
     
-    #Compara la última config leida con la que actualmente se acepta como la oficial.
+    #Compare last read config with the one considered the correct one  # TODO move to setup instead of ops? readnextusb 'b' or 'c' is only called on startup/format 
     if [ "$2" == "compareConfigs" ] 
-	then
-	
-	
-	NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
-	lastConfigRead=$((NEXTCONFIGNUM-1))
+	   then
+        
+        getPrivVar r CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        
+	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
+	       lastConfigRead=$((NEXTCONFIGNUM-1))
+        echo "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
+	       echo "***** #### lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
+        
+	       keepCurrent=0
+        
+	       if [ "$lastConfigRead" -lt 0 ] ; then
+	           echo "compareConfigs: No config files read yet" >>$LOGFILE 2>>$LOGFILE
+	           exit 1;
+	       fi
+        
+        #Only one has been read or this is the first comparison
+	       if [ "$lastConfigRead" -eq 0 -o ! -s $slotPath/config.raw ] ; then
+            #Set the first read config as the proper one
+            parseConfigFile "$slotPath/config0" 2>>$LOGFILE > $slotPath/config
+            #We also store a raw version of the read config block for comparison
+		          cat $slotPath/config0 2>>$LOGFILE > $slotPath/config.raw
+	       fi
+        
+        #Get the file differences
+	       df=$( diff $slotPath/config$lastConfigRead  $slotPath/config.raw )
+        #<DEBUG>
+	       echo "***** diff for config files $lastConfigRead - config: $df" >>$LOGFILE 2>>$LOGFILE
+        #</DEBUG>
 
-	echo "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
-	echo "***** #### lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
-	
-	if [ "$lastConfigRead" -lt 0 ]
-	    then
-	    echo "No config files read yet" >>$LOGFILE 2>>$LOGFILE
-	    exit 1;
-	fi
-
-
-	#Por defecto asumimos que la nueva va a ser la de referencia
-        keepCurrent=0
-
-
-	#Si hay al menos 2 las compara  #////PROBAR!!
-	if [ "$lastConfigRead" -gt 0 ]
-	    then
-	    
-	    if [ -s "$slotPath/configRaw" ]
-		then
-		:
-	    else
-		#Establecemos la primera conf leída como la de referencia
-		cat $slotPath/config0 2>>$LOGFILE > $slotPath/configRaw
-		parseConfigFile "$slotPath/config0" 2>>$LOGFILE > $slotPath/config
-	    fi
-
-
-	    df=$( diff $slotPath/config$lastConfigRead  $slotPath/configRaw )
-	    
-	    echo "***** diff config files $lastConfigRead - config: $df" >>$LOGFILE 2>>$LOGFILE #////BORRAR
-	    if [ "$df" != "" ]
-		then
-		echo -ne $"Configuración actual:\n"         >> $slotPath/buff
-		echo -ne $"-------------------- \n\n"       >> $slotPath/buff
-		cat $slotPath/configRaw                        >> $slotPath/buff
-		echo -ne $"\n\n\nConfiguración nueva:\n"    >> $slotPath/buff
-		echo -ne $"------------------------- \n\n"  >> $slotPath/buff
-		cat  $slotPath/config$lastConfigRead        >> $slotPath/buff
-		
-		$dlg --msgbox $"Se han encontrado diferencias entre la última configuración leida y la que se está empleando actualmente.\nVamos a mostrar ambas para su comparación." 0 0
-		
-		$dlg --textbox $slotPath/buff 0 0
-		
-		$dlg --yes-label $"Actual"  --no-label $"Nueva"  --yesno  $"¿Desea emplear la actual o la nueva?" 0 0   # 0 YES 1 NO
-		
-		[ "$?" -eq  0 ] && keepCurrent=1
-		
-		echo "Keep current config?: $keepCurrent" >>$LOGFILE 2>>$LOGFILE
-
-		rm $slotPath/buff >>$LOGFILE 2>>$LOGFILE
-	    fi
-	    
-	fi
-
-	if [ "$keepCurrent" -eq 0 ]
-	    then
-	    
-	    #Esta es la que usamos para comparar con las nuevas.
-	    cat $slotPath/config$lastConfigRead 2>>$LOGFILE > $slotPath/configRaw
-	    
-            #Pasamos la config ya purgada al fichero definitivo, para interpretarla línea a línea, y permitir los espacios en los valores
-	    parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE > $slotPath/config #////probar
-	fi
-
-	
-	exit 0
+        #Show differences to the user and let him decide
+	       if [ "$df" != "" ]
+		      then
+		          echo -ne $"Current configuration:""\n"      > $slotPath/buff
+		          echo -ne $"--------------------- \n\n"      >> $slotPath/buff
+		          cat $slotPath/config.raw                    >> $slotPath/buff
+		          echo -ne "\n\n\n"$"New Configuration:""\n"  >> $slotPath/buff
+		          echo -ne $"--------------------- \n\n"      >> $slotPath/buff
+		          cat  $slotPath/config$lastConfigRead        >> $slotPath/buff
+		          echo -ne "\n\n\n"$"Differences:""\n"        >> $slotPath/buff
+		          echo -ne $"--------------------- \n\n"      >> $slotPath/buff
+            
+		          $dlg --msgbox $"Found differences between the last configuration file and the previous ones. This is unexpected and should be carefully examined for tampering or corrution" 0 0
+            
+            $dlg --textbox $slotPath/buff 0 0
+            
+            $dlg --yes-label $"Current"  --no-label $"New"  --yesno  $"Do you wish to use the current one or the new one?" 0 0
+            
+            #Decide to keep current one
+            [ "$?" -eq  0 ] && keepCurrent=1
+		          echo "Keep current config?: $keepCurrent" >>$LOGFILE 2>>$LOGFILE
+            
+		          rm $slotPath/buff >>$LOGFILE 2>>$LOGFILE
+	       fi
+        
+        #If user decided to use new one, update raw and parsed configuration files
+	       if [ "$keepCurrent" -eq 0 ]
+        then
+	           #Store raw block for comparison
+	           cat $slotPath/config$lastConfigRead 2>>$LOGFILE > $slotPath/config.raw
+            
+            #Parse and store the configuration
+	           parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE > $slotPath/config
+        fi
+        exit 0
     fi
-
-
-
-
+    
+    
+    
+    
+    
     #Validate structure of the last read config file
     if [ "$2" == "parseConfig" ] 
 	   then
+                
+        getPrivVar r CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        
 	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
 	       lastConfigRead=$((NEXTCONFIGNUM-1))
 	       echo "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
@@ -2130,53 +2175,62 @@ fi
 	       exit 0
     fi
     
-
-
-
-
-
-
-
     
-    #Establece la config elegida del slot activo como la config a usar en adelante.
+    
+    
+    #Sets the configuration file from the slot as the working configuration file
     if [ "$2" == "settleConfig" ] 
-	then
-	parseConfigFile "$slotPath/config" > $ROOTTMP/config  #////probar que no fastidie los \n
-
-	if [ -s "$ROOTTMP/config" ]
-	    then
-	    :
-	else
-	    echo "settleConfig: esurveyconfiguration was manipulated!"  >>$LOGFILE 2>>$LOGFILE
-	    exit 1
-	fi
-
-	exit 0
+	   then
+                
+        getPrivVar r CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        
+        #Move it to the root home
+	       parseConfigFile "$slotPath/config" > $ROOTTMP/config
+        
+	       if [ ! -s "$ROOTTMP/config" ] ; then
+	           echo "settleConfig: esurveyconfiguration parse error. Possible tampering or corruption"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
+        exit 0
     fi
     
+
+    
+
+    
+
+    #SEGUIR
     
     #Comprobación de params comunes a estas ops
 
+ 
+
+    #Check if password is valid for a store
     #3-> dev
-    checkParameterOrDie DEV "${3}" "0"
-
-    #4-> password
-    checkParameterOrDie DEVPWD "${4}" "0"
-
-    
-    
+    #4-> password    
     if [ "$2" == "checkPwd" ] 
 	   then
+        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie DEVPWD "${4}" "0"
+        
         $OPSEXE checkPwd -d "$3"  -p "$4"    2>>$LOGFILE #0 ok  1 bad pwd  #////PROBAR
-	       ret=$?	       
-	       exit "$ret"
+	       exit $?
     fi
-
-
-
+    
+    
+    
     #Reads a configuration block from the usb store
+    #3-> dev
+    #4-> password    
     if [ "$2" == "readConfigShare" ] 
 	   then
+        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie DEVPWD "${4}" "0"              
+        
+        getPrivVar r CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        
 	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
 	       
 	       $OPSEXE readConfig -d "$3"  -p "$4" >$slotPath/config$NEXTCONFIGNUM  2>>$LOGFILE	
@@ -2195,8 +2249,16 @@ fi
     
     
     #Read a key share block from the usb store
+    #3-> dev
+    #4-> password
     if [ "$2" == "readKeyShare" ] 
 	   then
+        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie DEVPWD "${4}" "0"
+        
+        getPrivVar r CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        
         NEXTSHARENUM=$(cat "$slotPath/NEXTSHARENUM")
         
 	       $OPSEXE readKeyShare -d "$3" -p "$4" >$slotPath/keyshare$NEXTSHARENUM  2>>$LOGFILE
@@ -2215,13 +2277,16 @@ fi
     
 
 
-    
+     #3-> dev
+    #4-> password   
     # 5 -> El número de share que debe escribir:
     if [ "$2" == "writeKeyShare" ] 
 	then
 	
 	getPrivVar c SHARES
-	
+        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie DEVPWD "${4}" "0"
+	       
 	# $5 debe ser un int
 	checkParameterOrDie INT "${5}" "0"
 
@@ -2253,11 +2318,19 @@ fi
 
 	exit $ret
     fi
+
+
+
+
     
-    
+      #3-> dev
+    #4-> password      
     if [ "$2" == "writeConfig" ] 
 	then
 
+        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie DEVPWD "${4}" "0"
+     
 	file="$ROOTTMP/config"	
 		
 	if [ -s "$file" ]

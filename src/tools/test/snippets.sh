@@ -143,5 +143,15 @@ chown root:www-data /var/www/  >>$LOGFILE 2>>$LOGFILE
 
 
 
-#  ${#StrVar}  --> strlen(StrVar)
+#Get length of string
+len=${#StrVar} #strlen(StrVar)
 
+
+
+#Array operations
+arr=($list)
+length=${#arr[@]} 
+item=${arr[1]}
+
+#Generate pseudo-random number in a range of 2
+$((RANDOM % 2))

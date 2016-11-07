@@ -217,6 +217,11 @@ readNextUSB () {
             $PVOPS mountUSB umount
             return 4
         fi
+        
+        #Compare last read config with the one currently considered as
+        #valid (if no tampering occurred, all should match perfectly)
+        #If different, user will be prompted
+	       $PVOPS storops compareConfigs        
     fi
     
     #Read keyshare
@@ -229,12 +234,13 @@ readNextUSB () {
 	           return 3
 	       fi
 	   fi
-
+    
     #Umount the device once done reading
     $PVOPS mountUSB umount
     
     #Detect extraction before returning control to main program
-    detectUsbExtraction $USBDEV $"USB device successfully read. Remove it and press RETURN." $"Didn't remove it. Please, do it and press RETURN."
+    detectUsbExtraction $USBDEV $"USB device successfully read. Remove it and press RETURN." \
+                        $"Didn't remove it. Please, do it and press RETURN."
     
     return 0
 }
@@ -251,8 +257,31 @@ grantAdminPrivileges () {
 
 
 
-
-
+#Will try to rebuild the key using the shares on the active slot
+rebuildKey () {
+    
+    $PVOPS storops rebuildKey
+    
+    #If rebuild failed, try a lengthier approach
+    if [ $? -ne 0 ]
+    then
+        $dlg --msgbox $"Key reconstruction failed. System will try to recover. This might take a while." 0 0 
+        
+        $PVOPS storops rebuildKeyAllCombs 2>>$LOGFILE  #0 ok  1 bad pwd
+	       local ret=$?
+        local errmsg=''
+        #If rebuild failed again, nothing can be done, back to the menu
+	       [ "$ret" -eq 10 ] && errmsg=$"Missing configuration parameters."
+        [ "$ret" -eq 11 ] && errmsg=$"Not enough shares available."
+        [ "$ret" -eq 1  ] && errmsg=$"Some shares may be corrupted. Not enough left."
+        if [ $? -ne 0 ] ; then
+            $dlg --msgbox $"Key couldn't be reconstructed. $errmsg" 0 0 
+            return 1
+	       fi
+	   fi
+    
+    return 0
+}
 
 
 
@@ -350,21 +379,6 @@ stopServers () {
 
 
 
-
-#Retorno 0 -> ok 1 -> Error
-#        retrievedKey -> Llave reconstruida.  #////++++ Ya no. Los sitios que se use, pasarlos a PRIV.
-retrieveKeywithAllCombs () {
-
-
-        $PVOPS storops rebuildKeyAllCombs 2>>$LOGFILE  #0 ok  1 bad pwd  #////probar
-	local ret=$?
-	
-	[ "$ret" -eq 10 ] && systemPanic $"Error interno. Faltan datos de configuración para realizar la resconstrucción."
-    
-	[ "$ret" -eq 11 ] && systemPanic $"No se puede reconstruir la llave. No hay suficientes piezas."
-	
-	return $ret
-}
 
 
 
@@ -543,236 +557,164 @@ writeClauers () {
 
 
         
-    #PARÁMETROS DE ACCESO A INTERNET
+#### Network connection parameters ####
+# Will read the user input parameters and set them to their
+# destination global variables. Notice that since an empty field is
+# ignored and all values shifted, we will only update the variables if
+# all the values are set.
+# Set variables:
+#   IPMODE
+#   
+###TODO depués, los valores establecidos aquí se pasarán al  privil. op adecuado donde se parsearán de nuevo y se establecerán si corresponde. Hacer op para leer y preestablecer los valores de estas variables y usarlas como valores default (para los pwd, obviamente, no)
+networkParams () {
     
-    # $1 -> reset params (0) or keep previous values (1)
-    networkParams () {
-
-
-
-      selectIPMode () {
+    selectIPMode () {
+        
        	exec 4>&1 
-	choice=""
-	while [ "$choice" == "" ]
-	  do
-	  choice=$($dlg --no-cancel   --radiolist  $"Configuración de acceso a Internet" 0 0 2  \
-	      1 $"Automatica por DHCP" "${ipmodeArr[1]}"  \
-	      2 $"Manual" "${ipmodeArr[2]}"  \
-	      2>&1 >&4 )
-	
-
-	  for i in 1 2
-	    do
-	    ipmodeArr["$i"]="off"
-	    [ "$i" -eq "$choice" ]  &&  ipmodeArr[$i]="on"
-	  done
-	  
-          #echo "Retorno del radio: "$choice
-	  IPMODE="dhcp"
-	  if [ "$choice" -eq 2 ] 
-	      then
-	      
-	      IPMODE="static"
-	      
-	      selectIPParams
-	      
-	      [ "$?" -eq '2' ] && choice="" && continue
-	  fi
-	  	  
-	#Salimos y seguimos con la config	  
-	done
-	
-      }
+	       local choice=""
+	       while true
+	       do
+            #Set defauts
+            isDHCP=off
+            isUserSet=off
+            [ "$IPMODE" == "dhcp" ]   && isDHCP=on
+            [ "$IPMODE" == "static" ] && isUserSet=on
+            
+	           choice=$($dlg --cancel-label $"Back"   --radiolist  $"Network connection mode" 0 0 2  \
+	                         1 $"Automatic (DHCP)" "$isDHCP"  \
+	                         2 $"User set" "$isUserSet"  \
+	                         2>&1 >&4 )
+	           #If cancelled, exit
+            [ $? -ne 0 ] && return 1
+            
+            #If none selected, ask again
+            [ "$choice" == "" ] && continue
+            
+            IPMODE="dhcp"
+            #If static config is chosen
+	           if [ "$choice" -eq 2 ] ; then
+	               IPMODE="static"
+                
+                #Show the parameter form
+                selectIPParams
+                
+                #If back, show the mode selector again
+                [ "$?" -eq '2' ] && continue
+	           fi
+            break
+	  	    done
+    }
     
-      selectIPParams () {
-	
-	choice=""
-	while [ "$choice" == "" ]
-	  do
-	  
-	  
-	  #Mostrar el form de config de conexión
-	  #	      $"Modo"                      0  0 "Manual" 1  30  17 15 0  \      
-	  formlen=7
+    selectIPParams () {
+        
+        #Preset values are on the global variables. Will only be
+        #updated if value is correct; and if some field is left empty,
+        #none will be update (due to dialog limitations)
+        local choice=""
+        exec 4>&1
+        local BAKIFS=$IFS
+        IFS=$(echo -en "\n\b") #We need this to avoid interpreting a space as an entry 
+	       while true
+	       do
+	           local formlen=6
+	           choice=$($dlg  --cancel-label $"Back"  --mixedform  $"Network connection parameters" 0 0 20  \
+	                          $"Field"            1  1 $"Value"   1  30  17 15   2  \
+	                          $"IP Address"       3  1 "$IPADDR"  3  30  17 15   0  \
+	                          $"Net Mask"         5  1 "$MASK"    5  30  17 15   0  \
+	                          $"Gateway Address"  7  1 "$GATEWAY" 7  30  17 15   0  \
+	                          $"Primary DNS"      10 1 "$DNS1"    10 30  17 15   0  \
+	                          $"Secondary DNS"    12 1 "$DNS2"    12 30  17 15   0  \
+	                          $"Host name (FQDN)" 15 1 "$FQDN"    15 30  17 4096 0  \
+	                          2>&1 >&4 )
+            
+	           #If cancelled, exit
+            [ $? -ne 0 ] && return 2
 
-	  choice=$($dlg  --cancel-label $"Atrás"  --mixedform  $"Parámetros de acceso a Internet" 0 0 20  \
-	      $"Campo"                     1  1 $"Valor"             1  30  17 15   2  \
-	      $"Dirección IP"              3  1 "${ipconfArr[1]}"    3  30  17 15   0  \
-	      $"Máscara de Red"            5  1 "${ipconfArr[2]}"    5  30  17 15   0  \
-	      $"Puerta de Enlace"          7  1 "${ipconfArr[3]}"    7  30  17 15   0  \
-	      $"DNS Primario"              10 1 "${ipconfArr[4]}"    10 30  17 15   0  \
-	      $"DNS Secundario"            12 1 "${ipconfArr[5]}"    12 30  17 15   0  \
-	      $"Nombre del host (FQDN)"    15 1 "${ipconfArr[6]}"    15 30  17 4096 0  \
-	      2>&1 >&4 )
-	  
-
-	  #echo "RETORNO: $choice"
-	  #Recordar: si se pulsa cancelar, no se devuelve ningún valor introducido, por lo que no pueden recordarse los params
-	  
-	  c=0
-	  for i in $choice
-	    do
-	    ipconfArr[$c]="$i"
-	    c=$(($c +1))
-	  done
-	    
-
-	  [ "$choice" == "" ] && return 2; # retornamos al proceso padre indicando 'back'
-	  
-	  
-          #Procesamos el retorno. Verificando cada campo y su estructura.
- 
-
+            #Check that all fields have been filled in (choice must
+            #have the expected number of items), otherwise, loop
+            local clist=($choice)
+            if [ ${#clist[@]} -le "$formlen" ] ; then
+            	   $dlg --msgbox $"All fields are mandatory" 0 0
+	               continue 
+	           fi
+            
+            #Parse each entry before setting it
+     	      local i=0
+	           local loopAgain=0
+            local errors=""
+	           for item in $choice
+	           do
+                IFS=$BAKIFS #Restore temporarily
+                
+	               case "$i" in
+				                "1" ) # IP
+		                      parseInput ipaddr "$item" #if [ $? -ne 0 ] ; then loopAgain=1; 
+		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"IP address not valid"
+  		                    else IPADDR="$item" ; fi
+		                      ;;
+		                  
+		                  "2" ) #MASK
+                        parseInput ipaddr "$item"
+		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Net mask not valid"
+		                      else MASK="$item" ; fi
+		                      ;;
+	                   
+		                  "3" ) #Gateway
+		                      parseInput ipaddr "$item"
+				                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Gateway address not valid"
+                        else GATEWAY="$item" ; fi
+		                      ;;
+	                   
+		                  "4" ) #Primary DNS
+		                      parseInput ipaddr "$item"
+		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Primary DNS address address not valid"
+		                      else DNS1="$item" ; fi
+				                    ;;
+		                  
+		                  "5" ) #Secondary DNS
+ 	                      parseInput ipaddr "$item"
+		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Secondary DNS address address not valid"
+		                      else DNS2="$item" ; fi
+				                    ;;
+	                   
+		                  "6" ) # Hostname
+		                      parseInput dn "$item"
+		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Host name not valid"
+		                      else FQDN="$item" ; fi
+		                      ;;
+	               esac
+                
+                BAKIFS=$IFS
+                IFS=$(echo -en "\n\b")
+                
+                #Next item, until the number of expected items
+	               i=$((i+1))
+	           done
+            
+            IFS=$BAKIFS
+            
+            #Show errors in the form, then loop
+	           if [ "$loopAgain" -eq 1 ] ; then
+                $dlg --msgbox "$errors" 0 0
+                continue
+	           fi
+            break
+        done
+	   } #SelectIPParams
     
-          #Se esperan 6 campos. Tomaremos los primeros 6 que entren (se separa por espacios)
-	  #Como pongo un campo para diferenciar el cancel del empty, ignoramos el campo 0
-	  len=0
-	  again=0
-	  for i in $choice
-	    do
+    selectIPMode
     
-	    
-	    #echo "entra. i:"$i" len:"$len
+    #<DEBUG>
+	   echo "IPMODE: "$IPMODE  >>$LOGFILE 2>>$LOGFILE  # TODO guess where these vars are passed to the privileged part and stored on the config (either drive or usbdevs)
+	   echo "IP:   "$IPADDR >>$LOGFILE 2>>$LOGFILE
+	   echo "MASK: "$MASK >>$LOGFILE 2>>$LOGFILE
+	   echo "GATE: "$GATEWAY >>$LOGFILE 2>>$LOGFILE
+	   echo "DNS1: "$DNS1 >>$LOGFILE 2>>$LOGFILE
+	   echo "DNS2: "$DNS2 >>$LOGFILE 2>>$LOGFILE
+	   echo "FQDN: "$FQDN >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
     
-	    case "$len" in 
-		
-		
-		"1" )
-		#En la 1ª iter, viene la IP
-		parseInput ipaddr "$i"
-		ret=$?
-		
-		IPADDR="$i"
-
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. La dirección IP no es válida" 0 0
-		    again=$(($again | 1));
-		fi
-		;;
-		
-		"2" )
-                #Se espera la Mask
-                parseInput ipaddr "$i"
-		ret=$?
-		
-		MASK="$i"
-		
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. La máscara de red no es válida" 0 0
-		    again=$(($again | 1)); 
-		fi
-		;;
-	
-		"3" )
-	        #Se espera la default gateway
-		parseInput ipaddr "$i"
-		ret=$?
-		
-		GATEWAY="$i"
-		
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. La dirección de la puerta de enlace no es válida" 0 0
-		    again=$(($again | 1));
-		fi
-		;;
-	
-		"4" )
-   	        #Se espera el dns primario
-		parseInput ipaddr "$i"
-		ret=$?
-		
-		DNS1="$i"
-		
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. La dirección del DNS primario no es válida" 0 0
-		    again=$(($again | 1)); 
-		fi
-		;;
-		
-		"5" )
- 	        #Se espera el dns secundario
-		parseInput ipaddr "$i"
-		ret=$?
-		
-		DNS2="$i"
-		
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. La dirección del DNS secundario no es válida" 0 0
-		    again=$(($again | 1)); 
-		fi
-		;;
-	
-		"6" )
-		#Se espera el nombre del server
-		parseInput dn "$i"
-		ret=$?
-		
-		FQDN="$i"
-		
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. El nombre del servidor no es válido" 0 0
-		    again=$(($again | 1)); 
-		fi
-		;;
-	
-            esac
-
-		
-	    len=$(($len +1))    
-	    [ "$len" -ge "$formlen" ] && break
-	    
-		
-		
-	  done
-
-		
-	  [ "$again" -eq 1 ]&& choice="" && continue
-	  
-	  
-   
-	  len=0
-	  for i in $choice
-		  do
-	    len=$(($len +1))
-	  done
-	  
-	  if [ "$len" -lt "$formlen" ]
-	      then
-	      $dlg --msgbox $"Error. Faltan campos por rellenar" 0 0
-	      choice=""
-	      continue; 
-	  fi
-	  
-	  
-	  #echo "salimos del bucle general? '$choice'"
-	  
-	done
-	
-	#echo "Retorno del form: "$choice
-	
-
-       } #SelectIPParams
-
-       #Llamamos a ambas subfunciones
-       selectIPMode
-
-
-	#echo "IPMODE:   "$IPMODE
-	
-	#echo "IP:   "$IPADDR
-	#echo "MASK: "$MASK
-	#echo "GATE: "$GATEWAY
-	#echo "DNS1: "$DNS1
-	#echo "DNS2: "$DNS2
-	#echo "FQDN: "$FQDN
-
-     } #NetworkParams
+} #NetworkParams
 
 
 
@@ -1920,16 +1862,7 @@ getClauersRebuildKey () {
     
     $dlg   --infobox $"Reconstruyendo la llave de cifrado..." 0 0
         
-    $PVOPS storops rebuildKey #//// probar
-    stat=$? 
-    
-    #Si falla la primera reconstrucción, probamos todas
-    if [ $stat -ne 0 ] 
-	then
-
-	$dlg --msgbox $"Se ha producido un error durante la reconstrucción de la llave por la presencia de fragmentos defectuosos. El sistema intentará recuperarse." 0 0 
-
-        retrieveKeywithAllCombs
+rebuildKey 
 	ret=$?
 
 	#Si no se logra con ninguna combinación, pánico y adiós.
