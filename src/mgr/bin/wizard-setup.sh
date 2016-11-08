@@ -134,7 +134,32 @@ chooseMaintenanceAction () {
 
 
 
+#Returns which parameter gathering secion to access next to retake base flow
+#Returns 254 on cancel
+selectParameterSection () {
+    exec 4>&1
+    local selec=''
+    while true; do
+        selec=$($dlg --cancel-label $"Go back to the main menu"  --menu $"Select parameter section:" 0 80  6  \
+	                    1 $"Set Timezone." \
+                     2 $"Network configuration." \
+	                    3 $"aa." \ # SEGUIR con la siguiente op
+	                    4 $"aa." \
+                     5 $"aa." \
+	                    6 $"aa." \
+                     99 $"Continue to system setup" \
+	                    2>&1 >&4)
+        [ "$selec" != "" ] && return $selec
+        return 254
+    done
+}
+
+
+
+
+
 #Lets user select his timezone
+#Will set the global var TIMEZONE
 selectTimezone () {
 
     local defaultItem="Europe"
@@ -142,7 +167,7 @@ selectTimezone () {
     while true
     do
         local areaOptions=$(ls -F  /usr/share/zoneinfo/right/ | grep / | sed -re "s|/| - |g")
-        local tzArea=$($dlg --no-cancel --default-item $defaultItem --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)        
+        local tzArea=$($dlg --cancel-label $"Menu" --default-item $defaultItem --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)        
         if [ "$tzArea" == ""  ] ; then
 	           $dlg --msgbox $"Please, select a timezone area." 0 0
 	           continue
@@ -158,6 +183,8 @@ selectTimezone () {
     
     #Need to use return global because stdout cannot be redirected due to dialog using it
     TIMEZONE="$tzArea/$tz"
+    
+    return 0
 }
 
 
@@ -298,10 +325,18 @@ do
         
         $dlg --msgbox $"Key successfully rebuilt." 0 0 
     fi
+
+
+
+
     
     
     # TODO Remember to set all variables from config that we need, here from usb config and, when set up, from crypto part config
     
+
+
+
+
     
     
     if [ "$DOFORMAT" -eq 1 ]   # TODO when finished,  put this before the rebuild key section
@@ -318,19 +353,96 @@ do
             $dlg --msgbox $"You chose to restore a backup. A fresh installation will be performed first, where you will be able to change basic configuration. Please, use a NEW SET of usb drives on it. You will be asked to insert the OLD SET at the end to perform the restoration." 0 0
         fi
         
-
-        # Get all configuration parameters # TODO (move here all user input and make it selectable through a menu)
-
-        selectTimezone #Will set the global var TIMEZONE        
         
+        # Get all configuration parameters # TODO (move here all user input and make sure to update the menu)
+        nextSection=1
+        while true
+        do
+            
+            case "$nextSection" in     
 
-
+                "1" ) #Timezone
+                    selectTimezone
+                    action=$?
+                    ;;
+                
+                "2" ) #Network
+                    while true ; do
+                        networkParams
+                        action=$?
+                        
+                        #User selected to show the menu
+                        [ $action -eq 1 ] && break
+                        
+                        #Setup network and try connectivity
+                        configureNetwork
+                        if [ $? -eq 1 ] ; then
+                            $dlg --yes-label $"Review" --no-label $"Keep" \
+                                 --yesno  $"Network connectivity error. Go on or review the parameters?" 0 0
+                            #Review them, loop again
+                            [ $? -eq 0 ] && continue
+                        fi
+                        break
+                    done
+                    ;;
+                
+                
+                "3" ) 
+                    
+                    action=$?
+                    ;;
+                
+                
+                
+                "4" ) 
+                    
+                    action=$?
+                    ;;
+                
+                
+                
+                "5" ) 
+                    
+                    action=$?
+                    ;;
+                
+                
+                
+                * ) #Confirmation to proceed with setup
+                    $dlg --no-label $"Proceed with Setup"  --yes-label $"Back to the Menu" \
+                         --yesno  $"Now the system will be installed. Are you sure all configuration parameters are correct?" 0 0 
+                    
+                    #Go on with setup
+                    [ "$?" -eq "1" ] && break
+                    
+                    #Go back to the menu
+                    action=1
+                    ;;
+            esac
+            
+            #Go to next section
+            if [ $action -eq 0 ] ; then
+                nextSection=$((nextSection+1))
+            else
+                #Show menu
+                selectParameterSection
+                ret=$?
+                nextSection=$ret
+                
+                #Go back to the main menu
+                [ $ret -eq 254 ] && continue 2
+            fi
+        done     
+        
+        
         #Execute configuration phase # TODO (does anything need to be done before getting any data? like network or partition?)
         
         
         
-
         # TODO remember to store all config variables, both those in usb and in hard drive
+        $PVOPS vars setVar c IPADDR "$IPADDR" # TODO maybe store it to the hard drive, now that we don0t support remote drives 
+
+        
         
     fi
     
@@ -383,43 +495,7 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 
 
 
-###### Sistema nuevo #####
-    
-#Se formatea el sistema 
-else 
-    
-
-    
-    #BUCLE PRINCIPAL
-
-    #Inicialización de los campos de los formularios.
-    ipmodeArr=(null on off)  
-    declare -a ipconfArr # es un array donde almacenaremos temporalmente el contenido del form de conf ip    
-
-    declare -a crydrivemodeArr
-    declare -a localcryconfArr
-    declare -a fileconfArr
-    crydrivemodeArr=(null on off off off off)
-    
-    MAILRELAY=""
-    
-    declare -a secsharingPars	
-
-
-    proceed=0
-    while [ "$proceed" -eq 0 ]
-      do
-      
-
-      networkParams
-
-      #La guardamos tb ahora porque hace falta para esta fase 2
-      $PVOPS vars setVar c IPADDR "$IPADDR"
-
-      #Configuramos el acceso a internet 
-      configureNetwork 'noPanic'
-      ret=$?	
-      [ "$ret" -eq 1 ] && continue #Si no hay conectividad, vuelve a pedir los datos de config
+###### Sistema nuevo #####  
 
 
       selectCryptoDrivemode
@@ -431,9 +507,7 @@ else
       selectSharingParams
       
 
-      $dlg --no-label $"Continuar"  --yes-label $"Modificar" --yesno  $"Ha acabado de definir los parámetros del servidor de voto. ¿Desea modificar los datos introducidos?" 0 0 
-      #No (1) desea alterar nada
-      [ "$?" -eq "1" ] && proceed=1
+
       
     done
 

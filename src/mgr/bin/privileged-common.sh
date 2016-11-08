@@ -359,8 +359,8 @@ setPrivVar () {
     #</DEBUG>
     touch $file
     chmod 600 $file  >>$LOGFILE 2>>$LOGFILE
-
-
+    
+    
     #Check if var is defined in file
     local isvardefined=$(cat $file | grep -Ee "^$1")
     echo "isvardef: $1? $isvardefined" >>$LOGFILE 2>>$LOGFILE

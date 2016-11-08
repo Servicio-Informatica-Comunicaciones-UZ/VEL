@@ -155,3 +155,7 @@ item=${arr[1]}
 
 #Generate pseudo-random number in a range of 2
 $((RANDOM % 2))
+
+
+
+gotoMenu(){ return 1;}; gotoMenu

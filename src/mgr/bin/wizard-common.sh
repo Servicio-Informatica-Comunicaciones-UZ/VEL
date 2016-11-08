@@ -560,27 +560,33 @@ writeClauers () {
 #### Network connection parameters ####
 # Will read the user input parameters and set them to their
 # destination global variables. Notice that since an empty field is
-# ignored and all values shifted, we will only update the variables if
-# all the values are set.
-# Set variables:
-#   IPMODE
-#   
+# ignored and all values are shifted, we will only update the
+# variables if all the values are set.
+#Set variables:
+#  IPMODE
+#  IPADDR
+#  MASK
+#  GATEWAY
+#  DNS1
+#  DNS2
+#  FQDN
 ###TODO depués, los valores establecidos aquí se pasarán al  privil. op adecuado donde se parsearán de nuevo y se establecerán si corresponde. Hacer op para leer y preestablecer los valores de estas variables y usarlas como valores default (para los pwd, obviamente, no)
 networkParams () {
     
     selectIPMode () {
+                
+        #Default value
+        isDHCP=on
+        isUserSet=off
         
        	exec 4>&1 
 	       local choice=""
 	       while true
 	       do
-            #Set defauts
-            isDHCP=off
-            isUserSet=off
-            [ "$IPMODE" == "dhcp" ]   && isDHCP=on
-            [ "$IPMODE" == "static" ] && isUserSet=on
+            [ "$IPMODE" == "dhcp" ]   && isDHCP=on && isUserSet=off
+            [ "$IPMODE" == "static" ] && isDHCP=off && isUserSet=on
             
-	           choice=$($dlg --cancel-label $"Back"   --radiolist  $"Network connection mode" 0 0 2  \
+	           choice=$($dlg --cancel-label $"Menu"   --radiolist  $"Network connection mode" 0 0 2  \
 	                         1 $"Automatic (DHCP)" "$isDHCP"  \
 	                         2 $"User set" "$isUserSet"  \
 	                         2>&1 >&4 )
@@ -603,6 +609,7 @@ networkParams () {
 	           fi
             break
 	  	    done
+        return 0
     }
     
     selectIPParams () {
@@ -701,8 +708,10 @@ networkParams () {
             break
         done
 	   } #SelectIPParams
-    
+
+
     selectIPMode
+    local ret=$?
     
     #<DEBUG>
 	   echo "IPMODE: "$IPMODE  >>$LOGFILE 2>>$LOGFILE  # TODO guess where these vars are passed to the privileged part and stored on the config (either drive or usbdevs)
@@ -714,6 +723,7 @@ networkParams () {
 	   echo "FQDN: "$FQDN >>$LOGFILE 2>>$LOGFILE
     #</DEBUG>
     
+    return $ret
 } #NetworkParams
 
 
@@ -2086,22 +2096,20 @@ listTargets () {
 
 
 
-
-# $1 -> '': salta a systemPanic si no consigue conectividad   'noPanic': devuelve 1 y sale si no consigue conectividad
+# TODO quitar el param de panic, añadir ping al gateway? (si lo quito de priv) y a 8.8.8.8?
 configureNetwork () {
-    
-    echo "wizard-common.sh:   $PVOPS configureNetwork $1 $DOFORMAT $IPMODE $IPADDR $MASK $GATEWAY $DNS1 $DNS2 $FQDN " >>$LOGFILE 2>>$LOGFILE
+    echo "Configuring network: $PVOPS configureNetwork $IPMODE $IPADDR $MASK $GATEWAY $DNS1 $DNS2 $FQDN " >>$LOGFILE 2>>$LOGFILE
     
     $dlg --infobox $"Configurando la red..." 0 0
     
     #En reset estos parámetros estarán vacíos, pero en la op privada ya lo he contemplado.
-    $PVOPS configureNetwork "$1" "$DOFORMAT"  "$IPMODE" "$IPADDR" "$MASK" "$GATEWAY" "$DNS1" "$DNS2" "$FQDN" 
+    $PVOPS configureNetwork "$IPMODE" "$IPADDR" "$MASK" "$GATEWAY" "$DNS1" "$DNS2" "$FQDN" 
     local cfretval="$?"
 
     #En caso de error
     local errMsg=""
     if [ "$cfretval" == "11"  ]; then
-	errMsg=$"Error: no se encuentran interfaces ethernet accesibles." 
+	       errMsg=$"Error: no se encuentran interfaces ethernet accesibles." 
     fi
     if [ "$cfretval" == "12"  ]; then
 	errMsg=$"Error: no se pudo comunicar con la puerta de enlace. Revise conectividad." 

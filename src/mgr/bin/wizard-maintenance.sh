@@ -492,7 +492,7 @@ maintenanceActionMenu () {  #////probar que al darle a esc, se queda en el bucle
 	    13  $"Suspender el equipo." \
 	    14  $"Lanzar un terminal de administración." \
 	    15  $"Apagar el equipo." \
-	    2>&1 >&4)
+	    2>&1 >&4) # TODO reformular en dos niveles, agrupar funciones
 	
 	echo "Selección: $selec"   >>$LOGFILE 2>>$LOGFILE
     
