@@ -482,7 +482,7 @@ maintenanceActionMenu () {  #////probar que al darle a esc, se queda en el bucle
 	    03  $"Crear nuevo administrador del sistema de voto." \
 	    04  $"Verificar la integridad de las piezas de la llave." \
 	    05  $"Cambiar llave de cifrado de disco." \
-	    06  $"Trasladar datos cifrados a otra ubicación." \
+	    06  $"Trasladar datos cifrados a otra ubicación." \  # TODO para esto, no sería mejor hacerlo como un procedimiento de backup y restauración? se instala un nuevo sistema y se restaura la copia. # TODO además, asegurarme que en el backup se para el servidir web o al menos se bloquean los cambios persistentes
 	    07  "$sslmenuitem" \
 	    08  $"Cambiar parámetros del servidor de correo" \
 	    09  $"Cambiar parámetros de acceso a la red" \

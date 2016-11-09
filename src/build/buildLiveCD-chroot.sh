@@ -684,7 +684,18 @@ apt-get autoremove -y
 #Cleaning apt cache
 apt-get clean
 
+#Set generic hostname
+echo "vtuji" > /etc/hostname
 
+#Set basic hosts file
+cat > /etc/hosts <<EOF
+127.0.0.1	localhost
+
+# The following lines are desirable for IPv6 capable hosts
+::1     localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+EOF
 
 #Clean useless or potentially dangerous files or interfering files
 ctell "***** Deleting useless files"

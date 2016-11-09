@@ -45,7 +45,7 @@ PCKGS="$PCKGS ""dbus eject rsyslog openssl libnss3 libnspr4 sysvinit-utils libnc
 PCKGS="$PCKGS ""gpm  locales console-data kbd"
 
 #Network
-PCKGS="$PCKGS ""net-tools iputils-ping iptables rsync smbclient openntpd cifs-utils"
+PCKGS="$PCKGS ""net-tools iputils-ping iptables rsync smbclient openntpd cifs-utils host"
 
 #System setup utils
 PCKGS="$PCKGS ""cryptsetup randomsound smbnetfs pcregrep wipe pm-utils zip unzip mdadm sudo x11-xkb-utils apt-utils"

@@ -376,7 +376,7 @@ do
                         
                         #Setup network and try connectivity
                         configureNetwork
-                        if [ $? -eq 1 ] ; then
+                        if [ $? -ne 0 ] ; then
                             $dlg --yes-label $"Review" --no-label $"Keep" \
                                  --yesno  $"Network connectivity error. Go on or review the parameters?" 0 0
                             #Review them, loop again
@@ -385,7 +385,8 @@ do
                         break
                     done
                     ;;
-                
+                # TODO    pedir en netparams tb el     DOMNAME, con los dos construir el fqdn y usarlo en el mailer, en el hosts y donde haga falta
+
                 
                 "3" ) 
                     
@@ -424,7 +425,7 @@ do
             if [ $action -eq 0 ] ; then
                 nextSection=$((nextSection+1))
             else
-                #Show menu
+                #Show parameter sections menu
                 selectParameterSection
                 ret=$?
                 nextSection=$ret
@@ -433,15 +434,18 @@ do
                 [ $ret -eq 254 ] && continue 2
             fi
         done     
-        
+
+
         
         #Execute configuration phase # TODO (does anything need to be done before getting any data? like network or partition?)
         
-        
+        #Setup hosts file and hostname
+        $PSETUP configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
+
         
         # TODO remember to store all config variables, both those in usb and in hard drive
         $PVOPS vars setVar c IPADDR "$IPADDR" # TODO maybe store it to the hard drive, now that we don0t support remote drives 
-
+	       $PVOPS vars setVar c HOSTNM "$HOSTNM" #store both on dhcp and manual
         
         
     fi

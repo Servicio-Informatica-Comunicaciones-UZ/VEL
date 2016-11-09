@@ -121,7 +121,7 @@ if [ "$1" == "vars" ]
 
 
 
- #Para que el wizard reciba los valores de ciertas variables durante el reset.
+ #Para que el wizard reciba los valores de ciertas variables durante el reset. # TODO Intentar quitar esta mierda, que no reciba nada a ser posible
  # 3-> origen c (clauer) d (disco) r (memoria) s (slot activo)
  # 4-> var name
  if [ "$2" == "getVar" ]  #//// probar
@@ -135,7 +135,7 @@ if [ "$1" == "vars" ]
 
 
 # Asegurarme de que $SITESCOUNTRY $SITESORGSERV $SITESEMAIL están en algún fichero de variables      
-     if [ "$4" != "WWWMODE" -a "$4" != "SSHBAKPORT" -a "$4" != "SSHBAKSERVER" -a "$4" != "FQDN"  -a "$4" != "USINGSSHBAK" -a "$4" != "copyOnRAM"  -a "$4" != "SHARES" -a "$4" != "SITESCOUNTRY" -a "$4" != "SITESORGSERV" -a "$4" != "SITESEMAIL" -a "$4" != "ADMINNAME" ]  #//// SEGUIR: sacar esta comprobación a una func.
+     if [ "$4" != "WWWMODE" -a "$4" != "SSHBAKPORT" -a "$4" != "SSHBAKSERVER" -a "$4" != "DOMNAME"  -a "$4" != "USINGSSHBAK" -a "$4" != "copyOnRAM"  -a "$4" != "SHARES" -a "$4" != "SITESCOUNTRY" -a "$4" != "SITESORGSERV" -a "$4" != "SITESEMAIL" -a "$4" != "ADMINNAME" ]  #//// SEGUIR: sacar esta comprobación a una func.
 	 then
 	 echo "getVar: no permission to read var $4" >>$LOGFILE 2>>$LOGFILE
 	 exit 1
@@ -334,7 +334,7 @@ if [ "$1" == "shutdownServer" ]
 shutdownServer(){
     
     
-    echo "System $FQDN is going down on $(date)" | mail -s "System $FQDN shutdown" root
+    echo "System $HOSTNM is going down on $(date)" | mail -s "System $HOSTNM shutdown" root
     sleep 3
     
     
@@ -420,194 +420,6 @@ fi
 
 
 
-
-
-#//// verif en mant: si
-
-#Sets up the network configuration
-if [ "$1" == "configureNetwork" ] 
-then
-    IPMODE="$2"
-    IPADDR="$3"
-    MASK="$4"
-    GATEWAY="$5"
-    DNS1="$6"
-    DNS2="$7"
-    FQDN="${8}"
-    
-    #If parameters are empty, read them from config
-    if [ "$IPMODE" == "" ]
-	   then
-	       echo "configureNetwork: Reading params from usb config file..." >>$LOGFILE 2>>$LOGFILE
-	       getPrivVar c IPMODE
-	       getPrivVar c IPADDR
-	       getPrivVar c MASK
-	       getPrivVar c GATEWAY
-	       getPrivVar c DNS1
-	       getPrivVar c DNS2
-	       getPrivVar c FQDN
-    fi
-    
-    checkParameterOrDie IPMODE  "$IPMODE"  "0"
-    checkParameterOrDie IPADDR  "$IPADDR"  "0"
-    checkParameterOrDie MASK    "$MASK"    "0"
-    checkParameterOrDie GATEWAY "$GATEWAY" "0"
-    checkParameterOrDie DNS1    "$DNS1"    "0"
-    checkParameterOrDie DNS2    "$DNS2"    "0"
-    checkParameterOrDie FQDN    "$FQDN"    "0"
-    
-    echo "ipmode: $IPMODE" >>$LOGFILE 2>>$LOGFILE
-    echo "ipad: $IPADDR" >>$LOGFILE 2>>$LOGFILE
-    echo "mask: $MASK" >>$LOGFILE 2>>$LOGFILE
-    echo "gatw: $GATEWAY" >>$LOGFILE 2>>$LOGFILE
-    echo "dns : $DNS1" >>$LOGFILE 2>>$LOGFILE
-    echo "dns2: $DNS2" >>$LOGFILE 2>>$LOGFILE
-    echo "fqdn: $FQDN" >>$LOGFILE 2>>$LOGFILE
-    
-    if [ "$IPMODE" == "static" ]
-	   then
-	       killall dhclient3 dhclient  >>$LOGFILE 2>>$LOGFILE 
-	       
-	       interfacelist=$(cat /etc/network/interfaces | grep  -Ee "^[^#]*iface" | sed -re 's/^.*iface\s+([^\t ]+).*$/\1/g')
-        #Switch all interfaces (except lo) to manual
-	       for intfc in $interfacelist ; do
-	           if [ "$intfc" != "lo" ] ; then
-	               sed  -i -re "s/^([^#]*iface\s+$intfc\s+\w+\s+).+$/\1manual/g" /etc/network/interfaces
-	           fi
-	       done
-	       
-        #List eth interfaces (sometimes kernel may not set first interface to eth0)
-	       interfaces=$(/sbin/ifconfig -s  2>>$LOGFILE  | cut -d " " -f1 | grep -oEe "eth[0-9]+")
-	       
-	       if [ "$interfaces" == "" ] ; then
-	           echo "Error: no eth interfaces available."  >>$LOGFILE 2>>$LOGFILE 
-	           exit 11
-	       fi
-        
-        #For each available eth interface, configure and check connectivity
-	       settledaninterface=0
-	       for interface in $interfaces; do
-            
-	           #Set IP and netmask.
-	           echo "/sbin/ifconfig $interface $IPADDR netmask $MASK" >>$LOGFILE 2>>$LOGFILE
-            /sbin/ifconfig "$interface" "$IPADDR" netmask "$MASK"  >>$LOGFILE 2>>$LOGFILE 
-            
-            #Set default gateway
-	           echo "/sbin/route add default gw $GATEWAY">>$LOGFILE 2>>$LOGFILE
-            /sbin/route del default
-            /sbin/route add default gw "$GATEWAY"  >>$LOGFILE 2>>$LOGFILE 
-	           
-            #Set NameServers
-	           echo -e "nameserver $DNS1\nnameserver $DNS2" > /etc/resolv.conf
-	           
-	           #Check interface connectivity. If found, settle
-	           echo "Checking connectivity on $interface..."  >>$LOGFILE 2>>$LOGFILE
-	           ping -w 5 -q $GATEWAY  >>$LOGFILE 2>>$LOGFILE 
-	           if [ $? -eq 0 ] ; then
-                echo "found conectivity on interface $interface" >>$LOGFILE 2>>$LOGFILE
-                settledaninterface=1
-                break
-            fi
-            #If no connectivity, disable (otherwise, there will be collisions)
-	           /sbin/ifconfig "$interface" down  >>$LOGFILE 2>>$LOGFILE 
-	           /sbin/ifconfig "$interface" 0.0.0.0  >>$LOGFILE 2>>$LOGFILE 
-	       done
-	       
-	       if [ "$settledaninterface" -eq 0 ] ; then
-	           echo "Error: couldn't ping gateway ($GATEWAY). Check connectivity"  >>$LOGFILE 2>>$LOGFILE 
-	           exit 12
-	       fi
-        
-	       
-    else #IPMODE == dhcp
-
-        # SEGUIR: si las coas van como ahora, ya coge la if y la config en dhcp. Puedo: 1. determinar la if eth activa (ifconfig | grep eth), ifconfig ethX down  y up y luego dhclient ethX. O puedo hacer el test de conectividad del gw y si falla, hacer lo anterior sin el down y up. PEnsar
-        dhclient >>$LOGFILE 2>>$LOGFILE 
-	       IPADDR=$(dhclient 2>&1 | grep -e "bound to" | grep -oEe "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
-	       if [ "$IPADDR" == "" ]  ; then
-	    echo $"Error: no se pudo obtener la configuración IP. Revise conectividad."  >>$LOGFILE 2>>$LOGFILE 
-	    exit 13
-	fi
- 
-	aux=$(host $IPADDR  2>>$LOGFILE)
-	aux2=$(echo "$aux" | grep -oe "not found")
- 
-	if [ "$aux2" != "" ] 
-	then
-	    echo "----->No se pudo asociar esta IP a un FQDN. Posible red privada (NAT)"  >>$LOGFILE 2>>$LOGFILE
-	    # TODO quitar toda esta mierda
-	    #En este caso, lo pedimos explícitamente, si estamos en la instalación
-	    if [  -eq 1  ]
-		   then
-		       #En vez de mostrar error, pedirá el FQDN y lo guardará como var.  # TODO esto no hacerlo así
-		       exit 42
-	    fi
-	    
-	else
-	    FQDN=$( echo "$aux" | grep -oEe " [^ ]+$" | sed -re "s/^ (.*)\.$/\1/g")
-     
-	    #Se guarda esta variable en el fichero que se escribirá en el clauer (o en reset se usará y punto)
-	    setPrivVar FQDN "$FQDN" c   #////probar
-	fi
-    fi
-    
-    exit 0
-fi
-
-
-#Segunda parte de la config de la red. necesita tener el valor de FQDN y la IP.  # TODO revisar todo esto, sobra casi todo. PEdir un hostname en la config ip y usarlo como hostname y en hosts para resolver a localhost. El del mailer, pedirlo aparte
-
-if [ "$1" == "configureNetwork2" ] 
-then
-
-	   getPrivVar c FQDN
-	   getPrivVar c IPADDR
-
-    if [ "$FQDN" != ""  ]
-	   then
-        
-        if [ "$IPADDR" == ""  ]
-	       then
-            #Al estar en modo dhcp, no tenemos una ip definida. Resolvemos el FQDN
-	           IPADDR=$(host "$FQDN" | grep -e "has address" | sed -re "s/^.*address\s+([0-9.]+).*$/\1/g")
-        fi
-
-        if [ "$IPADDR" == ""  ]
-	       then
-	           IPADDR="127.0.0.1"
-        fi
-        
-        #Set Hostname
-        hname=$(echo "$FQDN" | grep -oEe "^[^.]+")
-        echo "FQDN: $FQDN"  >>$LOGFILE 2>>$LOGFILE
-        echo "HOSTNAME: $hname"  >>$LOGFILE 2>>$LOGFILE
-        [ "$hname" != "" ] && hostname "$hname"
-        
-        
-        if [ "$IPADDR" != "" ]
-	       then
-            #Set FQDN
-	           if [ "$IPADDR" != "127.0.0.1"  ]  
-	           then
-	               isfqdnset=$(cat /etc/hosts | grep "$IPADDR") #////probar que ahora me resuelva ambos, localhost y lol.
-	           fi
-	           if [ "$isfqdnset" == "" ]
-	           then
-                #Si no aparece nuestra IP en hosts, la añadimos
-	               echo "$IPADDR $FQDN $hname" >  /tmp/hosts.tmp
-	               cat /etc/hosts              >> /tmp/hosts.tmp
-	               mv /tmp/hosts.tmp /etc/hosts
-	           else
-     	          #Sino, lo alteramos
-	               sed -i -re "s/^$IPADDR.*$/$IPADDR $FQDN $hname/g" /etc/hosts
-	           fi
-	       fi
-	       
-    fi
-
-
-    exit 0
-fi
 
 
 
@@ -973,7 +785,7 @@ if [ "$1" == "configureServers" ]
 
 
        #////borrar
-       #checkParameterOrDie FQDN "${3}"
+       #checkParameterOrDie FQDN "${3}"  # TODO ver este fqdn de dónde lo saco ahora. lopido en el form de mail? $HOSTNM + $DOMNAME
        #checkParameterOrDie MAILRELAY "${4}"
 
 

@@ -159,3 +159,11 @@ $((RANDOM % 2))
 
 
 gotoMenu(){ return 1;}; gotoMenu
+
+
+#Get the IP
+IPADDR=$(ifconfig | grep -Ee "eth[0-9]+" -A 1 \
+                | grep -oEe "inet addr[^a-zA-Z]+" \
+                | grep -oEe "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
+
+IPADDR=$(host "$HOSTNM" | grep -e "has address" | sed -re "s/^.*address\s+([0-9.]+).*$/\1/g")

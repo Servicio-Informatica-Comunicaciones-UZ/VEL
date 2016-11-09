@@ -158,7 +158,7 @@ parseInput () {
 	               done
 	           fi
 	
-	           echo "$2" | grep -oiEe "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+$" 2>&1 >/dev/null
+	           echo "$2" | grep -oiEe "^([a-z]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+$" 2>&1 >/dev/null
 		          [ $? -ne 0 ] && notDn=1
             #echo "validating ip or dn Return: $((notIp & notDn))  notIp: $notIp  notDn: $notDn  str: $2"
 
@@ -167,10 +167,16 @@ parseInput () {
 	           ;;
         
 	       
-	       "dn" ) #Domain name
-	           echo "$2" | grep -oiEe "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+" 2>&1 >/dev/null
+	       "dn" ) #Domain name (full, with top level)
+	           echo "$2" | grep -oiEe "^([a-z]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+$" 2>&1 >/dev/null
 		          [ $? -ne 0 ] && ret=1
 	      	    ;;
+
+	       "hostname" ) #Hostname (allows trailing numbers)
+	           echo "$2" | grep -oiEe "^([a-z0-9]([-a-z0-9]*[a-z0-9])?\.?)+$" 2>&1 >/dev/null
+		          [ $? -ne 0 ] && ret=1
+	      	    ;;
+
         
 	       "path" ) #System path
 	           ALLOWEDCHARSET='- _ . + a-z A-Z 0-9'
@@ -310,8 +316,13 @@ checkParameter () {
 	           ret=$?
             ;;
 	       
-	       "FQDN" | "SERVERCN" )
+	       "DOMNAME" | "SERVERCN" )
             parseInput dn "$2"
+	           ret=$?
+	           ;;
+
+        "HOSTNM" )
+            parseInput hostname "$2"
 	           ret=$?
 	           ;;
 	       

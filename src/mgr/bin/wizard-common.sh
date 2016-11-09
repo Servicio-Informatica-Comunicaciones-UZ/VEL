@@ -569,7 +569,8 @@ writeClauers () {
 #  GATEWAY
 #  DNS1
 #  DNS2
-#  FQDN
+#  HOSTNM
+#  DOMNAME
 ###TODO depués, los valores establecidos aquí se pasarán al  privil. op adecuado donde se parsearán de nuevo y se establecerán si corresponde. Hacer op para leer y preestablecer los valores de estas variables y usarlas como valores default (para los pwd, obviamente, no)
 networkParams () {
     
@@ -596,7 +597,6 @@ networkParams () {
             #If none selected, ask again
             [ "$choice" == "" ] && continue
             
-            IPMODE="dhcp"
             #If static config is chosen
 	           if [ "$choice" -eq 2 ] ; then
 	               IPMODE="static"
@@ -606,7 +606,39 @@ networkParams () {
                 
                 #If back, show the mode selector again
                 [ "$?" -eq '2' ] && continue
-	           fi
+            else
+                #DHCP mode selected
+                IPMODE="dhcp"
+                while true ; do
+                    local errmsg=""
+                    
+	                   local hostn=$($dlg --cancel-label $"Back"  --inputbox  \
+		                                     $"Hostname:" 0 0 "$HOSTNM"  2>&1 >&4)
+                    #If back, show the mode selector again
+                    [ "$?" -ne 0 ] && continue 2
+                    
+	                   parseInput hostname "$hostn"
+	                   [ $? -ne 0 ] && errmsg=""$"Hostname not valid."
+                    
+	                   local domn=$($dlg --cancel-label $"Back"  --inputbox  \
+		                                    $"Domain name:" 0 0 "$DOMNAME"  2>&1 >&4)
+                    #If back, continue to go to the previous prompt
+                    [ "$?" -ne 0 ] && continue
+                    
+	                   parseInput dn "$domn"
+                    [ $? -ne 0 ] && errmsg="$errmsg\n"$"Domain not valid."
+                    
+                    #If errors, go to the first prompt
+                    if [ "$errmsg" != "" ] ; then
+		                      $dlg --msgbox "$errmsg" 0 0
+		                      continue
+	                   fi
+                    #If all set ad correct, set the globals
+                    HOSTNM="$hostn"
+                    DOMNAME="$domn"
+                    break
+                done
+            fi
             break
 	  	    done
         return 0
@@ -623,7 +655,7 @@ networkParams () {
         IFS=$(echo -en "\n\b") #We need this to avoid interpreting a space as an entry 
 	       while true
 	       do
-	           local formlen=6
+	           local formlen=7
 	           choice=$($dlg  --cancel-label $"Back"  --mixedform  $"Network connection parameters" 0 0 20  \
 	                          $"Field"            1  1 $"Value"   1  30  17 15   2  \
 	                          $"IP Address"       3  1 "$IPADDR"  3  30  17 15   0  \
@@ -631,7 +663,8 @@ networkParams () {
 	                          $"Gateway Address"  7  1 "$GATEWAY" 7  30  17 15   0  \
 	                          $"Primary DNS"      10 1 "$DNS1"    10 30  17 15   0  \
 	                          $"Secondary DNS"    12 1 "$DNS2"    12 30  17 15   0  \
-	                          $"Host name (FQDN)" 15 1 "$FQDN"    15 30  17 4096 0  \
+	                          $"Hostname"         15 1 "$HOSTNM"  15 30  17 256  0  \
+                           $"Domain"           17 1 "$DOMNAME" 17 30  17 256  0  \
 	                          2>&1 >&4 )
             
 	           #If cancelled, exit
@@ -685,11 +718,15 @@ networkParams () {
 				                    ;;
 	                   
 		                  "6" ) # Hostname
-		                      parseInput dn "$item"
+		                      parseInput hostname "$item"
 		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Host name not valid"
-		                      else FQDN="$item" ; fi
+		                      else HOSTNM="$item" ; fi
 		                      ;;
-	               esac
+		                  "7" ) # Domain for the host
+		                      parseInput dn "$item"
+		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Domain name not valid"
+		                      else DOMNAME="$item" ; fi
+		                      ;;	               esac
                 
                 BAKIFS=$IFS
                 IFS=$(echo -en "\n\b")
@@ -708,8 +745,8 @@ networkParams () {
             break
         done
 	   } #SelectIPParams
-
-
+    
+    
     selectIPMode
     local ret=$?
     
@@ -720,11 +757,22 @@ networkParams () {
 	   echo "GATE: "$GATEWAY >>$LOGFILE 2>>$LOGFILE
 	   echo "DNS1: "$DNS1 >>$LOGFILE 2>>$LOGFILE
 	   echo "DNS2: "$DNS2 >>$LOGFILE 2>>$LOGFILE
-	   echo "FQDN: "$FQDN >>$LOGFILE 2>>$LOGFILE
+	   echo "HOSTNM: "$HOSTNM >>$LOGFILE 2>>$LOGFILE
     #</DEBUG>
     
     return $ret
 } #NetworkParams
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1684,12 +1732,12 @@ generateCSR () { #*-*-adaptando al  nuevo conjunto de datos
     SERVEREMAIL=""
     SERVERCN=""
   
-    FQDN=$($PVOPS vars getVar c FQDN) #////probar
+    HOSTNM=$($PVOPS vars getVar c HOSTNM) #////probar
     SITESCOUNTRY=$($PVOPS vars getVar d SITESCOUNTRY) 
     SITESORGSERV=$($PVOPS vars getVar d SITESORGSERV)
     SITESEMAIL=$($PVOPS vars getVar d SITESEMAIL)
 
-    [ "$FQDN" != "" ] && SERVERCN="$FQDN"
+    [ "$HOSTNM" != "" ] && SERVERCN="$HOSTNM"
     [ "$SITESCOUNTRY" != "" ] && COUNTRY="$SITESCOUNTRY"
     [ "$SITESORGSERV" != "" ] && COMPANY="$SITESORGSERV"
     [ "$SITESEMAIL" != "" ] && SERVEREMAIL="$SITESEMAIL"
@@ -2063,96 +2111,38 @@ listPartitions () {
 
 
 
-#$1 -> Lista de targets host:port,1 tarid ## etc. (ojo, cada elem ocupa 2 items de la lista)
-#Ret: TARS -> lista de targets (pares "target -")
-#     NTAR -> long de la lista
-listTargets () {
-
-    TARS=''
-    NTAR=0
-    
-    istarid=0
-    entry=""
-    for tar in $1
-      do
-
-      if [ $istarid -eq 0 ]
-	  then
-	  ip=$(echo $tar | grep -oEe "^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
-	  port=$(echo $tar | grep -oEe ":[0-9]+," | grep -oEe "[0-9]+")
-	  entry="($ip:$port)-"
-      else
-	  entry="$entry$tar"
-	  TARS=$TARS" $entry -"
-	  NTAR=$(($NTAR+1))
-      fi
-      
-      istarid=$(( ($istarid+1)%2 ))
-    done
-    
-    return 0
-}
 
 
 
-
-# TODO quitar el param de panic, añadir ping al gateway? (si lo quito de priv) y a 8.8.8.8?
 configureNetwork () {
-    echo "Configuring network: $PVOPS configureNetwork $IPMODE $IPADDR $MASK $GATEWAY $DNS1 $DNS2 $FQDN " >>$LOGFILE 2>>$LOGFILE
+    echo "Configuring network: $PSETUP configureNetwork $IPMODE $IPADDR $MASK $GATEWAY $DNS1 $DNS2" >>$LOGFILE 2>>$LOGFILE
+    $dlg --infobox $"Configuring network connection..." 0 0
     
-    $dlg --infobox $"Configurando la red..." 0 0
+    #On reset, paremetrs will be empty, but will be read from the config fiile
+    $PSETUP configureNetwork "$IPMODE" "$IPADDR" "$MASK" "$GATEWAY" "$DNS1" "$DNS2"
+    local ret="$?"
     
-    #En reset estos parámetros estarán vacíos, pero en la op privada ya lo he contemplado.
-    $PVOPS configureNetwork "$IPMODE" "$IPADDR" "$MASK" "$GATEWAY" "$DNS1" "$DNS2" "$FQDN" 
-    local cfretval="$?"
-
-    #En caso de error
-    local errMsg=""
-    if [ "$cfretval" == "11"  ]; then
-	       errMsg=$"Error: no se encuentran interfaces ethernet accesibles." 
+    if [ "$ret" == "11"  ]; then
+	       echo "Error: no accessible ethernet interfaces found."  >>$LOGFILE 2>>$LOGFILE
+	       return 1
+    elif [ "$ret" == "12"  ]; then
+	       echo "Error: No destination reach from any interface." >>$LOGFILE 2>>$LOGFILE
+        return 1
+    elif [ "$ret" == "13"  ]; then
+	       echo "Error: DHCP client error." >>$LOGFILE 2>>$LOGFILE
+        return 1
+    elif [ "$ret" == "14"  ]; then
+	       echo "Error: Gateway connectivity error." >>$LOGFILE 2>>$LOGFILE
+        return 1
     fi
-    if [ "$cfretval" == "12"  ]; then
-	errMsg=$"Error: no se pudo comunicar con la puerta de enlace. Revise conectividad." 
+    
+    #Check Internet connectivity
+    $dlg --infobox $"Checking Internet connectivity..." 0 0
+	   ping -w 5 -q 8.8.8.8  >>$LOGFILE 2>>$LOGFILE 
+	   if [ $? -eq 0 ] ; then
+        return 2
     fi
-    if [ "$cfretval" == "13"  ]; then
-	errMsg=$"Error: no se pudo obtener la configuración IP. Revise conectividad."
-    fi
-    if [ "$errMsg" != ""  ]; then
-	if [ "$1" == "noPanic"  ]; then
-	    $dlg --msgbox "$errMsg" 0 0
-	    return 1
-	else
-	    systemPanic "$errMsg"
-	    return 1
-	fi
-    fi
-
-    #No podemos deducir el FQDN. Hay que pedirlo explícitamente
-    if [ "$cfretval" == "42"  ]; then
-	
-	
-	while true ; do
-	    
-	    FQDN=$($dlg --no-cancel  --inputbox  \
-		$"No se ha podido deducir el nombre de dominio del servidor.\nEspecifique uno:" 0 0 "$FQDN"  2>&1 >&4)
-	    
-	    parseInput dn "$FQDN"
-	    if [ $? -ne 0 ] 
-		then
-		$dlg --msgbox $"Debe introducir un nombre de dominio válido." 0 0
-		continue
-	    fi
-	    
-	    break
-	done
-	
-	#Guardamos la variable
-	$PVOPS vars setVar c FQDN "$FQDN"
-    fi    
-
-    #Configuramos lo que falta, en relación al FQDN.
-    $PVOPS configureNetwork2
-
+    return 0
 }
 
 
@@ -2169,7 +2159,9 @@ configureNetwork () {
 setConfigVars () {
     
     $PVOPS vars setVar c IPMODE $IPMODE
-    
+	$PVOPS vars setVar c HOSTNM "$HOSTNM"
+ $PVOPS vars setVar c DOMNAME "$DOMNAME"
+ 
     if [ "$IPMODE" == "static"  ] #si es 'dhcp' no hacen falta
 	then
 	$PVOPS vars setVar c IPADDR "$IPADDR"
@@ -2177,13 +2169,8 @@ setConfigVars () {
 	$PVOPS vars setVar c GATEWAY "$GATEWAY"
 	$PVOPS vars setVar c DNS1 "$DNS1"
 	$PVOPS vars setVar c DNS2 "$DNS2"
-	$PVOPS vars setVar c FQDN "$FQDN"
     fi
     
-    if [ "$FQDN" != ""  ]
-	then
-	$PVOPS vars setVar c FQDN "$FQDN"
-    fi
     
     $PVOPS vars setVar c DRIVEMODE "$DRIVEMODE"
     

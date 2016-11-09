@@ -309,13 +309,7 @@ setAllConfigVariables () {
 
 
 #Parse any configuration file, to ensure syntax is adequate
-        # Al filtrar el fichero de configuración, sólo cogemos el primer
-        # elemento de cada línea ej: a="aa" "bb" b=123 456 --> a="aa"
-        # b=123 para evitar inyección de comandos. Además, no se aceptan
-        # $ dentro de una cadena, para evitar el acceso a variables de
-        # entorno	
-parseConfigFile () {
-    
+parseConfigFile () {    
     cat "$1" | grep -oEe '^[a-zA-Z][_a-zA-Z0-9]*?=("([^"$]|[\]")*?"|""|[^ "$]+)'
 }
 
@@ -359,8 +353,8 @@ setPrivVar () {
     #</DEBUG>
     touch $file
     chmod 600 $file  >>$LOGFILE 2>>$LOGFILE
-    
-    
+
+
     #Check if var is defined in file
     local isvardefined=$(cat $file | grep -Ee "^$1")
     echo "isvardef: $1? $isvardefined" >>$LOGFILE 2>>$LOGFILE
