@@ -794,7 +794,7 @@ relocateLogs () {
 if [ "$1" == "populateDb" ]
     then
     
-    checkParameterOrDie INT "${2}" "0"
+    checkParameterOrDie INT "${2}" "0" # Guess inside here if backups are used or not, don't rely on the main program, so delete param $2 and use a locally read vr if needed
 
     getPrivVar d DBPWD
 

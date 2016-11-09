@@ -326,18 +326,16 @@ checkParameter () {
 	           ret=$?
 	           ;;
 	       
-	       "USINGSSHBAK" )
+	       "TRUEFALSE" )  #This is no variable
             #Closed set value
-	           if [ "$2" != "0" -a "$2" != "1" ]
-            then
+	           if [ "$2" != "0" -a "$2" != "1" ] ; then
                 ret=1
             fi
 	           ;;
 	       
 	       "DRIVEMODE" )
 	           #Closed set value
-	           if [ "$2" != "local"   -a   "$2" != "file" ]
-	           then
+	           if [ "$2" != "local"   -a   "$2" != "file" ] ; then
 	               ret=1
 	           fi
 	           ;;	

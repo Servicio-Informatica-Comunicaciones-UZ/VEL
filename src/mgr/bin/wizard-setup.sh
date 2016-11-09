@@ -143,7 +143,7 @@ selectParameterSection () {
         selec=$($dlg --cancel-label $"Go back to the main menu"  --menu $"Select parameter section:" 0 80  6  \
 	                    1 $"Set Timezone." \
                      2 $"Network configuration." \
-	                    3 $"aa." \ # SEGUIR con la siguiente op
+	                    3 $"Encrypted drive configuration." \ # SEGUIR con la siguiente op
 	                    4 $"aa." \
                      5 $"aa." \
 	                    6 $"aa." \
@@ -385,14 +385,11 @@ do
                         break
                     done
                     ;;
-                # TODO    pedir en netparams tb el     DOMNAME, con los dos construir el fqdn y usarlo en el mailer, en el hosts y donde haga falta
-
                 
-                "3" ) 
-                    
+                "3" ) #Persistence encrypted data drive 
+                    selectCryptoDrivemode
                     action=$?
                     ;;
-                
                 
                 
                 "4" ) 
@@ -451,6 +448,7 @@ do
     fi
     
 
+# TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
 
 
 
@@ -502,7 +500,7 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 ###### Sistema nuevo #####  
 
 
-      selectCryptoDrivemode
+      
 
       
       selectMailerParams

@@ -465,19 +465,19 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
     #Leemos variables de configuración que necesitamos aquí (si es new, 
     #ya están definidas, si es reset, se redefinen y no pasa nada)
     WWWMODE=$($PVOPS vars getVar d WWWMODE)
-    USINGSSHBAK=$($PVOPS vars getVar c USINGSSHBAK)
+    SSHBAKSERVER=$($PVOPS vars getVar c SSHBAKSERVER)
 
     #Si hay backup de los datos locales
-    if [ "$USINGSSHBAK" -eq 1  ] ; then
-	if [ "$1" == "new"  ] ; then  #*-*-en restore estos valen los nuevos. restaurar el vars original y que los machaque aquí?
-	    #Escribimos en un fichero los params que necesita el script del cron 
-	    #(sólo al instalar, porque luego pueden ser modificados desde el menú idle)
-	    #(en realidad no importa, porque al cambiarlos reescribe los clauers)
-	    $PVOPS vars setVar d SSHBAKSERVER "$SSHBAKSERVER"
-	    $PVOPS vars setVar d SSHBAKPORT   "$SSHBAKPORT"
-	    $PVOPS vars setVar d SSHBAKUSER   "$SSHBAKUSER"
-	    $PVOPS vars setVar d SSHBAKPASSWD "$SSHBAKPASSWD"
-	fi
+    if [ "$SSHBAKSERVER" != ""  ] ; then
+	       if [ "$1" == "new"  ] ; then  #*-*-en restore estos valen los nuevos. restaurar el vars original y que los machaque aquí?
+	           #Escribimos en un fichero los params que necesita el script del cron 
+	           #(sólo al instalar, porque luego pueden ser modificados desde el menú idle)
+	           #(en realidad no importa, porque al cambiarlos reescribe los clauers)
+	           $PVOPS vars setVar d SSHBAKSERVER "$SSHBAKSERVER"
+	           $PVOPS vars setVar d SSHBAKPORT   "$SSHBAKPORT"
+	           $PVOPS vars setVar d SSHBAKUSER   "$SSHBAKUSER"
+	           $PVOPS vars setVar d SSHBAKPASSWD "$SSHBAKPASSWD"
+	       fi
     fi
 
     # Una vez montada la partición cifrada, sea new o reset (en este caso, ya habrá leido las vars del disco) o restore (ya habrá copiado los datos correspondientes)
@@ -517,23 +517,22 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
 
 
     #Si estamos em modo de disco local, ponemos en marcha el proceso cron de backup cada minuto
-    if [ "$USINGSSHBAK" -eq 1  ] ; then
+    SSHBAKSERVER=$($PVOPS vars getVar d SSHBAKSERVER)
+	   SSHBAKPORT=$($PVOPS vars getVar d SSHBAKPORT)
+    if [ "$SSHBAKSERVER" != ""  ] ; then
 
-	if [ "$1" == 'reset' ] ; then
-	    
-	    SSHBAKSERVER=$($PVOPS vars getVar d SSHBAKSERVER)
-	    SSHBAKPORT=$($PVOPS vars getVar d SSHBAKPORT)
-
-	    #Añadimos las llaves del servidor SSH al known_hosts
-	    local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER")
-	    if [ "$ret" -ne 0 ]  #//// PRobar!!
-		then
-		systemPanic $"Error configurando el acceso al servidor de copia de seguridad."
-	    fi
-	fi
+	       if [ "$1" == 'reset' ] ; then
+	           
+	           #Añadimos las llaves del servidor SSH al known_hosts
+	           local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER")
+	           if [ "$ret" -ne 0 ]  #//// PRobar!!
+		          then
+		              systemPanic $"Error configurando el acceso al servidor de copia de seguridad."
+	           fi
+	       fi
 	
-	$PSETUP enableBackup	    
-	
+	       $PSETUP enableBackup	    
+	       
     fi
     
     
@@ -744,8 +743,8 @@ configureServers () {
 
 	if [ "$1" == 'new' ]
 	    then
-            #Las rutas de los ficheros a leer ya las tiene la op.
-	    $PSETUP populateDb "$USINGSSHBAK"
+         #Las rutas de los ficheros a leer ya las tiene la op.
+	        $PSETUP populateDb
 	fi
 
         #En cualquier caso, incluso cuando no estamos instalando, Ejecutamos los alters y updates de la BD para actualizarla.

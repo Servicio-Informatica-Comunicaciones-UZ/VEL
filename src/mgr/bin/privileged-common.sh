@@ -108,7 +108,6 @@ setPerm () {
 
 
 
-# TODO all calls to this funct. now receive a list of valid mountable partitions, not devs. Change all instances.  # TODO make a version that retrieves all devs, not partitions. Then, on the business logic, if no writable partitions found, offer to format a drive. !!!!!!
 
 
 #List of usb connected storage devices ( printed on stdout) and the number (return value)

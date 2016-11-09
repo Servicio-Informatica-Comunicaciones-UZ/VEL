@@ -135,7 +135,7 @@ if [ "$1" == "vars" ]
 
 
 # Asegurarme de que $SITESCOUNTRY $SITESORGSERV $SITESEMAIL están en algún fichero de variables      
-     if [ "$4" != "WWWMODE" -a "$4" != "SSHBAKPORT" -a "$4" != "SSHBAKSERVER" -a "$4" != "DOMNAME"  -a "$4" != "USINGSSHBAK" -a "$4" != "copyOnRAM"  -a "$4" != "SHARES" -a "$4" != "SITESCOUNTRY" -a "$4" != "SITESORGSERV" -a "$4" != "SITESEMAIL" -a "$4" != "ADMINNAME" ]  #//// SEGUIR: sacar esta comprobación a una func.
+     if [ "$4" != "WWWMODE" -a "$4" != "SSHBAKPORT" -a "$4" != "SSHBAKSERVER" -a "$4" != "DOMNAME"   -a "$4" != "copyOnRAM"  -a "$4" != "SHARES" -a "$4" != "SITESCOUNTRY" -a "$4" != "SITESORGSERV" -a "$4" != "SITESEMAIL" -a "$4" != "ADMINNAME" ]  #//// SEGUIR: sacar esta comprobación a una func.
 	 then
 	 echo "getVar: no permission to read var $4" >>$LOGFILE 2>>$LOGFILE
 	 exit 1
@@ -209,6 +209,156 @@ then
     
     exit 0
 fi
+
+
+
+if [ "$1" == "listHDDPartitions" ] 
+then
+    listHDDPartitions
+    return $?
+    
+    #SEGUIR
+fi
+
+
+
+
+
+#List all of the partitions for a give device
+#1 -> drive path
+getPartitionsForDrive () {
+    
+    [ "$1" == "" ] && return 1
+    
+    echo $($fdisk -l "$1" 2>>$LOGFILE | grep -Ee "^$1" | cut -d " " -f 1)
+    return 0
+}
+
+
+#Will list all hard drive partitions available
+#1 -> 'all': (default) Show all partitions
+#     'wfs': Show only partitions with a filesystem that can be mounted and written
+#Returns: number of partitions found
+#Stdout: list of partitions
+listHDDPartitions () {
+    
+    #Get all HDDs
+    local drives=$(listHDDs)
+    
+    #Get all RAID devices (in wfs mode, hdds forming a raid array will
+    #never be listed, as they cannot be mounted, but on all mode they
+    #must be listed (although the array will be destroyed)
+    for mdid in $(seq 0 99) ; do
+	       drives="$drives /dev/md$mdid"
+    done
+    
+    echo "ATA Drives found: $drives"  >>$LOGFILE 2>>$LOGFILE
+
+    
+    #For each drive
+    local partitions=""
+    local npartitions=0
+    for drive in $drives
+    do
+        echo "Checking: $drive"  >>$LOGFILE 2>>$LOGFILE
+        
+        #Get this drive's partitions
+        local thisDriveParts=$(getPartitionsForDrive)
+        if [ "$thisDriveParts" != "" ] 
+	       then
+            
+            #If all partitions are to be returned, add them
+            if [ "$1" == "all" ] ; then
+                partitions="$partitions $thisDriveParts"
+                
+                
+            #Only writable partitions
+            elif [ "$1" == "wfs" ] ; then
+	               for part in $thisDriveParts
+		              do
+		                  #SEGUIR. falta acabar de listar estas, verificar la op de checkwritable y después ver si puedo simplificar lo de sacar el fs (pasar a una func.)
+		                  if [ $($PVOPS checkforWritableFS "$part") -eq 0 ]
+		                  then
+		                      moreparts="$moreparts $part" #Si se puede montar y escribir, la sacamos
+		                  fi
+	               done
+	           else
+	               moreparts=$thisparts
+	           fi
+	           parts="$parts "$moreparts    
+        fi
+        
+    done
+
+    echo "Partitions: "$parts  >>$LOGFILE 2>>$LOGFILE
+
+    for part in $parts
+    do
+
+        partinfo=""
+        
+      
+      if [ "$1" == "wfs" ]
+	  then
+          #Obtenemos el FS de la particion
+	  thisfs=$($PVOPS guessFS "$part") 
+
+	  partinfo="$partinfo$thisfs"
+      fi
+
+      #Obtenemos el tam de la part
+      drive=$(echo $part | sed -re 's/[0-9]+$//g')
+      nblocks=$($PVOPS fdiskList "$drive" 2>/dev/null | grep "$part" | sed -re "s/[ ]+/ /g" | cut -d " " -f4 | grep -oEe '[0-9]+' )
+	  
+      if [ "$nblocks" != "" ]
+	  then
+	  ### Esto no sirve. Es el tam de bloque del FS, no el tam de
+          ### sector que usa el kernel. El kernel usa como tamaño mínimo
+          ### de sector 1K (incluso si es de 512).
+          #echo -n "a" > /media/testpart/blocksizeprobe      
+          #blocksize=$(ls -s /media/testpart/blocksizeprobe | cut -d " " -f1) #Saca el tam de bloque en Kb
+          #rm -f /media/testpart/blocksizeprobe
+      
+	  blocksize=$($PVOPS fdiskList "$drive" 2>/dev/null | grep -Eoe "[*][ ]+[0-9]+[ ]+=" | sed -re "s/[^0-9]//g" )
+	  if [ "$blocksize" != "" ]
+	      then
+	      [ "$blocksize" -lt 1024 ] && blocksize=1024
+	      
+	      thissize=$(($blocksize*$nblocks))      
+	      hrsize=$(humanReadable "$thissize")
+	      
+      
+	      partinfo="$partinfo|$hrsize"
+	  fi
+      fi
+      
+      [ "$partinfo" == ""  ] && partinfo="-"
+      
+      NPARTS=$(($NPARTS +1))
+      PARTS=$PARTS" $part $partinfo"
+    done
+    
+    echo "Partitions: "$parts  >>$LOGFILE 2>>$LOGFILE
+    echo "Num:        "$NPARTS >>$LOGFILE 2>>$LOGFILE
+    echo "Partitions: "$PARTS  >>$LOGFILE 2>>$LOGFILE
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -430,18 +580,8 @@ fi
 
 
 
-#//// verif en mant: no
-
-
-if [ "$1" == "fdiskList" ] 
-    then
-
-    checkParameterOrDie DEV "${2}"
     
-    $fdisk -l "$DEV" 2>>$LOGFILE
-  
-    exit 0  
-fi
+
 
 
 

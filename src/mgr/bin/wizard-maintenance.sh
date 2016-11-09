@@ -469,10 +469,9 @@ maintenanceActionMenu () {  #////probar que al darle a esc, se queda en el bucle
     #Entrada variable del menú sobre las operaciones sobre el backup backup
     backuplinetag="10"
     backuplinemsg=$"Cambiar parámetros de copia de seguridad remota."
-    [ "$USINGSSHBAK" -eq 0 ] && backuplinetag=""
-    [ "$USINGSSHBAK" -eq 0 ] && backuplinemsg=""
-
-
+    [ "$SSHBAKSERVER" == "" ] && backuplinetag="" && backuplinemsg=""
+    
+    
     while true; do
 
 	exec 4>&1 
@@ -1136,7 +1135,6 @@ MGREMAIL=$($PVOPS vars getVar d MGREMAIL)
 ADMINNAME=$($PVOPS vars getVar d ADMINNAME)
 
 SHARES=$($PVOPS vars getVar c SHARES)
-USINGSSHBAK=$($PVOPS vars getVar c USINGSSHBAK)
 
 copyOnRAM=$($PVOPS vars getVar r copyOnRAM)
 
