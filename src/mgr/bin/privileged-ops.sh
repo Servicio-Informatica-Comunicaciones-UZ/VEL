@@ -97,6 +97,227 @@ fi
 
 
 
+
+
+
+
+
+
+
+#List all of the partitions for a give device
+#1 -> drive path
+#Stdout: list of partitions
+#Return: number of partitions
+getPartitionsForDrive () {
+    
+    [ "$1" == "" ] && return 0
+    
+    local parts=$($fdisk -l "$1" 2>>$LOGFILE | grep -Ee "^$1" | cut -d " " -f 1)
+    local nparts=0
+    
+    for part in $parts ; do
+        nparts=$((nparts+1))
+    done
+    
+    echo "$parts"
+    return $nparts
+}
+
+
+#Check if a partition can be mounted and files written on it
+#1 -> partition path
+isFilesystemWritable () {
+    local part="$1"
+
+    mkdir -p /media/testpart   >>$LOGFILE 2>>$LOGFILE   
+    
+    #Try to mount
+    mount "$part" /media/testpart >>$LOGFILE 2>>$LOGFILE
+    [ $? -ne 0 ] && return 1
+
+    #Try to write a file
+    echo "a" > /media/testpart/testwritability 2>/dev/null
+    [ $? -ne 0 ] && return 1
+    
+    #Clean and unmount
+    rm -f /media/testpart/testwritability
+    umount /media/testpart >>$LOGFILE 2>>$LOGFILE
+    rmdir /media/testpart >>$LOGFILE 2>>$LOGFILE 
+    
+    return 0
+}
+
+#Guess in which filesystem is a partition formatted
+#1 -> partition path
+#Stdout: filesystem name
+guessFS () {
+    local part="$1"
+    
+    mkdir -p /media/testpart   >>$LOGFILE 2>>$LOGFILE   
+    mount "$part" /media/testpart >>$LOGFILE 2>>$LOGFILE
+    
+    #Get partition FS
+    local partFS=$(cat /etc/mtab  | grep "$part" | cut -d " " -f3 | uniq) 
+	   
+    umount /media/testpart   >>$LOGFILE 2>>$LOGFILE
+    rmdir /media/testpart >>$LOGFILE 2>>$LOGFILE 
+    
+    [ "$partFS" == "" ] && return 1
+    echo "$partFS"
+    return 0
+}
+
+
+#Guess the size of a partition
+#1 -> partition path
+#Stdout: size of the partition in bytes
+guessPartitionSize () {
+    [ "$1" == "" ] && return 1
+    
+    local drive=$(echo $part | sed -re 's/[0-9]+$//g')
+    [ "$drive" == "" ] && return 1 
+    
+    local nblocks=$($fdisk -l "$drive" 2>>$LOGFILE | grep "$1" | sed -re "s/[ ]+/ /g" | cut -d " " -f4 | grep -oEe '[0-9]+' )
+    [ "$nblocks" == "" ] && return 1
+     
+    local blocksize=$($fdisk -l "$drive" 2>>$LOGFILE | grep -Eoe "[*][ ]+[0-9]+[ ]+=" | sed -re "s/[^0-9]//g" )
+	   [ "$blocksize" == "" ] && return 1
+    
+	   [ "$blocksize" -lt 1024 ] && blocksize=1024
+	   local thissize=$(($blocksize*$nblocks))      
+
+    echo $thissize
+    return 0
+}
+
+#Converts byte value to a human friendly magnitude, will attach
+#corresponding unit indicator
+#1 -> original byte value
+#Stdout: readable value with unit
+humanReadable () {
+    python -c "
+num=$1
+units=['B','KB','MB','GB','TB']
+multiplier=0
+while num >= 1024 and multiplier<len(units):
+  #print 'Num ',num
+  #print 'Mul ',multiplier
+  num/=1024.0
+  multiplier+=1
+#print 'Num ',round(num,1)
+#print 'Mul ',multiplier
+
+print str(round(num,2))+units[multiplier]
+" 
+}
+
+
+#Will list all hard drive partitions available
+#1 -> 'all': (default) Show all partitions
+#     'wfs': Show only partitions with a filesystem that can be mounted and written
+#2 ->  'list': (default) show only the list
+#    'fsinfo': Will add partition info (filesystem and size)
+#Returns: number of partitions found
+#Stdout: list of partitions
+listHDDPartitions () {
+    
+    #Get all HDDs
+    local drives=$(listHDDs)
+    
+    #Get all RAID devices (in wfs mode, hdds forming a raid array will
+    #never be listed, as they cannot be mounted, but on all mode they
+    #must be listed (although the array will be destroyed)
+    for mdid in $(seq 0 99) ; do
+	       drives="$drives /dev/md$mdid"
+    done
+    
+    echo "ATA Drives found: $drives"  >>$LOGFILE 2>>$LOGFILE
+
+    
+    #For each drive
+    local partitions=""
+    local npartitions=0
+    for drive in $drives
+    do
+        echo "Checking: $drive"  >>$LOGFILE 2>>$LOGFILE
+        
+        #Get this drive's partitions
+        local thisDriveParts=$(getPartitionsForDrive)
+        local thisDriveNParts=$?
+        if [ "$thisDriveNParts" -gt 0 ] 
+	       then
+            #If all partitions are to be returned, add them
+            if [ "$1" == "all" ] ; then
+                partitions="$partitions $thisDriveParts"
+                npartitions=$((npartitions+thisDriveNParts))
+                
+            #Show only writable partitions
+            elif [ "$1" == "wfs" ] ; then
+	               for part in $thisDriveParts
+		              do
+		                  if isFilesystemWritable $part
+		                  then
+                        partitions="$partitions $part"
+                        npartitions=$((npartitions+1))
+                    fi
+	               done
+	           else
+                echo "list hdd partitions: Bad parameter $1"  >>$LOGFILE 2>>$LOGFILE
+                return 255
+	           fi
+        fi
+    done
+    echo "Partitions: "$partitions  >>$LOGFILE 2>>$LOGFILE
+    
+    #If only the list of partitios was requested, return it now
+    if [ "$2" != "fsinfo" ] ; then
+        echo "$partitions"
+        return $npartitions
+    fi
+    
+    #For each partition to be returned, get partition info (filesystem, size)
+    local partitionsWithInfo=""
+    for part in $partitions
+    do
+        #Guess filesystem
+	       local thisfs=$(guessFS "$part")
+        [ $? -ne 0 ] && thisfs="?"
+        
+        #Guess size of partition (and make it readable)
+        local thissize=$(guessPartitionSize "$part")
+        if [ $? -ne 0 ] ; then thissize="?"
+        else
+            thissize=$(humanReadable "$thissize")
+        fi
+        #Add the return line fields: partition and info
+        partitionsWithInfo="$partitionsWithInfo $part $thisfs|$thissize"
+    done
+    echo "Partitions with info: $partitionsWithInfo"  >>$LOGFILE 2>>$LOGFILE
+    
+    echo "$partitionsWithInfo"
+    return $npartitions
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ####################### Gestión de variables ############################
 
 
@@ -211,141 +432,18 @@ then
 fi
 
 
-
-if [ "$1" == "listHDDPartitions" ] 
-then
-    listHDDPartitions
-    return $?
-    
-    #SEGUIR
-fi
-
-
-
-
-
-#List all of the partitions for a give device
-#1 -> drive path
-getPartitionsForDrive () {
-    
-    [ "$1" == "" ] && return 1
-    
-    echo $($fdisk -l "$1" 2>>$LOGFILE | grep -Ee "^$1" | cut -d " " -f 1)
-    return 0
-}
-
-
-#Will list all hard drive partitions available
-#1 -> 'all': (default) Show all partitions
+#Lists hard drive partitions.
+#2 -> 'all': (default) Show all partitions
 #     'wfs': Show only partitions with a filesystem that can be mounted and written
+#3 -> 'list': (default) show only the list
+#     'fsinfo': return a field with filesystem and size info
 #Returns: number of partitions found
 #Stdout: list of partitions
-listHDDPartitions () {
-    
-    #Get all HDDs
-    local drives=$(listHDDs)
-    
-    #Get all RAID devices (in wfs mode, hdds forming a raid array will
-    #never be listed, as they cannot be mounted, but on all mode they
-    #must be listed (although the array will be destroyed)
-    for mdid in $(seq 0 99) ; do
-	       drives="$drives /dev/md$mdid"
-    done
-    
-    echo "ATA Drives found: $drives"  >>$LOGFILE 2>>$LOGFILE
-
-    
-    #For each drive
-    local partitions=""
-    local npartitions=0
-    for drive in $drives
-    do
-        echo "Checking: $drive"  >>$LOGFILE 2>>$LOGFILE
-        
-        #Get this drive's partitions
-        local thisDriveParts=$(getPartitionsForDrive)
-        if [ "$thisDriveParts" != "" ] 
-	       then
-            
-            #If all partitions are to be returned, add them
-            if [ "$1" == "all" ] ; then
-                partitions="$partitions $thisDriveParts"
-                
-                
-            #Only writable partitions
-            elif [ "$1" == "wfs" ] ; then
-	               for part in $thisDriveParts
-		              do
-		                  #SEGUIR. falta acabar de listar estas, verificar la op de checkwritable y después ver si puedo simplificar lo de sacar el fs (pasar a una func.)
-		                  if [ $($PVOPS checkforWritableFS "$part") -eq 0 ]
-		                  then
-		                      moreparts="$moreparts $part" #Si se puede montar y escribir, la sacamos
-		                  fi
-	               done
-	           else
-	               moreparts=$thisparts
-	           fi
-	           parts="$parts "$moreparts    
-        fi
-        
-    done
-
-    echo "Partitions: "$parts  >>$LOGFILE 2>>$LOGFILE
-
-    for part in $parts
-    do
-
-        partinfo=""
-        
-      
-      if [ "$1" == "wfs" ]
-	  then
-          #Obtenemos el FS de la particion
-	  thisfs=$($PVOPS guessFS "$part") 
-
-	  partinfo="$partinfo$thisfs"
-      fi
-
-      #Obtenemos el tam de la part
-      drive=$(echo $part | sed -re 's/[0-9]+$//g')
-      nblocks=$($PVOPS fdiskList "$drive" 2>/dev/null | grep "$part" | sed -re "s/[ ]+/ /g" | cut -d " " -f4 | grep -oEe '[0-9]+' )
-	  
-      if [ "$nblocks" != "" ]
-	  then
-	  ### Esto no sirve. Es el tam de bloque del FS, no el tam de
-          ### sector que usa el kernel. El kernel usa como tamaño mínimo
-          ### de sector 1K (incluso si es de 512).
-          #echo -n "a" > /media/testpart/blocksizeprobe      
-          #blocksize=$(ls -s /media/testpart/blocksizeprobe | cut -d " " -f1) #Saca el tam de bloque en Kb
-          #rm -f /media/testpart/blocksizeprobe
-      
-	  blocksize=$($PVOPS fdiskList "$drive" 2>/dev/null | grep -Eoe "[*][ ]+[0-9]+[ ]+=" | sed -re "s/[^0-9]//g" )
-	  if [ "$blocksize" != "" ]
-	      then
-	      [ "$blocksize" -lt 1024 ] && blocksize=1024
-	      
-	      thissize=$(($blocksize*$nblocks))      
-	      hrsize=$(humanReadable "$thissize")
-	      
-      
-	      partinfo="$partinfo|$hrsize"
-	  fi
-      fi
-      
-      [ "$partinfo" == ""  ] && partinfo="-"
-      
-      NPARTS=$(($NPARTS +1))
-      PARTS=$PARTS" $part $partinfo"
-    done
-    
-    echo "Partitions: "$parts  >>$LOGFILE 2>>$LOGFILE
-    echo "Num:        "$NPARTS >>$LOGFILE 2>>$LOGFILE
-    echo "Partitions: "$PARTS  >>$LOGFILE 2>>$LOGFILE
-}
-
-
-
-
+if [ "$1" == "listHDDPartitions" ] 
+then
+    listHDDPartitions "$2" "$3"
+    exit $?
+fi
 
 
 
@@ -587,76 +685,7 @@ fi
 
 
 
-#//// verif en mant: si?
 
-
-if [ "$1" == "checkforWritableFS"  ]
-    then
-
-
-    checkParameterOrDie DEV "${2}" "0"
-    part="$2"
-
-    mkdir -p /media/testpart   >>$LOGFILE 2>>$LOGFILE   
-
-    
-    mount "$part" /media/testpart >>$LOGFILE 2>>$LOGFILE
-    ret=$?
-    if [ "$ret" -ne "0" ]
-	then
-	echo "1"
-	exit 1 #Si no se puede montar, la ignoramos
-    fi
-    
-    echo "a" > /media/testpart/testwritability 2>/dev/null
-    ret=$?
-    if [ "$ret" -ne "0" ] 
-	then
-	echo "1"
-	exit 1 #Si no se puede escribir, la ignoramos
-    fi
-    rm -f /media/testpart/testwritability
-    umount /media/testpart >>$LOGFILE 2>>$LOGFILE
-
-
-    rmdir /media/testpart >>$LOGFILE 2>>$LOGFILE 
-    
-    echo "0"
-    exit 0
-fi
-
-
-
-
-#//// verif en mant: si?
-
-
-if [ "$1" == "guessFS"  ]
-    then
-
-    checkParameterOrDie DEV "${2}" "0"
-    part="$2"
-    
-    mkdir -p /media/testpart   >>$LOGFILE 2>>$LOGFILE   
-    
-    mount $part /media/testpart >>$LOGFILE 2>>$LOGFILE
-
-    #Obtenemos el FS de la particion
-    thisfs=$(cat /etc/mtab  | grep "$part" | cut -d " " -f3 | uniq) 
-	  
-    ###   el uniq es por si la part está montada 2 veces, para
-    ###   que no saque 2 veces el tag del Fs y joda la lista de
-    ###   datos y con ello la ventana de dialog.
-	  
-    umount /media/testpart   >>$LOGFILE 2>>$LOGFILE
-
-    rmdir /media/testpart >>$LOGFILE 2>>$LOGFILE 
-
-    echo "$thisfs"
-    
-    exit 0
-
-fi
 
 
 

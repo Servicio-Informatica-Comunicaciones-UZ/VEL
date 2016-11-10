@@ -141,10 +141,10 @@ selectParameterSection () {
     local selec=''
     while true; do
         selec=$($dlg --cancel-label $"Go back to the main menu"  --menu $"Select parameter section:" 0 80  6  \
-	                    1 $"Set Timezone." \
+	                    1 $"Set local timezone." \
                      2 $"Network configuration." \
-	                    3 $"Encrypted drive configuration." \ # SEGUIR con la siguiente op
-	                    4 $"aa." \
+	                    3 $"Encrypted drive configuration." \ # TODO add here all ops in the flow
+	                    4 $"SSH system backup." \
                      5 $"aa." \
 	                    6 $"aa." \
                      99 $"Continue to system setup" \
@@ -387,14 +387,21 @@ do
                     ;;
                 
                 "3" ) #Persistence encrypted data drive 
-                    selectCryptoDrivemode
+                    selectCryptoDriveMode
                     action=$?
                     ;;
                 
                 
-                "4" ) 
-                    
-                    action=$?
+                "4" ) #SSH backup
+                    #It is an optional feature
+                    $dlg  --yes-label $"Yes" --no-label $"No" \
+                          --yesno $"Do you want to set up periodic system backups through SSH?" 0 0
+	                   if [ "$answer" -ne 0 ] ; then #No
+                        action=0 #Go on
+                    else
+                        sshBackupParameters
+                        action=$?
+                    fi
                     ;;
                 
                 

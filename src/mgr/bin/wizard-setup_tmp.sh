@@ -941,7 +941,7 @@ else
       [ "$ret" -eq 1 ] && continue #Si no hay conectividad, vuelve a pedir los datos de config
 
 
-      selectCryptoDrivemode
+      selectCryptoDriveMode
 
       
       selectMailerParams

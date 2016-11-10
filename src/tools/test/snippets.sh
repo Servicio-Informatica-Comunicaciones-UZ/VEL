@@ -167,3 +167,12 @@ IPADDR=$(ifconfig | grep -Ee "eth[0-9]+" -A 1 \
                 | grep -oEe "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
 
 IPADDR=$(host "$HOSTNM" | grep -e "has address" | sed -re "s/^.*address\s+([0-9.]+).*$/\1/g")
+
+
+
+# Warning: what we get here is the FS block size, not
+# kernel sector size. Kernel always uses a 1K minimum
+# sector size (even if it is 512byte)
+#echo -n "a" > /media/testpart/blocksizeprobe      
+#blocksize=$(ls -s /media/testpart/blocksizeprobe | cut -d " " -f1) #block size in Kb
+#rm -f /media/testpart/blocksizeprobe

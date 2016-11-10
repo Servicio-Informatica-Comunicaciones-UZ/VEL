@@ -51,10 +51,9 @@ MOUNTPATH="/media/localpart"
 MAPNAME="EncMap"
 DATAPATH="/media/crypStorage"
 
-#Encrypted FS parameters
-CRYPTFILENAMEBASE="eLectionCryptFS-"
-CRYPTDEV=""  # TODO see if this global can be supressed
 
+#Base name for the loopback filesystem file
+CRYPTFILENAMEBASE="vtUJI-encryptedFS-"
 
 
 #Default SSH port
@@ -121,11 +120,13 @@ shutdownServer(){
 # $1 --> expected data type
 # $2 --> input value string
 #Returns 0 if matching data type, 1 otherwise.
-#STDOUT: If not matching, the allowed charset information for the data
-#type is printed in some cases  # TODO: change all calls to expect allwedcharset on stdout
+#ALLOWEDCHARSET: If not matching, the allowed charset information for the data
+#type is set there in some cases  # TODO: review that all calls comply with this.
 parseInput () {
     
-    local ALLOWEDCHARSET=''
+    #For those who have one, set the allowed characters to match the
+    #parser   
+    ALLOWEDCHARSET=''
     local ret=0
     
     case "$1" in
@@ -140,9 +141,9 @@ parseInput () {
 	               [ "$p" -gt "255" ] && return 1
 	           done
 	       	   ;;
-
-
-
+        
+        
+        
         "ipdn" ) #IP address or domain name
             local notIp=0
             local notDn=0
@@ -157,7 +158,7 @@ parseInput () {
 	                   [ "$p" -gt 255 ] && notIp=1
 	               done
 	           fi
-	
+	           
 	           echo "$2" | grep -oiEe "^([a-z]([-a-z0-9]*[a-z0-9])?\.)+[a-z]+$" 2>&1 >/dev/null
 		          [ $? -ne 0 ] && notDn=1
             #echo "validating ip or dn Return: $((notIp & notDn))  notIp: $notIp  notDn: $notDn  str: $2"
@@ -263,10 +264,6 @@ parseInput () {
 	           return 1
 	           ;;	
     esac
-
-    #For those who have one, print the allowed characters to match the
-    #parser
-    echo -n $ALLOWEDCHARSET
     
     return $ret
 }

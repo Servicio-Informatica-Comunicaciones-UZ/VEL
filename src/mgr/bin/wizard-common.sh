@@ -429,8 +429,8 @@ networkParams () {
                 IFS=$BAKIFS #Restore temporarily
                 
 	               case "$i" in
-				                "1" ) # IP
-		                      parseInput ipaddr "$item" #if [ $? -ne 0 ] ; then loopAgain=1; 
+				                "1" ) #IP
+		                      parseInput ipaddr "$item"
 		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"IP address not valid"
   		                    else IPADDR="$item" ; fi
 		                      ;;
@@ -468,7 +468,8 @@ networkParams () {
 		                      parseInput dn "$item"
 		                      if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Domain name not valid"
 		                      else DOMNAME="$item" ; fi
-		                      ;;	               esac
+		                      ;;
+	               esac
                 
                 BAKIFS=$IFS
                 IFS=$(echo -en "\n\b")
@@ -500,7 +501,8 @@ networkParams () {
 	   echo "DNS1: "$DNS1 >>$LOGFILE 2>>$LOGFILE
 	   echo "DNS2: "$DNS2 >>$LOGFILE 2>>$LOGFILE
 	   echo "HOSTNM: "$HOSTNM >>$LOGFILE 2>>$LOGFILE
-    #</DEBUG>
+ 	  echo "DOMNAME: "$DOMNAME >>$LOGFILE 2>>$LOGFILE
+   #</DEBUG>
     
     return $ret
 } #NetworkParams
@@ -840,15 +842,42 @@ writeClauers () {
 
 
 
-
-
+#Prompt user to select a partition among those available
+#1 -> 'all' to list all available partitions
+#     'wfs' to show only those with a valid fs
+#2 -> Top message to be shown
+#Return: 0 if ok, 1 if cancelled
+#DRIVE: name of the selected partition
+hddPartitionSelector () {
+    
+    local partitions=$($PVOPS listHDDPartitions "$1" fsinfo)
+    local npartitions=$?
+    
+    #Error
+    if [ $npartitions -eq 255 ] ; then
+        $dlg --msgbox $"Error accessing drives. Please check." 0 0
+        return 1
+        #No partitions available
+    elif [ $npartitions -eq 0 ] ; then
+        $dlg --msgbox $"No drive partitions available. Please check." 0 0
+        return 1
+    fi
+    local drive=$($dlg --cancel-label $"Cancel"  \
+                       --menu "$2" 0 80 \
+                       $(($npartitions)) $partitions 2>&1 >&4)
+	   #If canceled, go back to the mode selector
+	   [ $? -ne 0 ]  && return 1;
+    
+    DRIVE="$drive"
+    return 0
+}
 
 
 
 #Select which method should be used to setup an encrypted drive
 #Will set the follwong global variables:
 
-selectCryptoDrivemode () {
+selectCryptoDriveMode () {
     
     local isLocal=on
     local isLoop=off
@@ -873,132 +902,155 @@ selectCryptoDrivemode () {
         [ "$choice" == "" ] && continue
         
         
-	       if [ "$choice" -eq 1 ] #Local partition
+        
+	       if [ "$choice" -eq 1 ] #### Local partition
         then
 	           DRIVEMODE="local"
             
-            #Prompt user to select a partition among those available
-	           local partitions=$($PVOPS listHDDPartitions all) # SEGUIR
-            local npartitions=$?
+            #Choose partition
+            hddPartitionSelector all $"Choose a partition (WARNING: ALL INFORMATION ON THE SELECTED PARTITION WILL BE LOST)."
+            [ $? -ne 0 ] && continue
             
-            #No partitions available
-            if [ $npartitions -eq 0 ] ; then
-                $dlg --msgbox $"No drive partitions available. Please check." 0 0
-                continue
-            fi
-            local drive=$($dlg --cancel-label $"Cancel"  \
-                               --menu $"Choose a partition (WARNING: ALL INFORMATION ON THE SELECTED PARTITION WILL BE LOST)." 0 80 \
-                               $(($npartitions)) $partitions 2>&1 >&4)
-	           #If canceled, go back to the mode selector
-	           [ $? -ne 0 ]  && continue;
-
             #Set the selected partition
-	           DRIVELOCALPATH=$drive
+	           DRIVELOCALPATH=$DRIVE
 	           
-        else #Loopback filesystem
+        else #### Loopback filesystem
+	          	DRIVEMODE="file"
 	           
-              #Mostrar el form específico para partición en un fs dentro de un fichero (loop)
-	      DRIVEMODE="file" #Config de acceso a la part privada. 'local','iscsi','nfs','samba','file'
-	      
-	      
-              $dlg --yes-label $"Cancelar" --no-label $"Continuar"  --yesno $"A continuación se le instará a seleccionar una partición local.\nEn su raíz se escribirá un fichero con los datos cifrados.\nEsta partición debe contener un sistema de ficheros válido." 0 0
-	      
+            #Choose partition
+            hddPartitionSelector wfs $"Choose a partition. Loop filesystem will be written on a file in its root directory."
+            [ $? -ne 0 ] && continue
+            
+            #Set the selected partition
+            FILEPATH=$DRIVE
 
-	      #Cancelado
-	      [ "$?" -eq 0 ] && choice='' && continue;
-	      
+            #Ask additional parameters to create the loopback filesystem
+	           while true
+		          do
+                local fsize=$($dlg --cancel-label $"Back"  --inputbox  \
+		                                 $"Loopback filesystem file size (in MB):" 0 0 "$FILEFILESIZE"  2>&1 >&4)
 
-	      listPartitions "wfs"
-	      if [ "$NPARTS" -gt 0 ]
-		  then
-		  drive=$($dlg --cancel-label $"Cancelar"  --menu $"Seleccione una partición." 0 80 $(($NPARTS)) $PARTS 2>&1 >&4)
-		  
-		  [ $? -ne 0 ]  && choice='' && continue;
-	      
-	      else
-		  $dlg --msgbox $"No existen particiones válidas. Elija otro modo." 0 0
-		  choice=''
-		  continue
-	      fi
-	      
-	      FILEPATH=$drive
-	      
-
-              formlen=2
-	      choice=""
-	      while [ "$choice" == "" ]
-		do
-		choice=$($dlg  --cancel-label $"Atrás"  --mixedform  $"Parámetros de acceso a la partición cifrada" 0 0 13  \
-		    $"Campo"                    1  1 $"Valor"               1  30  17  15     2  \
-		    $"Tamaño del fichero (MB)" 3  1 "${fileconfArr[1]}"    3  30  20  100    0  \
-		    2>&1 >&4 )
-		
-		c=0
-		for i in $choice
-		  do
-		  fileconfArr["$c"]="$i"
-		  c=$(($c +1))
-		done
-		
-                #Validar la entrada
-		
-		#Back
-		[ "$choice" == "" ] && choice='' && break;
-	  
-	
-		parseInput int "${fileconfArr[1]}"
-		ret=$?
-		[ "${fileconfArr[1]}" -eq 0 ] && ret=1
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. Debe introducir un tamaño de fichero entero positivo" 0 0
-		    choice=''
-		    continue;
-		fi
-	
-		len=0
-		for i in $choice
-		  do
-		  len=$(($len +1))
-		done
-		
-		if [ "$len" -lt "$formlen" ]
-		    then
-		    $dlg --msgbox $"Error. Faltan campos por rellenar" 0 0
-		    choice=""
-		    continue; 	      
-		fi
-		
-		FILEFILESIZE="${fileconfArr[1]}"
-	      done
-              ;;
-	      
-	  esac
+                #If back, go to the mode selector
+                [ "$?" -ne 0 ] && continue 2
+                
+	               parseInput int "$fsize"
+                if [ $? -ne 0 ] ; then
+                    $dlg --msgbox $"Value not valid. Must be a positive integer." 0 0
+		                  continue
+	               fi
+                
+                FILEFILESIZE="$fsize"
+                break
+	           done
+            
+            #Generate a unique name for the loopback file
+	           CRYPTFILENAME="$CRYPTFILENAMEBASE"$(date +%s) # TODO Do not use as global in functions. make sure it is written in config before gbiulding the ciph part. -Also, try to move this to the privileged part (as they are written there, if I remember well)
+        fi
+        break
+	   done
+    #<DEBUG>
+    echo "Crypto drive mode: $DRIVEMODE"  >>$LOGFILE 2>>$LOGFILE
+    echo "Local path:        $DRIVELOCALPATH"  >>$LOGFILE 2>>$LOGFILE
+	   echo "Local file:        $FILEPATH" >>$LOGFILE 2>>$LOGFILE
+	   echo "File system size:  $FILEFILESIZE" >>$LOGFILE 2>>$LOGFILE
+		  echo "Filename:          $CRYPTFILENAME" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+    
+    return 0
+} #selectCryptoDriveMode
 
 
 
-	#Permite elegir si se va a usar backup por SSH (Sólo lo pregunta si el modo es local)
-	    
-	    $dlg  --yes-label $"Sí" --no-label $"No" --yesno $"Como el modo de almacenamiento elegido se ubica dentro de esta misma máquina, se recomienda proporcionar algún mecanismo de copia de seguridad externo para evitar una pérdida irreparable de los datos. Esta copia se realizará sobre un servidor SSH a su elección, y los datos se almacenarán cifrados.\n\n¿Desea emplear un servidor SSH para la copia de seguridad?" 0 0
-	    answer=$?
 
-	    #Si no desea usar backup ssh 
-	    [ "$answer" -ne 0 ] && useBak=0
-	    
-	
-	#Params de backup, si es un modo local
-	if [ "$useBak" -eq "1" ] ; then
-	    
-	    while true; do
-		selectDataBackupParams 
-		if [ "$?" -ne 0 ] 
-		    then
-		    $dlg --msgbox $"Debe introducir los parámetros de copia de seguridad." 0 0
-		    continue
-		fi
 
-		$dlg --infobox $"Verificando acceso al servidor de copia de seguridad..." 0 0
 
+
+sshBackupParameters () {
+    
+    #Defaults
+    [ "$SSHBAKPORT" == "" ] && SSHBAKPORT=$DEFSSHPORT
+    
+    local choice=""
+    exec 4>&1
+    local BAKIFS=$IFS
+    IFS=$(echo -en "\n\b")
+    while true
+    do
+		      local formlen=4
+	       choice=$($dlg  --cancel-label $"Back" --mixedform  $"SSH backup parameters" 0 0 12  \
+		                     $"Field"              1  1 $"Value"                1  30  17 15   2  \
+		                     $"SSH server (IP/DN)" 3  1 "$SSHBAKSERVER" 3  30  30 2048 0  \
+		                     $"Port"               5  1 "$SSHBAKPORT"   5  30  20  6   0  \
+		                     $"Username"           7  1 "$SSHBAKUSER"   7  30  20 256  0  \
+		                     $"Password"           9  1 "$SSHBAKPASSWD"   9  30  20 256  1  \
+		                     2>&1 >&4 )        
+        
+	       #If cancelled, exit
+        [ $? -ne 0 ] && return 2
+        
+        #All mandatory, ask again if any empty
+        local clist=($choice)
+        if [ ${#clist[@]} -le "$formlen" ] ; then
+            $dlg --msgbox $"All fields are mandatory" 0 0
+	           continue 
+	       fi
+        
+	       #Parse each entry before setting it
+     	  local i=0
+	       local loopAgain=0
+        local errors=""
+	       for item in $choice
+	       do
+            IFS=$BAKIFS #Restore temporarily
+            
+	           case "$i" in
+				            "1" ) #IP or DN of the SSH server
+		                  parseInput ipdn "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"SSH server address IP or domain not valid"
+  		                else SSHBAKSERVER="$item" ; fi
+		                  ;;
+		              
+				            "2" ) #SSH server port
+		                  parseInput port "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Server port number not valid"
+  		                else SSHBAKPORT="$item" ; fi
+		                  ;;
+
+                "3" ) #Remote username
+		                  parseInput user "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Username not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else SSHBAKUSER="$item" ; fi
+		                  ;;
+
+                "4" ) #Remote password
+		                  parseInput pwd "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Password not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else SSHBAKPASSWD="$item" ; fi
+		                  ;;
+            esac
+
+            BAKIFS=$IFS
+            IFS=$(echo -en "\n\b")
+
+            i=$((i+1))
+		      done
+
+        IFS=$BAKIFS
+        
+        #Show errors in the form, then loop
+	       if [ "$loopAgain" -eq 1 ] ; then
+            $dlg --msgbox "$errors" 0 0
+            continue
+	       fi
+        break
+    done
+}
+
+#SEGUIR: definit esta fuinc y llamarla desde arriba o desde la entrada en el bucle principal. 
+checkSSHconnectivity () {
+        
+		      $dlg --infobox $"Verificando acceso al servidor de copia de seguridad..." 0 0
+        
 		#Añadimos las llaves del servidor SSH al known_hosts		 
 		local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER")
 		if [ "$ret" -ne 0 ]  #//// PRobar!!
@@ -1029,171 +1081,25 @@ selectCryptoDrivemode () {
 		
 		break
 	    done
-	fi
 	
-	
-# part cifrada: localización( disco_local/nfs/samba/iscsi/loop_fichero)?                                    
-#  local: --> ruta de la partición (sel.)
-#    nfs: --> ip/dn  ruta tamaño   # ip:ruta
-#  samba: --> ip/dn ruta , user, pwd, tamaño
-#  iscsi: --> ip/dn del target, nombre_target
-#fichero: --> ruta de la partición en que se almacenará al fichero, tamaño
-
-
+ 
 	done
 
-	#Generamos los parámetros no interactivos.
-       
-        #Establecemos el nombre del fichero de loopback (necesariamente único), siempre en la raiz
-	CRYPTFILENAME="$CRYPTFILENAMEBASE"$(date +%s) # TODO Do not use as global in functions. make sure it is written in config before gbiulding the ciph part. -Also, try to move this to the privileged part (as they are written there, if I remember well)
-
-
-	#echo "Crypto drive mode: $DRIVEMODE"  >>$LOGFILE 2>>$LOGFILE
-	
-	#echo "Local path:        $DRIVELOCALPATH"  >>$LOGFILE 2>>$LOGFILE
-	
-	#echo "NFS server:        $NFSSERVER" >>$LOGFILE 2>>$LOGFILE
-	#echo "NFS port:          $NFSPORT" >>$LOGFILE 2>>$LOGFILE
-	#echo "NFS path:          $NFSPATH" >>$LOGFILE 2>>$LOGFILE
-	#echo "NFS file size:     $NFSFILESIZE" >>$LOGFILE 2>>$LOGFILE
-	
-	#echo "Samba server:      $SMBSERVER" >>$LOGFILE 2>>$LOGFILE
-	#echo "Samba port:        $SMBPORT" >>$LOGFILE 2>>$LOGFILE
-	#echo "Samba path:        $SMBPATH" >>$LOGFILE 2>>$LOGFILE
-	#echo "Samba user:        $SMBUSER" >>$LOGFILE 2>>$LOGFILE
-	#echo "Samba pwd:         $SMBPWD" >>$LOGFILE 2>>$LOGFILE
-	#echo "Samba file size:   $SMBFILESIZE" >>$LOGFILE 2>>$LOGFILE
-	
-	#echo "iSCSI server:      $ISCSISERVER" >>$LOGFILE 2>>$LOGFILE
-	#echo "iSCSI port:        $ISCSIPORT" >>$LOGFILE 2>>$LOGFILE
-	#echo "iSCSI target:      $ISCSITARGET" >>$LOGFILE 2>>$LOGFILE
-	
-	#echo "Local file:        $FILEPATH" >>$LOGFILE 2>>$LOGFILE
-	#echo "File system size:  $FILEFILESIZE" >>$LOGFILE 2>>$LOGFILE
-	
+    
 	#echo "SSH Server:        $SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
 	#echo "SSH port:          $SSHBAKPORT" >>$LOGFILE 2>>$LOGFILE
 	#echo "SSH User:          $SSHBAKUSER" >>$LOGFILE 2>>$LOGFILE
 	#echo "SSH pwd:           $SSHBAKPASSWD" >>$LOGFILE 2>>$LOGFILE
 
 	
-	#echo "Filename:          $CRYPTFILENAME" >>$LOGFILE 2>>$LOGFILE
 	
 
-} #Selectcryptodrivemode
-    
-
-#////En principio, cada ciclo del menú de mant será un proceso distino (el anterior morirá), por lo que las variables deberían quedar liberadas.
-
-
-
-
-
-selectDataBackupParams () {
-
-	formlen=5
-	choice=""
-	backupconfArr[2]=$DEFSSHPORT
-	while [ "$choice" == "" ]
-	  do
-	  choice=$($dlg  --no-cancel  --mixedform  $"Parámetros para realización de copias de seguridad sobre un servidor SSH." 0 0 13  \
-		    $"Campo"                     1  1 $"Valor"                1  30  17 15   2  \
-		    $"Servidor SSH (IP/DN)"      3  1 "${backupconfArr[1]}"   3  30  30 2048 0  \
-		    $"Puerto"                    5  1 "${backupconfArr[2]}"   5  30  20  6   0  \
-		    $"Usuario"                   7  1 "${backupconfArr[3]}"   7  30  20 256  0  \
-		    $"Contraseña"                9  1 "${backupconfArr[4]}"   9  30  20 256  1  \
-		    2>&1 >&4 )
-		
-		c=0
-		for i in $choice
-		  do
-		  backupconfArr["$c"]="$i"
-		  c=$(($c +1))
-		done
-		
-		#Validar la entrada
-		
-		#Back
-		[ "$choice" == "" ] && return 1;
-	  
-		len=0
-		again=0
-		for i in $choice
-		  do
-		  case "$len" in 
-		      "1" )
-		      parseInput ipdn "${backupconfArr[1]}"
-		      ret=$?
-		      if [ $ret -ne 0 ]
-			  then
-			  $dlg --msgbox $"Error. Debe introducir una IP o nombre válido" 0 0
-			  again=$(($again | 1)); 
-		      fi
-		      ;;
-		      
-		      "2" )
-		      parseInput port "${backupconfArr[2]}"
-		      ret=$?
-		      if [ $ret -ne 0 ]
-			  then
-			  $dlg --msgbox $"Error. Debe introducir un número de puerto válido" 0 0
-			  again=$(($again | 1));
-		      fi
-		      ;;		      
-		      
-		      "3" )
-		      parseInput user "${backupconfArr[3]}"
-		      ret=$?
-		      if [ $ret -ne 0 ]
-			  then
-			  $dlg --msgbox $"Error. El nombre de usuario no es válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
-			  again=$(($again | 1)); 
-		      fi
-		      ;;
-		      
-		      "4" )
-		      parseInput pwd "${backupconfArr[4]}"
-		      ret=$?
-		      if [ $ret -ne 0 ]
-			  then
-			  $dlg --msgbox $"Error. La contraseña no es válida. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
-			  again=$(($again | 1)); 
-		      fi
-		      ;;
-		  esac
-		  
-		  len=$(($len +1))    
-		  
-		  [ "$len" -ge "$formlen" ] && break
-		  
-		done
-		
-		
-		[ "$again" -eq 1 ]&& choice="" && continue
-		
-		
-		len=0
-		for i in $choice
-		  do
-		  len=$(($len +1))
-		done
-		
-		if [ "$len" -lt "$formlen" ]
-		    then
-		    $dlg --msgbox $"Error. Faltan campos por rellenar" 0 0
-		    choice=""
-		    continue; 	
-		fi
-
-
-	      done
-	      SSHBAKSERVER="${backupconfArr[1]}"
-	      SSHBAKPORT="${backupconfArr[2]}"
-	      SSHBAKUSER="${backupconfArr[3]}"
-	      SSHBAKPASSWD="${backupconfArr[4]}"
-	      
-	      return 0	
 }
+
+
+
+
+
 
 
 
@@ -1602,23 +1508,7 @@ rebuildKey
 
 
 
-humanReadable () {
-    
-    python -c "
-num=$1
-units=['B','KB','MB','GB','TB']
-multiplier=0
-while num >= 1024 and multiplier<len(units):
-  #print 'Num ',num
-  #print 'Mul ',multiplier
-  num/=1024.0
-  multiplier+=1
-#print 'Num ',round(num,1)
-#print 'Mul ',multiplier
 
-print str(round(num,2))+units[multiplier]
-" 
-}
 
 
 
