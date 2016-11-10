@@ -354,7 +354,7 @@ do
         fi
         
         
-        # Get all configuration parameters # TODO (move here all user input and make sure to update the menu)
+        # Get all configuration parameters # TODO (move here all user input and make sure to update the menu) # TODO 2 , maybe all of this can be put into a function for clarity
         nextSection=1
         while true
         do
@@ -399,8 +399,26 @@ do
 	                   if [ "$answer" -ne 0 ] ; then #No
                         action=0 #Go on
                     else
-                        sshBackupParameters
-                        action=$?
+                        while true; do
+                            #Get backup parameters
+                            sshBackupParameters
+                            action=$?
+                            #If go to menu pressed
+                            [ $action -ne 0 ] && break
+
+                            #Check link with ssh server
+                            $dlg --infobox $"Checking connectivity with SSH server:"" $SSHBAKSERVER" 0 0
+                            checkSSHconnectivity
+                            #No link
+                            if [ $? -ne 0 ] ; then
+                                #Ask to continue or go back
+                                $dlg --no-label $"Continue"  --yes-label $"Review parameters" \
+                                     --yesno  $"SSH server connectivity error. Continue or review parameters?" 0 0
+                                #Selected back"
+                                [ $? -eq 0 ] && continue
+                            fi
+                            break
+                        done
                     fi
                     ;;
                 

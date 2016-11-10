@@ -1044,19 +1044,30 @@ sshBackupParameters () {
 	       fi
         break
     done
+    #</DEBUG>
+    echo "SSH Server:        $SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
+	   echo "SSH port:          $SSHBAKPORT" >>$LOGFILE 2>>$LOGFILE
+	   echo "SSH User:          $SSHBAKUSER" >>$LOGFILE 2>>$LOGFILE
+	   echo "SSH pwd:           $SSHBAKPASSWD" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+    
+    return 0
 }
 
-#SEGUIR: definit esta fuinc y llamarla desde arriba o desde la entrada en el bucle principal. 
+
+
+
+
+#Does a test 
+
 checkSSHconnectivity () {
-        
-		      $dlg --infobox $"Verificando acceso al servidor de copia de seguridad..." 0 0
-        
-		#Añadimos las llaves del servidor SSH al known_hosts		 
-		local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER")
+    
+		  #Add keys of the ssh server to the known_hosts		 
+		  local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER") #SEGUIR
+    
 		if [ "$ret" -ne 0 ]  #//// PRobar!!
-		    then
-		    $dlg --msgbox $"Error conectando con el servidor de copia de seguridad. Revise los datos." 0 0
-		    continue
+     echo "Keyscan error" >>$LOGFILE 2>>$LOGFILE
+     return 1
 		fi
     echo "pasa el keyscan correctamente" >>$LOGFILE 2>>$LOGFILE
 		#Verificar acceso al servidor
@@ -1068,32 +1079,17 @@ checkSSHconnectivity () {
 		echo "ssh -n  -p '$SSHBAKPORT'  '$SSHBAKUSER'@'$SSHBAKSERVER'" >>$LOGFILE 2>>$LOGFILE
 		ssh -n  -p "$SSHBAKPORT"  "$SSHBAKUSER"@"$SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
 		ret="$?"
-		echo "ret? $ret">>$LOGFILE 2>>$LOGFILE
 		if [ "$ret"  -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error accediendo al servidor de copia de seguridad. Revise los datos." 0 0
-		    continue
+		then
+      echo "Connection error: $ret" >>$LOGFILE 2>>$LOGFILE
+      return 1
 		fi
 
 		echo "pasa. la compr. de ssh" >>$LOGFILE 2>>$LOGFILE
-
+  
 		rm /tmp/askPass.sh >>$LOGFILE 2>>$LOGFILE
-		
-		break
-	    done
-	
- 
-	done
-
-    
-	#echo "SSH Server:        $SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
-	#echo "SSH port:          $SSHBAKPORT" >>$LOGFILE 2>>$LOGFILE
-	#echo "SSH User:          $SSHBAKUSER" >>$LOGFILE 2>>$LOGFILE
-	#echo "SSH pwd:           $SSHBAKPASSWD" >>$LOGFILE 2>>$LOGFILE
-
-	
-	
-
+  
+  return 0
 }
 
 
