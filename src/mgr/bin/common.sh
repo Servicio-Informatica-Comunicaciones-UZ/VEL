@@ -612,7 +612,7 @@ insertUSB () {  # TODO extinguish usage of $DEV and $ISCLAUER
 
 
 
-#Convert a hexadecimal string (dfrom stdin) into base64 (to stdout)
+#Convert a hexadecimal string (from stdin) into base64 (to stdout)
 hex2b64 () {  
     python -c "
 import sys
@@ -631,4 +631,64 @@ hex_string = p.sub('', hex_string)
 
 sys.stdout.write(base64.b64encode(binascii.unhexlify(hex_string)))    
 "
+}
+
+
+#Trust a ssh server key
+#1 -> SSH server address
+#2 -> SSH server port
+#Depends on the $HOME variable
+sshScanAndTrust () {
+    
+    if [ ! -e $HOME/.ssh/ ] ; then
+        mkdir $HOME/.ssh/      >>$LOGFILE 2>>$LOGFILE
+        chmod 755 $HOME/.ssh/  >>$LOGFILE 2>>$LOGFILE
+    fi
+    if [ ! -e $HOME/.ssh/known_hosts ] ; then
+        touch $HOME/.ssh/known_hosts      >>$LOGFILE 2>>$LOGFILE
+        chmod 644 $HOME/.ssh/known_hosts  >>$LOGFILE 2>>$LOGFILE
+    fi
+    
+    #Scan for the server's keys and append them to the user's know hosts file
+    #rsa1 disabled for security reasons
+    ssh-keyscan -p "$2" -t rsa,ecdsa,ed25519,dsa "$1" >> $HOME/.ssh/known_hosts  2>>$LOGFILE
+    local ret="$?"
+    
+    return $ret
+}
+
+#Does a test connection on a given SSH server and user
+#1 -> SSH server address
+#2 -> SSH server port
+#3 -> Username
+#4 -> Remote user password
+#Depends on the $HOME variable
+sshTestConnect () {
+
+    local dispbak=$DISPLAY
+    local sshapbak=$SSH_ASKPASS
+		  export DISPLAY=none:0.0
+		  export SSH_ASKPASS=$HOME/askPass.sh
+    
+    #Set password provision script
+		  echo "echo '$4'" > $HOME/askPass.sh
+		  chmod u+x  $HOME/askPass.sh >>$LOGFILE 2>>$LOGFILE
+
+    #Do a SSH connection
+		  echo "ssh -n  -p '$2'  '$3'@'$1'" >>$LOGFILE 2>>$LOGFILE
+		  ssh -n  -p "$2"  "$3"@"$1" >>$LOGFILE 2>>$LOGFILE
+		  ret="$?"
+		  if [ "$ret"  -ne 0 ] ; then
+        echo "SSH Connection error: $ret" >>$LOGFILE 2>>$LOGFILE
+        return 1
+		  fi
+    
+    #Erase password provision script
+		  rm $HOME/askPass.sh >>$LOGFILE 2>>$LOGFILE
+    
+    #Restore environment
+    export DISPLAY=$dispbak
+    export SSH_ASKPASS=$sshapbak
+    
+    return 0
 }

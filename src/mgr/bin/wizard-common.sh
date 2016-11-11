@@ -876,7 +876,11 @@ hddPartitionSelector () {
 
 #Select which method should be used to setup an encrypted drive
 #Will set the follwong global variables:
-
+#DRIVEMODE
+#DRIVELOCALPATH
+#FILEPATH
+#FILEFILESIZE
+#CRYPTFILENAME
 selectCryptoDriveMode () {
     
     local isLocal=on
@@ -963,8 +967,13 @@ selectCryptoDriveMode () {
 
 
 
-
-
+#Will prompt the user to select the ssh backup server connection
+#parameters
+#Will set the following globals:
+#SSHBAKSERVER
+#SSHBAKPORT
+#SSHBAKUSER
+#SSHBAKPASSWD
 sshBackupParameters () {
     
     #Defaults
@@ -1058,38 +1067,19 @@ sshBackupParameters () {
 
 
 
-#Does a test 
-
+#Does a test connection to the set SSH backup server
+#Return: 0 if OK, non-zero if any problem happened
 checkSSHconnectivity () {
     
-		  #Add keys of the ssh server to the known_hosts		 
-		  local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER") #SEGUIR
+		  #Set trust on the server
+    sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
+    if [ $? -ne 0 ] ; then
+        echo "SSH Keyscan error." >>$LOGFILE 2>>$LOGFILE
+        return 1
+		  fi
     
-		if [ "$ret" -ne 0 ]  #//// PRobar!!
-     echo "Keyscan error" >>$LOGFILE 2>>$LOGFILE
-     return 1
-		fi
-    echo "pasa el keyscan correctamente" >>$LOGFILE 2>>$LOGFILE
-		#Verificar acceso al servidor
-		export DISPLAY=none:0.0
-		export SSH_ASKPASS=/tmp/askPass.sh
-		echo "echo '$SSHBAKPASSWD'" > /tmp/askPass.sh
-		chmod u+x  /tmp/askPass.sh >>$LOGFILE 2>>$LOGFILE
-
-		echo "ssh -n  -p '$SSHBAKPORT'  '$SSHBAKUSER'@'$SSHBAKSERVER'" >>$LOGFILE 2>>$LOGFILE
-		ssh -n  -p "$SSHBAKPORT"  "$SSHBAKUSER"@"$SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
-		ret="$?"
-		if [ "$ret"  -ne 0 ]
-		then
-      echo "Connection error: $ret" >>$LOGFILE 2>>$LOGFILE
-      return 1
-		fi
-
-		echo "pasa. la compr. de ssh" >>$LOGFILE 2>>$LOGFILE
-  
-		rm /tmp/askPass.sh >>$LOGFILE 2>>$LOGFILE
-  
-  return 0
+    #Perform test connection
+    return sshTestConnect "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"
 }
 
 

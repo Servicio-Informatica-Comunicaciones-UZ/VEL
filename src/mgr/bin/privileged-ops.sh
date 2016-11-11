@@ -633,36 +633,18 @@ fi
 
 
 
-#//// verif en mant: no
+# TODO  Hacer que los keyscan y el almacenamiento de claves sea op de root sin verif. asegurarme de que sólo es el root quien ejecuta los backups. --> PARA PODER ACEPTAR ESTO, NO DEBE RECIBIR PARAMS VARIABLES. HACER ESTA OP GENERALISTA CON VERIF Y HACER OTRA QUE ACCEDA A LOS VALORES DE SSHBAK A LAS VARIABLES. cambiar las invocaciones por las de la sin params (y si no, hacer esta sin params y basta. ver tb el fichero backup.sh ).
 
-
-# ////. Hacer que los keyscan y el almacenamiento de claves sea op de root sin verif. asegurarme de que sólo es el root quien ejecuta los backups. --> PARA PODER ACEPTAR ESTO, NO DEBE RECIBIR PARAMS VARIABLES. HACER ESTA OP GENERALISTA CON VERIF Y HACER OTRA QUE ACCEDA A LOS VALORES DE SSHBAK A LAS VARIABLES. cambiar las invocaciones por las de la sin params (y si no, hacer esta sin params y basta. ver tb el fichero backup.sh ).
-
-if [ "$1" == "sshKeyscan" ] 
-    then
-
-#-->2 SSHBAKPORT
-#-->3 SSHBAKSERVER
+#Scans a ssh server key and trusts it
+#2 -> SSH server address
+#3 -> SSH server port
+if [ "$1" == "trustSSHServer" ] 
+then
     
-    mkdir -p /root/.ssh/  >>$LOGFILE 2>>$LOGFILE
-    chmod 755 /root/.ssh/  >>$LOGFILE 2>>$LOGFILE
-    touch /root/.ssh/known_hosts  >>$LOGFILE 2>>$LOGFILE
-    chmod 644 /root/.ssh/known_hosts  >>$LOGFILE 2>>$LOGFILE
-
-    mkdir -p /home/vtuji/.ssh/  >>$LOGFILE 2>>$LOGFILE
-    chmod 755 /home/vtuji/.ssh/  >>$LOGFILE 2>>$LOGFILE
-    chown vtuji:vtuji /home/vtuji/.ssh/  >>$LOGFILE 2>>$LOGFILE
-
-
-    ssh-keyscan -p "$2" -t rsa1,rsa,dsa "$3" > /root/.ssh/known_hosts  2>>$LOGFILE
-    ret="$?"
+    sshScanAndTrust "$2" "$3"
+    ret=$?
     
-    cp /root/.ssh/known_hosts /home/vtuji/.ssh/known_hosts  >>$LOGFILE 2>>$LOGFILE
-    chmod 644 /home/vtuji/.ssh/known_hosts  >>$LOGFILE 2>>$LOGFILE
-    chown vtuji:vtuji /home/vtuji/.ssh/known_hosts  >>$LOGFILE 2>>$LOGFILE
-
-    echo $ret
-    echo "retorno de sshKeyscan: $ret" >>$LOGFILE 2>>$LOGFILE
+    echo "Keyscan returned: $ret" >>$LOGFILE 2>>$LOGFILE
     exit $ret
 fi
 

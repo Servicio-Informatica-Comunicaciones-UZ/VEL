@@ -523,10 +523,10 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
 
 	       if [ "$1" == 'reset' ] ; then
 	           
-	           #Añadimos las llaves del servidor SSH al known_hosts
-	           local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER")
-	           if [ "$ret" -ne 0 ]  #//// PRobar!!
-		          then
+	           #Añadimos las llaves del servidor SSH al known_hosts # TODO hace falta? al hacer el test en el config, se habrán añadido. O hacer dos ops separadas?
+	           $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"# TODO ESto no debería hacerse antes del restore, porque se necesita que se confíe en el servidor?? se hace con cada conexión del proceso de backup? verificar
+            ret=$?
+	           if [ "$ret" -ne 0 ] ; then
 		              systemPanic $"Error configurando el acceso al servidor de copia de seguridad."
 	           fi
 	       fi

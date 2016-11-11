@@ -1021,7 +1021,7 @@ executeSystemAction (){
       
       #Pedimos los nuevos parámetros
       while true; do
-	  selectDataBackupParams 
+	  selectDataBackupParams # TODO: now the function has changed. 
 	  if [ "$?" -ne 0 ] 
 	      then 
 	      $dlg --msgbox $"Debe introducir los parámetros de copia de seguridad." 0 0
@@ -1030,29 +1030,26 @@ executeSystemAction (){
 	  
 	  $dlg --infobox $"Verificando acceso al servidor de copia de seguridad..." 0 0
 
-	  #Añadimos las llaves del servidor SSH al known_hosts
-	  local ret=$($PVOPS sshKeyscan "$SSHBAKPORT" "$SSHBAKSERVER")
-	  if [ "$ret" -ne 0 ]
-	      then
-	      $dlg --msgbox $"Error configurando el acceso al servidor de copia de seguridad." 0 0
-	      continue
-	  fi
+# TODO revisar bien. que no se guarden los nuevos valores a menos que todo funcione bien, o decirles de repetir (ver la op en el setup). Para la prueba se guarda el trust en el unpriviñleged, pero hay que llamar a lña op priv para guardarla para cuando el root acceda (seguro? vewr el script de backup a ver si allí la añade siempre o espera que esté añadida. si es lo primero, borrar de aquí y de cualquier sitio donde se haga eso)
 
-	  #Verificar acceso al servidor
-	  export DISPLAY=none:0.0
-	  export SSH_ASKPASS=/tmp/askPass.sh
-	  echo "echo '$SSHBAKPASSWD'" > /tmp/askPass.sh
-	  chmod u+x  /tmp/askPass.sh >>$LOGFILE 2>>$LOGFILE
-	  
-	  ssh -n  -p "$SSHBAKPORT"  "$SSHBAKUSER"@"$SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
-	  if [ "$?" -ne 0 ] 
+   #Verificar acceso al servidor # Expects:  "$SSHBAKSERVER" "$SSHBAKPORT" "$SSHBAKUSER" "$SSHBAKPASSWD"
+	  checkSSHconnectivity
+   if [ "$?" -ne 0 ] 
 	      then 
 	      $dlg --msgbox $"Error accediendo al servidor de copia de seguridad. Revise los datos." 0 0 
 	      continue
 	  fi
-	  
-	  rm /tmp/askPass.sh >>$LOGFILE 2>>$LOGFILE
-	  
+
+   
+	  #Añadimos las llaves del servidor SSH al known_hosts del root
+	  $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"
+	  if [ $? -ne 0 ] ; then
+	      $dlg --msgbox $"Error configurando el acceso al servidor de copia de seguridad." 0 0
+	      continue
+	  fi
+
+
+	 	  
 	  break
 	  
       done
