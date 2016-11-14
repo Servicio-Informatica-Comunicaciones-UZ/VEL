@@ -362,6 +362,10 @@ configureHostDomain () {
     echo "ipadd:  $IPADDR" >>$LOGFILE 2>>$LOGFILE
     echo "host:   $HOSTNM" >>$LOGFILE 2>>$LOGFILE
     echo "domain: $DOMNAME" >>$LOGFILE 2>>$LOGFILE
+
+    # TODO: see this, see how to use it here and if something else needs to be done orr removed
+    #hostnamectl set-hostname $HOSTNM.$DOMNAME
+
     
     #Set hostname
     hostname "$HOSTNM"
