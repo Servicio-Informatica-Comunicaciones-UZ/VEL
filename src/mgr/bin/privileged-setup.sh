@@ -155,14 +155,6 @@ moveToRAM () {
 
 
 
-privilegedSetupPhase3 () {
-    
-    #Force time adjust, system and hardware clocks
-    /etc/init.d/openntpd stop  >>$LOGFILE 2>>$LOGFILE
-    /etc/init.d/openntpd start >>$LOGFILE 2>>$LOGFILE
-    ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
-    hwclock -w >>$LOGFILE 2>>$LOGFILE
-}
 
 
 
@@ -362,11 +354,11 @@ configureHostDomain () {
     echo "ipadd:  $IPADDR" >>$LOGFILE 2>>$LOGFILE
     echo "host:   $HOSTNM" >>$LOGFILE 2>>$LOGFILE
     echo "domain: $DOMNAME" >>$LOGFILE 2>>$LOGFILE
-
-    # TODO: see this, see how to use it here and if something else needs to be done orr removed
-    #hostnamectl set-hostname $HOSTNM.$DOMNAME
-
     
+    
+    #Set the static, transient and pretty hostname
+    hostnamectl set-hostname "$HOSTNM.$DOMNAME"
+
     #Set hostname
     hostname "$HOSTNM"
     echo "$HOSTNM" > /etc/hostname
@@ -515,9 +507,9 @@ elif [ "$1" == "moveToRAM" ]
 then
     moveToRAM
     
-elif [ "$1" == "init3" ]
+elif [ "$1" == "forceTimeAdjust" ]
 then
-    privilegedSetupPhase3
+    forceTimeAdjust
     
 elif [ "$1" == "init4" ]
 then

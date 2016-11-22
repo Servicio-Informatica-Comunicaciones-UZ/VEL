@@ -1,6 +1,6 @@
 
 
-sysadminParams () {
+sysadminParams () {  # TODO merge with setAdmin
 
 
     $dlg --msgbox $"Vamos a definir los datos de acceso como administrador al programa Web de gestión del sistema de voto. Deberá recordarlos para poder acceder en el futuro.\n\nRecuerde que el acceso a las funciones de administración privilegiadas sólo podrá llevarse a cabo previa autorización de la comisión de custodia por medio de esta aplicación." 0 0
@@ -107,7 +107,7 @@ sysadminParams () {
 
 
 
-	  #Selector de tamaño de llave
+	  #Selector de tamaño de llave  # TODO ver dónde se usa y sacar de aquí. también, aumentar los tamaños de clave, hablar con manolo.
       KEYSIZE=""
       exec 4>&1 
       KEYSIZE=$($dlg --no-cancel  --menu $"Seleccione un tamaño para las llaves del sistema\n(a mayor valor, más robustez, pero más coste computacional):" 0 80  5  \
@@ -766,7 +766,7 @@ configureServers () {
 	if [ "$1" == 'new' ]
 	    then :
 
-            #Selección de modo de operación: SSL o Plain
+            #Selección de modo de operación: SSL o Plain # TODO quitar esta mierda. desde ahora sólo SSL (self-signed provisionalmente), y si hace falta, para las pruebas, enviar el cert selfsigned por correo para que lo autorice en el cliente.
 	    while true;
 	      do
 	      exec 4>&1 
@@ -832,7 +832,7 @@ configureServers () {
 	if [ "$genCSR" -eq 1 ]
 	    then 
 	    
-	    generateCSR "new"
+	    generateCSR "new"  # TODO incluir tb la posibilidad de instalar una clave privada externa (por si acaso el porcedimiento de la org lo obliga), pero esta op debe ser con autorización de la comisión, pero esto sólo en el modo mant, no en la inst.
 	    ret=$?
 	    
 	    echo "Retorno de generateCSR: $ret"  >>$LOGFILE 2>>$LOGFILE
@@ -879,82 +879,6 @@ configureServers () {
 ##################
 #  Main Program  #
 ##################
-
-
-
-
-
-###### Sistema nuevo #####
-    
-#Se formatea el sistema 
-else 
-    #echo "Se formatea" 
-    
-    #Cuando el sistema se esté instalando, y hasta que se instale el cert SSL correcto, el admin tendrá privilegios
-    SETAPPADMINPRIVILEGES=1
-    
-    
-    #Pedimos que acepte la licencia
-    $dlg --extra-button --extra-label $"No acepto la licencia" --no-cancel --ok-label $"Acepto la licencia"  --textbox /usr/share/doc/License.$LANGUAGE 0 0
-    #No acepta la licencia (el extra-button retorna con cod. 3)
-    [ "$?" -eq 3 ] && $PSETUP halt;  #////probar
-
-
-
-    if [ "$DORESTORE" -eq 1 ] ; then
-	$dlg --msgbox $"Ha elegido restaurar una copia de seguridad del sistema. Primero se instalará un sistema totalmente limpio. Podrá alterar los parámetros básicos. Emplee un conjunto de Clauers NUEVOS. Al final se le solicitarán los clauers antiguos para proceder a restaurar los datos." 0 0
-    fi
-    
-    
-    #BUCLE PRINCIPAL
-
-    #Inicialización de los campos de los formularios.
-    ipmodeArr=(null on off)  
-    declare -a ipconfArr # es un array donde almacenaremos temporalmente el contenido del form de conf ip    
-
-    declare -a crydrivemodeArr
-    declare -a localcryconfArr
-    declare -a iscsiconfArr
-    declare -a sambaconfArr
-    declare -a nfsconfArr
-    declare -a fileconfArr
-    crydrivemodeArr=(null on off off off off)
-    
-    MAILRELAY=""
-    
-    declare -a secsharingPars	
-
-
-    proceed=0
-    while [ "$proceed" -eq 0 ]
-      do
-      
-
-      networkParams
-
-      #La guardamos tb ahora porque hace falta para esta fase 2
-      $PVOPS vars setVar c IPADDR "$IPADDR"
-
-      #Configuramos el acceso a internet 
-      configureNetwork 'noPanic'
-      ret=$?	
-      [ "$ret" -eq 1 ] && continue #Si no hay conectividad, vuelve a pedir los datos de config
-
-
-      selectCryptoDriveMode
-
-      
-      selectMailerParams
-
-
-      selectSharingParams
-      
-
-      $dlg --no-label $"Continuar"  --yes-label $"Modificar" --yesno  $"Ha acabado de definir los parámetros del servidor de voto. ¿Desea modificar los datos introducidos?" 0 0 
-      #No (1) desea alterar nada
-      [ "$?" -eq "1" ] && proceed=1
-      
-    done
 
 
     #Guardamos los params #////probar

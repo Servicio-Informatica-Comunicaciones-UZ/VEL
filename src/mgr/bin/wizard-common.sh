@@ -393,8 +393,7 @@ networkParams () {
         #none will be update (due to dialog limitations)
         local choice=""
         exec 4>&1
-        local BAKIFS=$IFS
-        IFS=$(echo -en "\n\b") #We need this to avoid interpreting a space as an entry 
+
 	       while true
 	       do
 	           local formlen=7
@@ -414,7 +413,10 @@ networkParams () {
 
             #Check that all fields have been filled in (choice must
             #have the expected number of items), otherwise, loop
+            local BAKIFS=$IFS
+            IFS=$(echo -en "\n\b") #We need this to avoid interpreting a space as an entry 
             local clist=($choice)
+            IFS=$BAKIFS
             if [ ${#clist[@]} -le "$formlen" ] ; then
             	   $dlg --msgbox $"All fields are mandatory" 0 0
 	               continue 
@@ -426,8 +428,6 @@ networkParams () {
             local errors=""
 	           for item in $choice
 	           do
-                IFS=$BAKIFS #Restore temporarily
-                
 	               case "$i" in
 				                "1" ) #IP
 		                      parseInput ipaddr "$item"
@@ -471,14 +471,9 @@ networkParams () {
 		                      ;;
 	               esac
                 
-                BAKIFS=$IFS
-                IFS=$(echo -en "\n\b")
-                
                 #Next item, until the number of expected items
 	               i=$((i+1))
 	           done
-            
-            IFS=$BAKIFS
             
             #Show errors in the form, then loop
 	           if [ "$loopAgain" -eq 1 ] ; then
@@ -981,24 +976,25 @@ sshBackupParameters () {
     
     local choice=""
     exec 4>&1
-    local BAKIFS=$IFS
-    IFS=$(echo -en "\n\b")
     while true
     do
 		      local formlen=4
 	       choice=$($dlg  --cancel-label $"Back" --mixedform  $"SSH backup parameters" 0 0 12  \
-		                     $"Field"              1  1 $"Value"                1  30  17 15   2  \
+		                     $"Field"              1  1 $"Value"        1  30  17 15   2  \
 		                     $"SSH server (IP/DN)" 3  1 "$SSHBAKSERVER" 3  30  30 2048 0  \
 		                     $"Port"               5  1 "$SSHBAKPORT"   5  30  20  6   0  \
 		                     $"Username"           7  1 "$SSHBAKUSER"   7  30  20 256  0  \
-		                     $"Password"           9  1 "$SSHBAKPASSWD"   9  30  20 256  1  \
+		                     $"Password"           9  1 "$SSHBAKPASSWD" 9  30  20 256  1  \
 		                     2>&1 >&4 )        
         
 	       #If cancelled, exit
         [ $? -ne 0 ] && return 2
         
         #All mandatory, ask again if any empty
+        local BAKIFS=$IFS
+        IFS=$(echo -en "\n\b")
         local clist=($choice)
+        IFS=$BAKIFS
         if [ ${#clist[@]} -le "$formlen" ] ; then
             $dlg --msgbox $"All fields are mandatory" 0 0
 	           continue 
@@ -1010,9 +1006,7 @@ sshBackupParameters () {
         local errors=""
 	       for item in $choice
 	       do
-            IFS=$BAKIFS #Restore temporarily
-            
-	           case "$i" in
+        	   case "$i" in
 				            "1" ) #IP or DN of the SSH server
 		                  parseInput ipdn "$item"
 		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"SSH server address IP or domain not valid"
@@ -1037,14 +1031,8 @@ sshBackupParameters () {
   		                else SSHBAKPASSWD="$item" ; fi
 		                  ;;
             esac
-
-            BAKIFS=$IFS
-            IFS=$(echo -en "\n\b")
-
             i=$((i+1))
 		      done
-
-        IFS=$BAKIFS
         
         #Show errors in the form, then loop
 	       if [ "$loopAgain" -eq 1 ] ; then
@@ -1086,162 +1074,148 @@ checkSSHconnectivity () {
 
 
 
-
-
-
-                # TODO  con HOSTNM Y DOMNAME los dos construir el fqdn y usarlo en el mailer, en el hosts y donde haga falta
-
-# $1 -> reset params (0) or keep previous values (1)
-selectMailerParams () {
-	
-	#Solicitar datos del administrador del sistema
-	verified=0
-	while [ "$verified" -eq 0 ]
-	  do
-	  
-	  verified=1
-	  
-	  
-	  $dlg  --yes-label $"Sí" --no-label $"No" --yesno $"El sistema incluye un servidor de correo para enviar las actas. ¿Necesita su red que este se redirija a un servidor intermedio (relay host)?" 0 0 
-	  
-	  #No necesita relay
-	  [ $? -ne 0 ] && MAILRELAY=""  && return 0
-	  
-	  MAILRELAY=$($dlg  --inputbox  \
-	      $"Nombre de dominio del servidor de correo intermedio." 0 0 "$MAILRELAY"  2>&1 >&4)
-	  
-	  #Cancelado
-	  [ $? -ne 0 ] &&  verified=0 && continue
-
-	  if [ "$MAILRELAY" == "" ]
-	      then
-	      verified=0
-	      $dlg --msgbox $"Debe proporcionar un nombre de dominio o una IP." 0 0
-	      continue
-	  fi
-	  
-	  parseInput ipdn "$MAILRELAY"
-	  if [ $? -ne 0 ] 
-	      then
-	      verified=0  
-	      $dlg --msgbox $"Debe proporcionar un nombre de dominio o una IP válida." 0 0
-	      continue
-	  fi
-	  	  
-	done
-	
+#Will prompt the user to select needed
+#mail server configuration parameters
+#Will set the following global variables:
+# MAILRELAY
+mailerParams () {
+	   
+	   while true
+    do
+        MAILRELAY=$($dlg --cancel-label $"Menu" --inputbox \
+	                        $"Name of the mail relay server (leave it empty if no relay is needed)." 0 50 "$MAILRELAY"  2>&1 >&4)
+        #Go to menu
+	       [ $? -ne 0 ] &&  return 1
+        
+	       #No relay needed, go on
+	       [ "$MAILRELAY" -ne 0== "" ] && return 0
+        
+        #Check input value
+	       parseInput ipdn "$MAILRELAY"
+	       if [ $? -ne 0 ] ; then
+	           $dlg --msgbox $"Mail relay must be a valid domain name or IP address." 0 0
+	           continue
+	       fi
+	  	    break
+	   done	
 }
-    
 
 
-#PARÁMETROS DE COMPARTICIÓN DE LA CLAVE
-    
 
-# $1 -> reset params (0) or keep previous values (1)    
+
+
+
+
+#Will prompt the user to select how many people will form the key
+#holding comission (and the minimum quorum to rebuild it)
+#Will set the following global variables:
+# SHARES
+# THRESHOLD
 selectSharingParams () {
-	
-	#$dlg --msgbox $"Ahora se le solicitaran los parámetros de compartición de la llave de cifrado del sistema. Notese que se requiere un minimo de dos personas compartiendo la llave y que debe ser necesarias dos o mas para reconstruirla. \nNo se recomienda que el minimo de personas para reconstruirla coincida con el número de miembros, para evitar una perdida de datos por la corrupcion accidental de piezas." 0 0
-	formlen=3
-	choice=""
-	while [ "$choice" == "" ]
-	  do
-	  choice=$($dlg  --no-cancel  --mixedform  $"Parámetros de compartición de la clave" 0 0 13  \
-	      $"Campo"                                                 1  1 $"Valor"                  1  50  17 15   2  \
-	      $"Miembros de la comisión de custodia de la clave"       3  1 "${secsharingPars[1]}"    3  50  5 3 0  \
-	      $"de los cuales podrán reconstruirla un mínimo de"       5  1 "${secsharingPars[2]}"    5  50  5 3 0  \
-	      2>&1 >&4 )
-      
-	  c=0
-	  for i in $choice
-	    do
-	    secsharingPars["$c"]="$i"
-	    c=$(($c +1))
-	  done
-	  
-	  
-          #Validar la entrada
-	  
-          #Back
-	  [ "$choice" == "" ] && choice='' && break;
-      
-	  len=0
-	  again=0
-	  for i in $choice
-	    do
-	    case "$len" in 
-		"1" )
-                parseInput int "${secsharingPars[1]}"
-		ret=$?
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. Debe introducir un valor entero" 0 0
-		    again=$(($again | 1)); 
-		fi
-		;;
-		
-		"2" )
-		parseInput int "${secsharingPars[2]}"
-		ret=$?
-		if [ $ret -ne 0 ]
-		    then
-		    $dlg --msgbox $"Error. Debe introducir un valor entero" 0 0
-		    again=$(($again | 1)); 
-		fi
-		;;
-		
-		esac
-		
-		len=$(($len +1))    
-		  
-		[ "$len" -ge "$formlen" ] && break
-		  
-	     done
-		
-      
-	     [ "$again" -eq 1 ]&& choice="" && continue
-		
-		
-	     len=0
-	     for i in $choice
+	   
+    #Default minimum values
+    [ "$SHARES" == "" ] && SHARES=2
+    [ "$THRESHOLD" == "" ] && THRESHOLD=2
+    
+    local choice=""
+    exec 4>&1
+	   while true
+	   do
+		      local formlen=2
+        choice=$($dlg --cancel-label $"Back" --mixedform  $"Key sharing parameters" 0 0 8  \
+	                     $"Field"                                              1  1 $"Value"     1  60  17 15 2  \
+	                     $"How many people will keep a share of the key"       3  1 "$SHARES"    3  60  5  3  0  \
+	                     $"Minimum number of them required to rebuild the key" 5  1 "$THRESHOLD" 5  60  5  3  0  \
+	                     2>&1 >&4 )
+        #If cancelled, exit
+        [ $? -ne 0 ] && return 1
+	      
+	       #Check that all fields have been filled in (choice must
+        #have the expected number of items), otherwise, loop
+        local BAKIFS=$IFS
+        IFS=$(echo -en "\n\b")
+        local clist=($choice)
+        IFS=$BAKIFS
+        if [ ${#clist[@]} -le "$formlen" ] ; then
+            $dlg --msgbox $"All fields are mandatory" 0 0
+	           continue 
+	       fi
+        
+        #Parse each entry before setting it
+        local i=0
+	       local loopAgain=0
+        local errors=""
+        local aux=""
+	       for item in $choice
 	       do
-	       len=$(($len +1))
-	     done
-	     
-	     if [ "$len" -lt "$formlen" ]
-		 then
-		 $dlg --msgbox $"Error. Faltan campos por rellenar" 0 0
-		 choice=""
-		 continue; 	
-	     fi
-	     
-	     
-             #Verificamos que el num de miembros sea >= que el threshold y >= que 2, y el threshold sea >=2
-	     if [ "${secsharingPars[1]}" -lt 2 ]
-		 then
-		 $dlg --msgbox $"Error. Debe haber al menos dos miembros custodiando la llave" 0 0
-		 choice=""
-		 continue;
-	     fi
-	     
-	     if [ "${secsharingPars[2]}" -lt 2 ]
-		 then
-		 $dlg --msgbox $"Error. Un sólo miembro no debe poder reconstruir la llave" 0 0
-		 choice=""
-		 continue;
-	     fi
-
-	     if [ "${secsharingPars[2]}" -gt "${secsharingPars[1]}" ]
-		 then
-		 $dlg --msgbox $"Error. El número de miembros debe ser mayor al mínimo de reconstrucción" 0 0
-		 choice=""
-		 continue;
-	     fi
-	     
-        done
-	     
-        SHARES="${secsharingPars[1]}"
-        THRESHOLD="${secsharingPars[2]}"
+         	  case "$i" in 
+		              "1" ) #SHARES
+                    parseInput int "$item"
+                    if [ $? -ne 0 ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Number of shares must be a positive integer"
+                    fi
+                    if [ "$item" -lt 2 ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Number of shares must be greater than 2"
+                    fi
+                    
+                    aux="$item"
+                    [ $loopAgain -eq 0 ] && SHARES="$item"
+                    ;;
+		              
+		              "2" ) #THRESHOLD
+		                  parseInput int "$item"
+		                  if [ $? -ne 0 ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Threshold must be a positive integer"
+                    fi
+                    if [ "$item" -lt 2 ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Threshold must be greater than 2"
+                    fi
+                    if [ "$item" -gt "$aux" ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Threshold must be smaller than the total number of shares"
+                    fi
+                    
+                    [ $loopAgain -eq 0 ] && THRESHOLD="$item"
+                    ;;
+		          esac
+		          i=$((i+1))
+	       done
+            
+        #Show errors in the form, then loop
+	       if [ "$loopAgain" -eq 1 ] ; then
+            $dlg --msgbox "$errors" 0 0
+            continue
+	       fi
+        break
+	   done
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1287,7 +1261,7 @@ generateCSR () { #*-*-adaptando al  nuevo conjunto de datos
     SITESORGSERV=$($PVOPS vars getVar d SITESORGSERV)
     SITESEMAIL=$($PVOPS vars getVar d SITESEMAIL)
 
-    [ "$HOSTNM" != "" ] && SERVERCN="$HOSTNM"
+    [ "$HOSTNM" != "" -a "$DOMNAME" != "" ] && SERVERCN="$HOSTNM.$DOMNAME"
     [ "$SITESCOUNTRY" != "" ] && COUNTRY="$SITESCOUNTRY"
     [ "$SITESORGSERV" != "" ] && COMPANY="$SITESORGSERV"
     [ "$SITESEMAIL" != "" ] && SERVEREMAIL="$SITESEMAIL"

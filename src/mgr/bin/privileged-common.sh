@@ -232,6 +232,20 @@ checkParameterOrDie () {
 
 
 
+#Forces a time adjust based on the ntp server time
+forceTimeAdjust () {
+    
+    #Force time adjust, system and hardware clocks
+    /etc/init.d/openntpd stop  >>$LOGFILE 2>>$LOGFILE
+    /etc/init.d/openntpd start >>$LOGFILE 2>>$LOGFILE
+    ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
+    hwclock -w >>$LOGFILE 2>>$LOGFILE
+}
+
+
+
+
+
 #TODO Esta debería desaparecer, si todos los params se gestionan en root. --> poner esta func en root y cargar todas las variables con esto y punto (primero del clauer y después de vars.conf del hd y después de vars.conf del root.) Revisar todos los params y los que sea imprescindible tener en el wizard, crear servicio que los devuelva.
 
 # TODO possible security issue: create a list of all the possible variable names here and if not matching, don't set (do check before line: export $var=$val). This will prevent some unexpected global var that is not initialized to be overwritten (grep all files on setvar and join)

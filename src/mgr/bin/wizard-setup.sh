@@ -396,7 +396,7 @@ do
                     #It is an optional feature
                     $dlg  --yes-label $"Yes" --no-label $"No" \
                           --yesno $"Do you want to set up periodic system backups through SSH?" 0 0
-	                   if [ "$answer" -ne 0 ] ; then #No
+	                   if [ $? -ne 0 ] ; then #No
                         action=0 #Go on
                     else
                         while true; do
@@ -423,12 +423,42 @@ do
                     ;;
                 
                 
-                
-                "5" ) 
-                    
+                "5" ) #Mail server
+                    mailerParams
                     action=$?
                     ;;
                 
+                
+                "6" ) #Secret sharing
+                    selectSharingParams
+                    action=$?
+                    ;;
+                
+                
+                "7" ) #System administrator
+                    
+                    action=$?
+                    ;;
+
+                
+                
+                
+                "8" ) #SSL certificate
+                    
+                    action=$?
+                    ;;
+
+                
+                
+                
+                "9" ) #Anonimity network
+                    
+                    action=$?
+                    ;;
+
+
+
+                # TODO creo que faltan:  mailer, sharing, sysadmin, cert ssl apache, LCN (opt, se hará la solicitud in situ)
                 
                 
                 * ) #Confirmation to proceed with setup
@@ -464,11 +494,19 @@ do
         #Setup hosts file and hostname
         $PSETUP configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
 
+        #Make sure time is synced
+        $dlg   --infobox $"Syncronizing server time..." 0 0
+        $PSETUP forceTimeAdjust
+        
         
         # TODO remember to store all config variables, both those in usb and in hard drive
         $PVOPS vars setVar c IPADDR "$IPADDR" # TODO maybe store it to the hard drive, now that we don0t support remote drives 
 	       $PVOPS vars setVar c HOSTNM "$HOSTNM" #store both on dhcp and manual
-        
+
+
+        # TODO write usbs if in install
+
+        # TODO write csr if in install
         
     fi
     
@@ -525,32 +563,9 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 ###### Sistema nuevo #####  
 
 
-      
-
-      
-      selectMailerParams
-
-
-      selectSharingParams
-      
-
-
-      
-    done
-
-
-    #Guardamos los params #////probar
+    #Guardamos los params # TODO revisra todos los forms para saber qué params guardar. quiatr viejos y ojo a los nuevos.
     setConfigVars
   
-    #Continuamos con la config inicial del sistema 
-
-
-    #Nos aseguramos de que sincronice la hora 
-    $dlg   --infobox $"Sincronizando hora del servidor..." 0 0
-
-    
-    #Ejecutamos elementos de configuración
-    $PSETUP init3
     
     
     genNfragKey

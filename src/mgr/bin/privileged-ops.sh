@@ -934,6 +934,7 @@ if [ "$1" == "configureServers" ]
    if [ "$2" == "mailServer" ] 
     then
 
+        # TODO  con HOSTNM Y DOMNAME los dos construir el fqdn y usarlo en el mailer
 
        #////borrar
        #checkParameterOrDie FQDN "${3}"  # TODO ver este fqdn de dónde lo saco ahora. lopido en el form de mail? $HOSTNM + $DOMNAME

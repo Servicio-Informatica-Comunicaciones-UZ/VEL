@@ -648,6 +648,9 @@ sshScanAndTrust () {
         touch $HOME/.ssh/known_hosts      >>$LOGFILE 2>>$LOGFILE
         chmod 644 $HOME/.ssh/known_hosts  >>$LOGFILE 2>>$LOGFILE
     fi
+
+    #Delete any previous appearance of the host in the known_hosts
+    ssh-keygen -f $HOME/.ssh/known_hosts -R "$1" >>$LOGFILE 2>>$LOGFILE
     
     #Scan for the server's keys and append them to the user's know hosts file
     #rsa1 disabled for security reasons

@@ -298,140 +298,10 @@ systemMonitorScreen () {
 
 
 
-# $1 -> 0: Reset pwd del admin original,   1: Añadir usuario admin nuevo y sustituir al viejo
-setAdmin () {
-    
-    auxMGRPWD=""
-    auxMGREMAIL=""
-    auxADMINNAME=""
-    auxADMREALNAME=""
-    auxADMIDNUM=""
-    
-
-    if [ "$1" -eq 0 ]
-	then
-	ADMINNAME=$($PVOPS vars getVar d ADMINNAME)
-	$dlg --msgbox $"Nombre de usuario del administrador:\n\n $ADMINNAME" 0 0
-    else
-	MGRPWD=""
-    fi
-    
-    
-    verified=0
-    while [ "$verified" -eq 0 ]
-	  do
-	  
-	  verified=1
-
-
-	  #Esto sólo lo pide si es un usuario nuevo
-	  if [ "$1" -eq 1 ]
-	      then
-	      auxADMINNAME=$($dlg --no-cancel  --inputbox  \
-		  $"Nombre de usuario del administrador del sistema de voto." 0 0 "$auxADMINNAME"  2>&1 >&4)
-	      
-	      if [ "$auxADMINNAME" == "" ] 
-		  then
-		  verified=0 
-		  $dlg --msgbox $"Debe proporcionar un nombre de usuario." 0 0 
-		  continue
-	      fi
-	      
-	      parseInput user "$auxADMINNAME"
-	      if [ $? -ne 0 ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe introducir un nombre de usuario válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
-		  continue
-	      fi
-
-	  fi
-	  
-	  
-	  getPassword 'new' $"Introduzca la contraseña para\nel administrador del sistema de voto." 1
-	  auxMGRPWD="$pwd"
-	  pwd=''
-	  
-	  
-	  #Esto sólo lo pide si es un usuario nuevo
-	  if [ "$1" -eq 1 ]
-	      then
-	      auxADMREALNAME=$($dlg --no-cancel  --inputbox  \
-		  $"Nombre completo del administrador del sistema de voto." 0 0 "$auxADMREALNAME"  2>&1 >&4)
-	      
-	      if [ "$auxADMREALNAME" == "" ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe proporcionar un nombre." 0 0
-		  continue
-	      fi
-	      
-	      
-	      parseInput freetext "$auxADMREALNAME"
-	      if [ $? -ne 0 ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe introducir un nombre válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
-		  continue
-	      fi
-	      
-	      
-	      
-	      
-	      auxADMIDNUM=$($dlg --no-cancel  --inputbox  \
-		  $"DNI del administrador del sistema de voto." 0 0 "$auxADMIDNUM"  2>&1 >&4)
-	      
-	      if [ "$auxADMIDNUM" == "" ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe proporcionar un DNI." 0 0
-		  continue
-	      fi
-	      
-	      parseInput dni "$auxADMIDNUM"
-	      if [ $? -ne 0 ] 
-		  then
-		  verified=0 
-		  $dlg --msgbox $"Debe introducir un numero de DNI válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0 
-	      continue
-	      fi
-	      
-	      
-	      auxMGREMAIL=$($dlg --no-cancel  --inputbox  \
-		  $"Correo electrónico del administrador del sistema de voto.\nSe empleará para notificar incidencias del sistema." 0 0 "$auxMGREMAIL"  2>&1 >&4)
-	      
-	      if [ "$auxMGREMAIL" == "" ] 
-		  then
-		  verified=0 
-		  $dlg --msgbox $"Debe proporcionar un correo electrónico." 0 0 
-		  continue
-	      fi
-	      
-	      parseInput email "$auxMGREMAIL"
-	      if [ $? -ne 0 ] 
-		  then 
-		  verified=0
-		  $dlg --msgbox $"Debe introducir una dirección de correo válida." 0 0
-		  continue
-	      fi
-	      
-	  fi
-	  
-	  
-	  if [ "$verified" -eq 1 ] 
-	      then
-	      $dlg --yes-label $"Revisar"  --no-label $"Continuar"  --yesno \
-		  $"Datos adquiridos. ¿Desea revisarlos?" 0 0 
-	      verified=$?
-	  fi
-	  
-    done
-
-    $PVOPS resetAdmin "$auxMGRPWD" "$auxADMINNAME" "$auxADMREALNAME" "$auxADMIDNUM" "$auxMGREMAIL"
-    
-    auxMGRPWDSUM=''
-}
-
+#setAdmin # TODO chage all calls to this funct to the new one.
+# TODO ahora sobreescribirá los params generales, así que si hace falta, guardar los valores originales en unas aux y punto, ya vale de duplicr código a lo tonto
+# TODO Merge with sysadminParams 
+# TODO Además, no distinguir entre nuevo o viejo. Sacar todos los datos y actualizarlos/insertarlos todos
 
 
 
@@ -998,7 +868,7 @@ executeSystemAction (){
       "mailerparams" )
        
       #Sacamos el formulario de parámetros del mailer
-      selectMailerParams
+      mailerParams
       
       $dlg --infobox $"Configurando servidor de correo..." 0 0
 
