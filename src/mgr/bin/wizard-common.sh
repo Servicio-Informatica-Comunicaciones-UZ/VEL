@@ -32,7 +32,7 @@ relocateLogs () {
 
 
 
-#Create unprivileged user tmp directory
+#Create unprivileged user tmp directory # TODO I think this and all its references can be deleted, as it is not used, or if used, it can go to /tmp, just overwrite the variable
 createUserTempDir (){
     #If it doesn't exist, create
     [ -e "$TMPDIR" ] || mkdir "$TMPDIR"
@@ -426,8 +426,10 @@ networkParams () {
      	      local i=0
 	           local loopAgain=0
             local errors=""
+            IFS=$(echo -en "\n\b")
 	           for item in $choice
 	           do
+                IFS=$BAKIFS
 	               case "$i" in
 				                "1" ) #IP
 		                      parseInput ipaddr "$item"
@@ -473,6 +475,7 @@ networkParams () {
                 
                 #Next item, until the number of expected items
 	               i=$((i+1))
+                IFS=$(echo -en "\n\b")
 	           done
             
             #Show errors in the form, then loop
@@ -501,6 +504,12 @@ networkParams () {
     
     return $ret
 } #NetworkParams
+
+
+
+
+
+
 
 
 
@@ -601,8 +610,10 @@ sysAdminParams () {
 	       local loopAgain=0
         local errors=""
         local pwderrmsg=""
+        IFS=$(echo -en "\n\b")
 	       for item in $choice
 	       do
+            IFS=$BAKIFS
          	  case "$i" in
 				            "1" ) # ADMINNAME
 		                  parseInput user "$item"
@@ -655,6 +666,7 @@ sysAdminParams () {
             
             #Next item, until the number of expected items
 	           i=$((i+1))
+            IFS=$(echo -en "\n\b")
 	       done
         
         #One more check: local and web password shouldn't be the same,
@@ -672,12 +684,699 @@ sysAdminParams () {
         break
     done
     
+    #<DEBUG>
     echo "ADMINNAME:   $ADMINNAME" >>$LOGFILE 2>>$LOGFILE
     echo "MGRPWD:      $MGRPWD" >>$LOGFILE 2>>$LOGFILE
     echo "LOCALPWD:    $LOCALPWD" >>$LOGFILE 2>>$LOGFILE
     echo "ADMIDNUM:    $ADMIDNUM" >>$LOGFILE 2>>$LOGFILE
     echo "MGREMAIL:    $MGREMAIL" >>$LOGFILE 2>>$LOGFILE
     echo "ADMREALNAME: $ADMREALNAME" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+    
+    return 0
+}
+
+
+
+
+
+#Wrapper for the privileged operation to set a variable
+# $1 -> Destination: 'disk' persistent disk;
+#                    'mem'  (default) or nothing if we want it in ram;
+#                    'usb'  if we want it on the usb config file;
+#                    'slot' in the active slot configuration
+# $2 -> variable
+# $3 -> value
+setVar () {    
+    $PVOPS vars setVar "$1" "$2" "$3"
+}
+
+
+
+#Wrapper for the privileged operation to get a variable value	
+# $1 -> Where to read the var from 'disk' disk;
+#                                  'mem' or nothing if we want it from volatile memory;
+#                                  'usb' if we want it from the usb config file;
+#                                  'slot' from the active slot's configuration
+# $2 -> var name (to be read)
+#STDOUT: the value of the read variable, empty string if not found
+#Returns: 0 if it could find the variable, 1 otherwise.
+getVar () {
+    $PVOPS vars getVar $1 $2
+    return $?
+}
+
+
+
+
+
+
+
+
+
+
+
+#Prompt user to select a partition among those available
+#1 -> 'all' to list all available partitions
+#     'wfs' to show only those with a valid fs
+#2 -> Top message to be shown
+#Return: 0 if ok, 1 if cancelled
+#DRIVE: name of the selected partition
+hddPartitionSelector () {
+    
+    local partitions=$($PVOPS listHDDPartitions "$1" fsinfo)
+    local npartitions=$?
+    
+    #Error
+    if [ $npartitions -eq 255 ] ; then
+        $dlg --msgbox $"Error accessing drives. Please check." 0 0
+        return 1
+        #No partitions available
+    elif [ $npartitions -eq 0 ] ; then
+        $dlg --msgbox $"No drive partitions available. Please check." 0 0
+        return 1
+    fi
+    local drive=$($dlg --cancel-label $"Cancel"  \
+                       --menu "$2" 0 80 \
+                       $(($npartitions)) $partitions 2>&1 >&4)
+	   #If canceled, go back to the mode selector
+	   [ $? -ne 0 ]  && return 1;
+    
+    DRIVE="$drive"
+    return 0
+}
+
+
+
+#Select which method should be used to setup an encrypted drive
+#Will set the follwong global variables:
+#DRIVEMODE
+#DRIVELOCALPATH
+#FILEPATH
+#FILEFILESIZE
+#CRYPTFILENAME
+selectCryptoDriveMode () {
+    
+    local isLocal=on
+    local isLoop=off
+    
+    exec 4>&1     
+	   local choice=""
+	   while true
+	   do
+        [ "$DRIVEMODE" == "local" ]   && isLocal=on  && isLoop=off
+        [ "$DRIVEMODE" == "file" ]    && isLocal=off && isLoop=on
+        
+        choice=$( $dlg --cancel-label $"Menu" \
+                       --radiolist  $"Ciphered filesystem location:" 0 0 2  \
+	                      1 $"Local drive partition"      "$isLocal" \
+	                      2 $"Local drive loopback file"  "$isLoop"  \
+	                      2>&1 >&4 )
+        
+        #If cancelled, exit
+        [ $? -ne 0 ] && return 1
+        
+        #If none selected, ask again
+        [ "$choice" == "" ] && continue
+        
+        
+        
+	       if [ "$choice" -eq 1 ] #### Local partition
+        then
+	           DRIVEMODE="local"
+            
+            #Choose partition
+            hddPartitionSelector all $"Choose a partition (WARNING: ALL INFORMATION ON THE SELECTED PARTITION WILL BE LOST)."
+            [ $? -ne 0 ] && continue
+            
+            #Set the selected partition
+	           DRIVELOCALPATH=$DRIVE
+	           
+        else #### Loopback filesystem
+	          	DRIVEMODE="file"
+	           
+            #Choose partition
+            hddPartitionSelector wfs $"Choose a partition. Loop filesystem will be written on a file in its root directory."
+            [ $? -ne 0 ] && continue
+            
+            #Set the selected partition
+            FILEPATH=$DRIVE
+
+            #Ask additional parameters to create the loopback filesystem
+	           while true
+		          do
+                local fsize=$($dlg --cancel-label $"Back"  --inputbox  \
+		                                 $"Loopback filesystem file size (in MB):" 0 0 "$FILEFILESIZE"  2>&1 >&4)
+
+                #If back, go to the mode selector
+                [ "$?" -ne 0 ] && continue 2
+                
+	               parseInput int "$fsize"
+                if [ $? -ne 0 ] ; then
+                    $dlg --msgbox $"Value not valid. Must be a positive integer." 0 0
+		                  continue
+	               fi
+                
+                FILEFILESIZE="$fsize"
+                break
+	           done
+            
+            #Generate a unique name for the loopback file
+	           CRYPTFILENAME="$CRYPTFILENAMEBASE"$(date +%s) # TODO Do not use as global in functions. make sure it is written in config before gbiulding the ciph part. -Also, try to move this to the privileged part (as they are written there, if I remember well)
+        fi
+        break
+	   done
+    #<DEBUG>
+    echo "Crypto drive mode: $DRIVEMODE"  >>$LOGFILE 2>>$LOGFILE
+    echo "Local path:        $DRIVELOCALPATH"  >>$LOGFILE 2>>$LOGFILE
+	   echo "Local file:        $FILEPATH" >>$LOGFILE 2>>$LOGFILE
+	   echo "File system size:  $FILEFILESIZE" >>$LOGFILE 2>>$LOGFILE
+		  echo "Filename:          $CRYPTFILENAME" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+    
+    return 0
+} #selectCryptoDriveMode
+
+
+
+
+
+#Will prompt the user to select the ssh backup server connection
+#parameters
+#Will set the following globals:
+#SSHBAKSERVER
+#SSHBAKPORT
+#SSHBAKUSER
+#SSHBAKPASSWD
+sshBackupParameters () {
+    
+    #Defaults
+    [ "$SSHBAKPORT" == "" ] && SSHBAKPORT=$DEFSSHPORT
+    
+    local choice=""
+    exec 4>&1
+    while true
+    do
+		      local formlen=4
+	       choice=$($dlg  --cancel-label $"Menu" --mixedform  $"SSH backup parameters" 0 0 12  \
+		                     $"Field"              1  1 $"Value"        1  30  17 15   2  \
+		                     $"SSH server (IP/DN)" 3  1 "$SSHBAKSERVER" 3  30  30 2048 0  \
+		                     $"Port"               5  1 "$SSHBAKPORT"   5  30  20  6   0  \
+		                     $"Username"           7  1 "$SSHBAKUSER"   7  30  20 256  0  \
+		                     $"Password"           9  1 "$SSHBAKPASSWD" 9  30  20 256  1  \
+		                     2>&1 >&4 )        
+        
+	       #If cancelled, exit
+        [ $? -ne 0 ] && return 2
+        
+        #All mandatory, ask again if any empty
+        local BAKIFS=$IFS
+        IFS=$(echo -en "\n\b")
+        local clist=($choice)
+        IFS=$BAKIFS
+        if [ ${#clist[@]} -le "$formlen" ] ; then
+            $dlg --msgbox $"All fields are mandatory" 0 0
+	           continue 
+	       fi
+        
+	       #Parse each entry before setting it
+     	  local i=0
+	       local loopAgain=0
+        local errors=""
+        IFS=$(echo -en "\n\b")
+	       for item in $choice
+	       do
+            IFS=$BAKIFS
+        	   case "$i" in
+				            "1" ) #IP or DN of the SSH server
+		                  parseInput ipdn "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"SSH server address IP or domain not valid"
+  		                else SSHBAKSERVER="$item" ; fi
+		                  ;;
+		              
+				            "2" ) #SSH server port
+		                  parseInput port "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Server port number not valid"
+  		                else SSHBAKPORT="$item" ; fi
+		                  ;;
+
+                "3" ) #Remote username
+		                  parseInput user "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Username not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else SSHBAKUSER="$item" ; fi
+		                  ;;
+
+                "4" ) #Remote password
+		                  parseInput pwd "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Password not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else SSHBAKPASSWD="$item" ; fi
+		                  ;;
+            esac
+            i=$((i+1))
+            IFS=$(echo -en "\n\b")
+		      done
+        
+        #Show errors in the form, then loop
+	       if [ "$loopAgain" -eq 1 ] ; then
+            $dlg --msgbox "$errors" 0 0
+            continue
+	       fi
+        break
+    done
+    #<DEBUG>
+    echo "SSH Server:        $SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
+	   echo "SSH port:          $SSHBAKPORT" >>$LOGFILE 2>>$LOGFILE
+	   echo "SSH User:          $SSHBAKUSER" >>$LOGFILE 2>>$LOGFILE
+	   echo "SSH pwd:           $SSHBAKPASSWD" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+    
+    return 0
+}
+
+
+
+
+
+#Does a test connection to the set SSH backup server
+#Return: 0 if OK, non-zero if any problem happened
+checkSSHconnectivity () {
+    
+		  #Set trust on the server
+    sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
+    if [ $? -ne 0 ] ; then
+        echo "SSH Keyscan error." >>$LOGFILE 2>>$LOGFILE
+        return 1
+		  fi
+    
+    #Perform test connection
+    return sshTestConnect "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"
+}
+
+
+
+
+
+#Will prompt the user to select needed
+#mail server configuration parameters
+#Will set the following global variables:
+# MAILRELAY
+mailerParams () {
+	   
+	   while true
+    do
+        MAILRELAY=$($dlg --cancel-label $"Menu" --inputbox \
+	                        $"Name of the mail relay server (leave it empty if no relay is needed)." 0 50 "$MAILRELAY"  2>&1 >&4)
+        #Go to menu
+	       [ $? -ne 0 ] &&  return 1
+        
+	       #No relay needed, go on
+	       [ "$MAILRELAY" -ne 0== "" ] && return 0
+        
+        #Check input value
+	       parseInput ipdn "$MAILRELAY"
+	       if [ $? -ne 0 ] ; then
+	           $dlg --msgbox $"Mail relay must be a valid domain name or IP address." 0 0
+	           continue
+	       fi
+	  	    break
+	   done
+    
+    #<DEBUG>
+    echo "Mail relay: $MAILRELAY" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+    
+    return 0
+}
+
+
+
+
+
+
+
+#Will prompt the user to select how many people will form the key
+#holding comission (and the minimum quorum to rebuild it)
+#Will set the following global variables:
+# SHARES
+# THRESHOLD
+selectSharingParams () {
+	   
+    #Default minimum values
+    [ "$SHARES" == "" ] && SHARES=2
+    [ "$THRESHOLD" == "" ] && THRESHOLD=2
+    
+    local choice=""
+    exec 4>&1
+	   while true
+	   do
+		      local formlen=2
+        choice=$($dlg --cancel-label $"Menu" --mixedform  $"Key sharing parameters" 0 0 8  \
+	                     $"Field"                                              1  1 $"Value"     1  60  17 15 2  \
+	                     $"How many people will keep a share of the key"       3  1 "$SHARES"    3  60  5  3  0  \
+	                     $"Minimum number of them required to rebuild the key" 5  1 "$THRESHOLD" 5  60  5  3  0  \
+	                     2>&1 >&4 )
+        #If cancelled, exit
+        [ $? -ne 0 ] && return 1
+	      
+	       #Check that all fields have been filled in (choice must
+        #have the expected number of items), otherwise, loop
+        local BAKIFS=$IFS
+        IFS=$(echo -en "\n\b")
+        local clist=($choice)
+        IFS=$BAKIFS
+        if [ ${#clist[@]} -le "$formlen" ] ; then
+            $dlg --msgbox $"All fields are mandatory" 0 0
+	           continue 
+	       fi
+        
+        #Parse each entry before setting it
+        local i=0
+	       local loopAgain=0
+        local errors=""
+        local aux=""
+        IFS=$(echo -en "\n\b")
+	       for item in $choice
+	       do
+            IFS=$BAKIFS
+         	  case "$i" in 
+		              "1" ) #SHARES
+                    parseInput int "$item"
+                    if [ $? -ne 0 ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Number of shares must be a positive integer"
+                    fi
+                    if [ "$item" -lt 2 ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Number of shares must be greater than 2"
+                    fi
+                    
+                    aux="$item"
+                    [ $loopAgain -eq 0 ] && SHARES="$item"
+                    ;;
+		              
+		              "2" ) #THRESHOLD
+		                  parseInput int "$item"
+		                  if [ $? -ne 0 ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Threshold must be a positive integer"
+                    fi
+                    if [ "$item" -lt 2 ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Threshold must be greater than 2"
+                    fi
+                    if [ "$item" -gt "$aux" ] ; then
+                        loopAgain=1
+                        errors="$errors\n"$"Threshold must be smaller than the total number of shares"
+                    fi
+                    
+                    [ $loopAgain -eq 0 ] && THRESHOLD="$item"
+                    ;;
+		          esac
+		          i=$((i+1))
+            IFS=$(echo -en "\n\b")
+	       done
+            
+        #Show errors in the form, then loop
+	       if [ "$loopAgain" -eq 1 ] ; then
+            $dlg --msgbox "$errors" 0 0
+            continue
+	       fi
+        break
+	   done
+    
+    #<DEBUG>
+    echo "SHARES: $SHARES" >>$LOGFILE 2>>$LOGFILE
+    echo "THRESHOLD: $THRESHOLD" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+
+    return 0
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Prompts the user to select the content of the SSL certificate request
+#for the HTTP and mail servers
+#Will set the following global variables:
+#COMPANY
+#DEPARTMENT
+#COUNTRY
+#STATE
+#LOC
+#SERVEREMAIL
+#SERVERCN
+sslCertParameters () {
+
+    #As this might be called during maintenance, we read the default
+    #values if not set yet
+    [ "$HOSTNM" == "" ] && HOSTNM=$(getVar disk HOSTNM)
+    [ "$DOMNAME" == "" ] && DOMNAME=$(getVar disk DOMNAME) # TODO revisar todos los getvar y setvar, que el origne esté bien. cambiar origen para minimizar usb
+    
+    #Default values
+    [ "$DEPARTMENT" == "" ] && DEPARTMENT="-"
+    [ "$STATE" == "" ] && STATE="-"
+    [ "$LOC" == "" ] && LOC="-"
+    [ "$SERVEREMAIL" == "" ] && SERVEREMAIL="-"
+    [ "$SERVERCN" == "" ] && SERVERCN="$HOSTNM.$DOMNAME"
+    
+    local choice=""
+    exec 4>&1
+	   while true
+	   do
+		      local formlen=7
+        choice=$($dlg --cancel-label $"Menu" --mixedform  $"SSL certificate (optional field's value must be a dash)" 0 0 20  \
+	                     $"Field"                              1  1 $"Value"       1  40  17 15   2  \
+	                     $"Name of your organisation"          3  1 "$COMPANY"     3  40  20  30  0  \
+	                     $"Name of your department (optional)" 5  1 "$DEPARTMENT"  5  40  20  30  0  \
+	                     $"Two letter code of your contry"     8  1 "$COUNTRY"     8  40  3   2   0  \
+                      $"State or province (optional)"       10 1 "$STATE"       10 40  20  30  0  \
+                      $"Locality (optional)"                12 1 "$LOC"         12 40  20  30  0  \
+                      $"Contact e-mail (optional)"          15 1 "$SERVEREMAIL" 15 40  20  30  0  \
+                      $"Server domain name"                 18 1 "$SERVERCN"    18 40  20  50  0  \
+                      2>&1 >&4 )
+        #If cancelled, exit
+        [ $? -ne 0 ] && return 1
+	      
+	       #Check that all fields have been filled in (choice must
+        #have the expected number of items), otherwise, loop
+        local BAKIFS=$IFS
+        IFS=$(echo -en "\n\b")
+        local clist=($choice)
+        IFS=$BAKIFS
+        if [ ${#clist[@]} -le "$formlen" ] ; then
+            $dlg --msgbox $"All fields are mandatory (if a field is marked as optional, write a single dash)" 0 0
+	           continue 
+	       fi
+        
+        #Parse each entry before setting it
+        local i=0
+	       local loopAgain=0
+        local errors=""
+        IFS=$(echo -en "\n\b")
+	       for item in $choice
+	       do
+            IFS=$BAKIFS
+         	  case "$i" in 
+		              "1" ) #COMPANY
+                    parseInput x500 "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Company name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else COMPANY="$item" ; fi
+                    ;;
+		              
+		              "2" ) #DEPARTMENT
+		                  parseInput x500 "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Department name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else DEPARTMENT="$item" ; fi
+                    ;;
+		              
+		              "3" ) #COUNTRY
+		                  parseInput cc "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Country code not valid. Must be a two letter ISO-3166 code."
+  		                else COUNTRY="$item" ; fi
+                    ;;
+		              
+		              "4" ) #STATE
+		                  parseInput x500 "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"State/Province name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else STATE="$item" ; fi
+                    ;;
+		              
+		              "5" ) #LOC
+		                  parseInput x500 "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Locality name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else LOC="$item" ; fi
+                    ;;
+		              
+		              "6" ) #SERVEREMAIL
+		                  parseInput email "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Contact e-mail not valid."
+  		                else SERVEREMAIL="$item" ; fi
+                    ;;
+		              
+		              "7" ) #SERVERCN
+		                  parseInput dn "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Server domain name not valid."
+  		                else SERVERCN="$item" ; fi
+                    ;;
+		          esac
+		          i=$((i+1))
+            IFS=$(echo -en "\n\b")
+        done
+            
+        #Show errors in the form, then loop
+	       if [ "$loopAgain" -eq 1 ] ; then
+            $dlg --msgbox "$errors" 0 0
+            continue
+	       fi
+        break
+	   done
+    
+    #Restore empty fields
+    [ "$DEPARTMENT" == "-" ] && DEPARTMENT=""
+    [ "$STATE" == "-" ] && STATE=""
+    [ "$LOC" == "-" ] && LOC=""
+    [ "$SERVEREMAIL" == "-" ] && SERVEREMAIL=""
+    
+    #<DEBUG>
+    echo "COMPANY: $COMPANY" >>$LOGFILE 2>>$LOGFILE
+    echo "DEPARTMENT: $DEPARTMENT" >>$LOGFILE 2>>$LOGFILE
+    echo "COUNTRY: $COUNTRY" >>$LOGFILE 2>>$LOGFILE
+    echo "STATE: $STATE" >>$LOGFILE 2>>$LOGFILE
+    echo "LOC: $LOC" >>$LOGFILE 2>>$LOGFILE
+    echo "SERVEREMAIL: $SERVEREMAIL" >>$LOGFILE 2>>$LOGFILE
+    echo "SERVERCN: $SERVERCN" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+    
+    return 0
+}
+
+
+
+
+
+#Prompts the user to select the info to request
+#access to the anonimity network
+#Will set the following global variables:
+#SITESEMAIL
+#SITESPWD
+#SITESORGSERV
+#SITESNAMEPURP
+#SITESCOUNTRY
+lcnRegisterParams () { #SEGUIR mañana. probar esta func y luego seguir con el registro
+    
+    #Default values
+    [ "$SITESCOUNTRY" == "" ] && SITESCOUNTRY="$COUNTRY"
+    [ "$SITESORGSERV" == "" ] && SITESORGSERV="$COMPANY"
+    [ "$SITESEMAIL" == "" ] && SITESEMAIL="$SERVEREMAIL"
+    
+    #Self-generate a password (in case user is new, he can edit it anyhow)
+    [ "$SITESPWD" == "" ] && SITESPWD=$(randomPassword 10)
+    [ "$repSITESPWD" == "" ] && repSITESPWD="$SITESPWD"
+    
+    local choice=""
+    exec 4>&1
+	   while true
+	   do
+		      local formlen=6
+        choice=$($dlg --cancel-label $"Menu" --mixedform  $"Anonimity Network registration.""\n* "$"If you are new, you can leave the suggested password, which will be sent to your e-mail.""\n* "$"If you already have registered any server, set the same password you used with this e-mail. Also, server name must be different from any previous one.""\n* "$"If you perform several registrations by mistake, don't confirm them later and they will be automatically discarded" 0 0 17  \
+	                     $"Field"                           1  1 $"Value"         1  40  17 15   2  \
+	                     $"Contact e-mail (user ID)"        3  1 "$SITESEMAIL"    3  40  20  30  0  \
+	                     $"eSurvey user password"           5  1 "$SITESPWD"      5  40  20  30  1  \
+                      $"Repeat password"                 7  1 "$repSITESPWD"   7  40  20  30  1  \
+	                     $"Two letter code of your contry"  10 1 "$SITESCOUNTRY"  10 40  3   2   0  \
+                      $"Name of your organisation"       12 1 "$SITESORGSERV"  12 40  20  30  0  \
+                      $"Name of the service"             15 1 "$SITESNAMEPURP" 15 40  20  30  0  \
+                      2>&1 >&4 )
+        #If cancelled, exit
+        [ $? -ne 0 ] && return 1
+	       
+	       #Check that all fields have been filled in (choice must
+        #have the expected number of items), otherwise, loop
+        local BAKIFS=$IFS
+        IFS=$(echo -en "\n\b")
+        local clist=($choice)
+        IFS=$BAKIFS
+        if [ ${#clist[@]} -le "$formlen" ] ; then
+            $dlg --msgbox $"All fields are mandatory." 0 0
+	           continue 
+	       fi
+        
+        #Parse each entry before setting it
+        local i=0
+	       local loopAgain=0
+        local errors=""
+        local aux=""
+        IFS=$(echo -en "\n\b")
+	       for item in $choice
+	       do
+            IFS=$BAKIFS
+         	  case "$i" in 
+		              "1" ) #SITESEMAIL
+                    parseInput email "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Contact e-mail address not valid."
+  		                else SITESEMAIL="$item" ; fi
+                    ;;
+		              
+		              "2" ) #SITESPWD
+                    aux="$item"
+		                  parseInput pwd "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Password not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else SITESPWD="$item" ; fi
+                    ;;
+		              
+		              "3" ) #repSITESPWD
+		                  if [ "$item" != "$aux" ] ; then loopAgain=1; errors="$errors\n"$"Passwords don't match."
+		                  else local repSITESPWD="$item" ; fi
+                    ;;
+		              
+		              "4" ) #SITESCOUNTRY
+		                  parseInput cc "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Country code not valid. Must be a two letter ISO-3166 code"
+  		                else SITESCOUNTRY="$item" ; fi
+                    ;;
+		              
+		              "5" ) #SITESORGSERV
+		                  parseInput freetext "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Organisation name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else SITESORGSERV="$item" ; fi
+                    ;;
+		              
+		              "6" ) #SITESNAMEPURP
+		                  parseInput freetext "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Service name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                else SITESNAMEPURP="$item" ; fi
+                    ;;
+		          esac
+		          i=$((i+1))
+            IFS=$(echo -en "\n\b")
+        done
+        
+        #Show errors in the form, then loop
+	       if [ "$loopAgain" -eq 1 ] ; then
+            $dlg --msgbox "$errors" 0 0
+            continue
+	       fi
+        break
+	   done
+        
+    
+    #<DEBUG>
+    echo "SITESEMAIL: $SITESEMAIL" >>$LOGFILE 2>>$LOGFILE
+	   echo "SITESPWD: $SITESPWD" >>$LOGFILE 2>>$LOGFILE
+	   echo "SITESORGSERV: $SITESORGSERV" >>$LOGFILE 2>>$LOGFILE
+	   echo "SITESNAMEPURP: $SITESNAMEPURP" >>$LOGFILE 2>>$LOGFILE
+	   echo "SITESCOUNTRY: $SITESCOUNTRY" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
     
     return 0
 }
@@ -695,96 +1394,45 @@ sysAdminParams () {
 
 
 
-
-
-
-
-
-
-
-
 #SEGUIR
 
-#Sets a config variable on disk file. these vars override those read from Clauer
-# $1 -> variable
-# $2 -> value
-setVarOnDisc () {  #//// convertir para que llame a la func de pvops
 
 
-    echo "****setting var on disc: '$1'='$2'" >>$LOGFILE 2>>$LOGFILE #/////Borrar
 
-    touch $VARFILE
 
-    #Verificamos si la variable está definida en el fichero
-    local isvardefined=$(cat $VARFILE | grep -Ee "^$1")
 
-    #echo "isvardef: $isvardefined"
 
-    #Si no lo está, append
-    if [ "$isvardefined" == "" ] ; then
-	echo "$1=\"$2\"" >> $VARFILE
-    else
-    #Si lo está, sustitución.
-	sed -i -re "s/^$1=.*$/$1=\"$2\"/g" $VARFILE
+
+
+# $1 --> 'new' o 'renew'  #///Cambiar en las llamadas
+fetchCSR () {
+    
+    $PVOPS fetchCSR "$1"
+    
+}
+
+
+# 1 -> 'new' o 'renew'	
+generateCSR () { #*-*-adaptando al  nuevo conjunto de datos
+    
+
+    
+    $dlg --infobox $"Generando petición de certificado..." 0 0
+
+    $PVOPS configureServers generateCSR "$mode" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
+    ret=$?
+
+    echo "$PVOPS configureServers generateCSR '$mode' '$SERVERCN' '$COMPANY' '$DEPARTMENT' '$COUNTRY' '$STATE' '$LOC' '$SERVEREMAIL' ret:$ret"  >>$LOGFILE 2>>$LOGFILE
+
+    if [ "$ret" -ne 0 ]
+	then
+	$dlg --msgbox $"Error generando la petición de certificado." 0 0
+	return 1
     fi
     
+
+    return 0
 }
-
-
-
-		
-# $1 -> file to read from
-# $2 -> var name (to be read)
-# $3 -> (optional) name of the destination variable
-setVarFromFile () {
-
-    
-    [ "$1" == "" -o   "$2" == "" ] && return 1
-    
-    [ -f "$1" ] || return 1
-    
-    
-    local destvar=$2
-    [ "$3" != "" ] && destvar=$3
-
-    
-    export $destvar=$(cat $1 | grep -e "$2" | sed -re "s/$2=\"(.+)\"\s*$/\1/g")
-
-
-    echo "****getting var from file '$1': '$2' on var '$3' = "$(cat $1 | grep -e "$2" | sed -re "s/$2=\"(.+)\"\s*$/\1/g") >>$LOGFILE 2>>$LOGFILE  #////QUITAR
-
-    return 0 
-}
-
-
-
-
-#Deletes a config variable on disk file. (Mainly to fall back to the value set on Clauer)
-# $1 -> variable
-delVarOnDisc () {
-    
-    touch $VARFILE
-    
-    #Si la variable existe, la borra
-    local isvardefined=$(cat $VARFILE | grep -Ee "^$1")
-    if [ "$isvardefined" != "" ] ; then
-	sed -i -re "s/^$1=.*$//g" $VARFILE
-    fi
-
-    #Borramos las líneas vacias
-    sed -i -re '/^\s*$/d' $VARFILE
-}
-
-
-
-stopServers () {
-    $PVOPS  stopServers
-}
-
-
-
-
-
 
 
 
@@ -959,567 +1607,6 @@ writeClauers () {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-#Prompt user to select a partition among those available
-#1 -> 'all' to list all available partitions
-#     'wfs' to show only those with a valid fs
-#2 -> Top message to be shown
-#Return: 0 if ok, 1 if cancelled
-#DRIVE: name of the selected partition
-hddPartitionSelector () {
-    
-    local partitions=$($PVOPS listHDDPartitions "$1" fsinfo)
-    local npartitions=$?
-    
-    #Error
-    if [ $npartitions -eq 255 ] ; then
-        $dlg --msgbox $"Error accessing drives. Please check." 0 0
-        return 1
-        #No partitions available
-    elif [ $npartitions -eq 0 ] ; then
-        $dlg --msgbox $"No drive partitions available. Please check." 0 0
-        return 1
-    fi
-    local drive=$($dlg --cancel-label $"Cancel"  \
-                       --menu "$2" 0 80 \
-                       $(($npartitions)) $partitions 2>&1 >&4)
-	   #If canceled, go back to the mode selector
-	   [ $? -ne 0 ]  && return 1;
-    
-    DRIVE="$drive"
-    return 0
-}
-
-
-
-#Select which method should be used to setup an encrypted drive
-#Will set the follwong global variables:
-#DRIVEMODE
-#DRIVELOCALPATH
-#FILEPATH
-#FILEFILESIZE
-#CRYPTFILENAME
-selectCryptoDriveMode () {
-    
-    local isLocal=on
-    local isLoop=off
-    
-    exec 4>&1     
-	   local choice=""
-	   while true
-	   do
-        [ "$DRIVEMODE" == "local" ]   && isLocal=on  && isLoop=off
-        [ "$DRIVEMODE" == "file" ]    && isLocal=off && isLoop=on
-        
-        choice=$( $dlg --cancel-label $"Menu" \
-                       --radiolist  $"Ciphered filesystem location:" 0 0 2  \
-	                      1 $"Local drive partition"      "$isLocal" \
-	                      2 $"Local drive loopback file"  "$isLoop"  \
-	                      2>&1 >&4 )
-        
-        #If cancelled, exit
-        [ $? -ne 0 ] && return 1
-        
-        #If none selected, ask again
-        [ "$choice" == "" ] && continue
-        
-        
-        
-	       if [ "$choice" -eq 1 ] #### Local partition
-        then
-	           DRIVEMODE="local"
-            
-            #Choose partition
-            hddPartitionSelector all $"Choose a partition (WARNING: ALL INFORMATION ON THE SELECTED PARTITION WILL BE LOST)."
-            [ $? -ne 0 ] && continue
-            
-            #Set the selected partition
-	           DRIVELOCALPATH=$DRIVE
-	           
-        else #### Loopback filesystem
-	          	DRIVEMODE="file"
-	           
-            #Choose partition
-            hddPartitionSelector wfs $"Choose a partition. Loop filesystem will be written on a file in its root directory."
-            [ $? -ne 0 ] && continue
-            
-            #Set the selected partition
-            FILEPATH=$DRIVE
-
-            #Ask additional parameters to create the loopback filesystem
-	           while true
-		          do
-                local fsize=$($dlg --cancel-label $"Back"  --inputbox  \
-		                                 $"Loopback filesystem file size (in MB):" 0 0 "$FILEFILESIZE"  2>&1 >&4)
-
-                #If back, go to the mode selector
-                [ "$?" -ne 0 ] && continue 2
-                
-	               parseInput int "$fsize"
-                if [ $? -ne 0 ] ; then
-                    $dlg --msgbox $"Value not valid. Must be a positive integer." 0 0
-		                  continue
-	               fi
-                
-                FILEFILESIZE="$fsize"
-                break
-	           done
-            
-            #Generate a unique name for the loopback file
-	           CRYPTFILENAME="$CRYPTFILENAMEBASE"$(date +%s) # TODO Do not use as global in functions. make sure it is written in config before gbiulding the ciph part. -Also, try to move this to the privileged part (as they are written there, if I remember well)
-        fi
-        break
-	   done
-    #<DEBUG>
-    echo "Crypto drive mode: $DRIVEMODE"  >>$LOGFILE 2>>$LOGFILE
-    echo "Local path:        $DRIVELOCALPATH"  >>$LOGFILE 2>>$LOGFILE
-	   echo "Local file:        $FILEPATH" >>$LOGFILE 2>>$LOGFILE
-	   echo "File system size:  $FILEFILESIZE" >>$LOGFILE 2>>$LOGFILE
-		  echo "Filename:          $CRYPTFILENAME" >>$LOGFILE 2>>$LOGFILE
-    #</DEBUG>
-    
-    return 0
-} #selectCryptoDriveMode
-
-
-
-
-
-#Will prompt the user to select the ssh backup server connection
-#parameters
-#Will set the following globals:
-#SSHBAKSERVER
-#SSHBAKPORT
-#SSHBAKUSER
-#SSHBAKPASSWD
-sshBackupParameters () {
-    
-    #Defaults
-    [ "$SSHBAKPORT" == "" ] && SSHBAKPORT=$DEFSSHPORT
-    
-    local choice=""
-    exec 4>&1
-    while true
-    do
-		      local formlen=4
-	       choice=$($dlg  --cancel-label $"Back" --mixedform  $"SSH backup parameters" 0 0 12  \
-		                     $"Field"              1  1 $"Value"        1  30  17 15   2  \
-		                     $"SSH server (IP/DN)" 3  1 "$SSHBAKSERVER" 3  30  30 2048 0  \
-		                     $"Port"               5  1 "$SSHBAKPORT"   5  30  20  6   0  \
-		                     $"Username"           7  1 "$SSHBAKUSER"   7  30  20 256  0  \
-		                     $"Password"           9  1 "$SSHBAKPASSWD" 9  30  20 256  1  \
-		                     2>&1 >&4 )        
-        
-	       #If cancelled, exit
-        [ $? -ne 0 ] && return 2
-        
-        #All mandatory, ask again if any empty
-        local BAKIFS=$IFS
-        IFS=$(echo -en "\n\b")
-        local clist=($choice)
-        IFS=$BAKIFS
-        if [ ${#clist[@]} -le "$formlen" ] ; then
-            $dlg --msgbox $"All fields are mandatory" 0 0
-	           continue 
-	       fi
-        
-	       #Parse each entry before setting it
-     	  local i=0
-	       local loopAgain=0
-        local errors=""
-	       for item in $choice
-	       do
-        	   case "$i" in
-				            "1" ) #IP or DN of the SSH server
-		                  parseInput ipdn "$item"
-		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"SSH server address IP or domain not valid"
-  		                else SSHBAKSERVER="$item" ; fi
-		                  ;;
-		              
-				            "2" ) #SSH server port
-		                  parseInput port "$item"
-		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Server port number not valid"
-  		                else SSHBAKPORT="$item" ; fi
-		                  ;;
-
-                "3" ) #Remote username
-		                  parseInput user "$item"
-		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Username not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
-  		                else SSHBAKUSER="$item" ; fi
-		                  ;;
-
-                "4" ) #Remote password
-		                  parseInput pwd "$item"
-		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Password not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
-  		                else SSHBAKPASSWD="$item" ; fi
-		                  ;;
-            esac
-            i=$((i+1))
-		      done
-        
-        #Show errors in the form, then loop
-	       if [ "$loopAgain" -eq 1 ] ; then
-            $dlg --msgbox "$errors" 0 0
-            continue
-	       fi
-        break
-    done
-    #</DEBUG>
-    echo "SSH Server:        $SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
-	   echo "SSH port:          $SSHBAKPORT" >>$LOGFILE 2>>$LOGFILE
-	   echo "SSH User:          $SSHBAKUSER" >>$LOGFILE 2>>$LOGFILE
-	   echo "SSH pwd:           $SSHBAKPASSWD" >>$LOGFILE 2>>$LOGFILE
-    #</DEBUG>
-    
-    return 0
-}
-
-
-
-
-
-#Does a test connection to the set SSH backup server
-#Return: 0 if OK, non-zero if any problem happened
-checkSSHconnectivity () {
-    
-		  #Set trust on the server
-    sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
-    if [ $? -ne 0 ] ; then
-        echo "SSH Keyscan error." >>$LOGFILE 2>>$LOGFILE
-        return 1
-		  fi
-    
-    #Perform test connection
-    return sshTestConnect "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"
-}
-
-
-
-
-
-#Will prompt the user to select needed
-#mail server configuration parameters
-#Will set the following global variables:
-# MAILRELAY
-mailerParams () {
-	   
-	   while true
-    do
-        MAILRELAY=$($dlg --cancel-label $"Menu" --inputbox \
-	                        $"Name of the mail relay server (leave it empty if no relay is needed)." 0 50 "$MAILRELAY"  2>&1 >&4)
-        #Go to menu
-	       [ $? -ne 0 ] &&  return 1
-        
-	       #No relay needed, go on
-	       [ "$MAILRELAY" -ne 0== "" ] && return 0
-        
-        #Check input value
-	       parseInput ipdn "$MAILRELAY"
-	       if [ $? -ne 0 ] ; then
-	           $dlg --msgbox $"Mail relay must be a valid domain name or IP address." 0 0
-	           continue
-	       fi
-	  	    break
-	   done	
-}
-
-
-
-
-
-
-
-#Will prompt the user to select how many people will form the key
-#holding comission (and the minimum quorum to rebuild it)
-#Will set the following global variables:
-# SHARES
-# THRESHOLD
-selectSharingParams () {
-	   
-    #Default minimum values
-    [ "$SHARES" == "" ] && SHARES=2
-    [ "$THRESHOLD" == "" ] && THRESHOLD=2
-    
-    local choice=""
-    exec 4>&1
-	   while true
-	   do
-		      local formlen=2
-        choice=$($dlg --cancel-label $"Back" --mixedform  $"Key sharing parameters" 0 0 8  \
-	                     $"Field"                                              1  1 $"Value"     1  60  17 15 2  \
-	                     $"How many people will keep a share of the key"       3  1 "$SHARES"    3  60  5  3  0  \
-	                     $"Minimum number of them required to rebuild the key" 5  1 "$THRESHOLD" 5  60  5  3  0  \
-	                     2>&1 >&4 )
-        #If cancelled, exit
-        [ $? -ne 0 ] && return 1
-	      
-	       #Check that all fields have been filled in (choice must
-        #have the expected number of items), otherwise, loop
-        local BAKIFS=$IFS
-        IFS=$(echo -en "\n\b")
-        local clist=($choice)
-        IFS=$BAKIFS
-        if [ ${#clist[@]} -le "$formlen" ] ; then
-            $dlg --msgbox $"All fields are mandatory" 0 0
-	           continue 
-	       fi
-        
-        #Parse each entry before setting it
-        local i=0
-	       local loopAgain=0
-        local errors=""
-        local aux=""
-	       for item in $choice
-	       do
-         	  case "$i" in 
-		              "1" ) #SHARES
-                    parseInput int "$item"
-                    if [ $? -ne 0 ] ; then
-                        loopAgain=1
-                        errors="$errors\n"$"Number of shares must be a positive integer"
-                    fi
-                    if [ "$item" -lt 2 ] ; then
-                        loopAgain=1
-                        errors="$errors\n"$"Number of shares must be greater than 2"
-                    fi
-                    
-                    aux="$item"
-                    [ $loopAgain -eq 0 ] && SHARES="$item"
-                    ;;
-		              
-		              "2" ) #THRESHOLD
-		                  parseInput int "$item"
-		                  if [ $? -ne 0 ] ; then
-                        loopAgain=1
-                        errors="$errors\n"$"Threshold must be a positive integer"
-                    fi
-                    if [ "$item" -lt 2 ] ; then
-                        loopAgain=1
-                        errors="$errors\n"$"Threshold must be greater than 2"
-                    fi
-                    if [ "$item" -gt "$aux" ] ; then
-                        loopAgain=1
-                        errors="$errors\n"$"Threshold must be smaller than the total number of shares"
-                    fi
-                    
-                    [ $loopAgain -eq 0 ] && THRESHOLD="$item"
-                    ;;
-		          esac
-		          i=$((i+1))
-	       done
-            
-        #Show errors in the form, then loop
-	       if [ "$loopAgain" -eq 1 ] ; then
-            $dlg --msgbox "$errors" 0 0
-            continue
-	       fi
-        break
-	   done
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# $1 --> 'new' o 'renew'  #///Cambiar en las llamadas
-fetchCSR () {
-    
-    $PVOPS fetchCSR "$1"
-    
-}
-
-
-
-
-# 1 -> 'new' o 'renew'	
-generateCSR () { #*-*-adaptando al  nuevo conjunto de datos
-    
-    local mode="$1"
-    
-    $dlg --msgbox $"Vamos a generar un certificado para las conexiones seguras.\n Debe proporcionar los datos de la entidad propietaria de este servidor (el nombre de dominio bajo el que operará el servidor)" 0 0
-    
-    #Generamos un cert autofirmado
-    COMPANY=""
-    DEPARTMENT=""
-    COUNTRY=""
-    STATE=""
-    LOC=""
-    SERVEREMAIL=""
-    SERVERCN=""
-  
-    HOSTNM=$($PVOPS vars getVar c HOSTNM) #////probar
-    SITESCOUNTRY=$($PVOPS vars getVar d SITESCOUNTRY) 
-    SITESORGSERV=$($PVOPS vars getVar d SITESORGSERV)
-    SITESEMAIL=$($PVOPS vars getVar d SITESEMAIL)
-
-    [ "$HOSTNM" != "" -a "$DOMNAME" != "" ] && SERVERCN="$HOSTNM.$DOMNAME"
-    [ "$SITESCOUNTRY" != "" ] && COUNTRY="$SITESCOUNTRY"
-    [ "$SITESORGSERV" != "" ] && COMPANY="$SITESORGSERV"
-    [ "$SITESEMAIL" != "" ] && SERVEREMAIL="$SITESEMAIL"
-    
-    verified=0
-    while [ "$verified" -eq 0 ]
-      do
-      
-      verified=1
-      
-      #////añadir campos y comprobaciones que hay implementados en el branch*-*-
-
- COMPANY=$($dlg  --no-cancel  --inputbox  \
-	  $"Nombre de la organización\nque controla el servidor:" 0 0 "$COMPANY"  2>&1 >&4)
-      
-      DEPARTMENT=$($dlg --no-cancel  --inputbox \
-	  $"Departamento o sub-organización\nque controla el servidor (opcional):" 0 0 "$DEPARTMENT" 2>&1 >&4)
-      
-      COUNTRY=$($dlg  --no-cancel  --inputbox  \
-	  $"País en que se ubica la organización\nque controla el servidor:" 0 0 "$COUNTRY"  2>&1 >&4)
-
-      STATE=$($dlg  --no-cancel  --inputbox  \
-	  $"Provincia en que se ubica la organización\nque controla el servidor (opcional):" 0 0 "$STATE"  2>&1 >&4)
-      LOC=$($dlg  --no-cancel  --inputbox  \
-	  $"Localidad en que se ubica la organización\nque controla el servidor (opcional):" 0 0 "$LOC"  2>&1 >&4)
-      SERVEREMAIL=$($dlg  --no-cancel  --inputbox  \
-	  $"Correo electrónico de contacto con su organización (opcional):" 0 0 "$SERVEREMAIL"  2>&1 >&4)
-	  
-      SERVERCN=$($dlg --no-cancel  --inputbox  \
-	  $"Nombre de dominio del servidor:" 0 0 "$SERVERCN"  2>&1 >&4)
-
-      
-      if [ "$COMPANY" == "" ] 
-	  then
-	  verified=0
-	  $dlg --msgbox $"Debe proporcionar un nombre de organizacion." 0 0
-	  continue
-      fi
-
-      if [ "$COUNTRY" == "" ] 
-	  then
-	  verified=0
-	  $dlg --msgbox $"Debe proporcionar un código de país." 0 0
-	  continue
-      fi
-      
-      if [ "$SERVERCN" == "" ] 
-	  then
-	  verified=0
-	  $dlg --msgbox $"Debe proporcionar un nombre de dominio." 0 0
-	  continue
-      fi
-      
-      
-      
-      aux=$(echo "$COMPANY" | grep -Ee "[='\"/$]")	  
-      [ "$aux" != "" ] && verified=0  && $dlg --msgbox \
-	  $"El nombre de organización no puede contener los caracteres:\n  = ' \" / \$" 0 0 && continue
-
-      
-      aux=$(echo "$DEPARTMENT" | grep -Ee "[='\"/$]")	  
-      [ "$aux" != "" ] && verified=0  && $dlg --msgbox \
-	  $"El nombre de departamento no puede contener los caracteres:\n  = ' \" / \$" 0 0 && continue	  
-
-      aux=$(echo "$STATE" | grep -Ee "[='\"/$]")	  
-      [ "$aux" != "" ] && verified=0  && $dlg --msgbox \
-	  $"La provincia no puede contener los caracteres:\n  = ' \" / \$" 0 0 && continue	  
-      
-      aux=$(echo "$LOC" | grep -Ee "[='\"/$]")	  
-      [ "$aux" != "" ] && verified=0  && $dlg --msgbox \
-	  $"La localidad no puede contener los caracteres:\n  = ' \" / \$" 0 0 && continue	  
-
-      parseInput cc "$COUNTRY"
-      if [ $? -ne 0 ] 
-	  then
-	  verified=0
-	  $dlg --msgbox $"Debe introducir un código de país válido." 0 0 
-	  continue
-      fi
-      
-      if [ "$SERVEREMAIL" != "" ]
-	  then
-	  parseInput email "$SERVEREMAIL"
-	  if [ $? -ne 0 ] 
-	      then
-	      verified=0 
-	      $dlg --msgbox $"Debe introducir una dirección de correo válida." 0 0
-	      continue
-	  fi
-      fi
-      
-      parseInput dn "$SERVERCN"
-      if [ $? -ne 0 ] 
-	  then
-	  verified=0  
-	  $dlg --msgbox $"Debe introducir un nombre de dominio válido." 0 0 
-	  continue
-      fi
-      
-      if [ "$verified" -eq 1 ] 
-	  then
-	  $dlg --yes-label $"Revisar"  --no-label $"Continuar"  --yesno \
-	      $"Datos adquiridos. ¿Desea revisarlos o desea continuar con la generación de la petición de certificado?" 0 0 
-	  verified=$?
-      fi
-      
-    done
-    
-    $dlg --infobox $"Generando petición de certificado..." 0 0
-
-    $PVOPS configureServers generateCSR "$mode" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
-    ret=$?
-
-    echo "$PVOPS configureServers generateCSR '$mode' '$SERVERCN' '$COMPANY' '$DEPARTMENT' '$COUNTRY' '$STATE' '$LOC' '$SERVEREMAIL' ret:$ret"  >>$LOGFILE 2>>$LOGFILE
-
-    if [ "$ret" -ne 0 ]
-	then
-	$dlg --msgbox $"Error generando la petición de certificado." 0 0
-	return 1
-    fi
-    
-
-    return 0
-}
-
-
     
 
 
@@ -1591,77 +1678,5 @@ rebuildKey
     $dlg --msgbox $"Se ha logrado reconstruir la llave." 0 0 
 
     return 0
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#Pasa las variables de configuración empleadas en este caso a una cadena separada por saltos de linea para volcarlo a un clauer
-setConfigVars () {
-    
-    $PVOPS vars setVar c IPMODE $IPMODE
-	$PVOPS vars setVar c HOSTNM "$HOSTNM"
- $PVOPS vars setVar c DOMNAME "$DOMNAME"
- 
-    if [ "$IPMODE" == "static"  ] #si es 'dhcp' no hacen falta
-	then
-	$PVOPS vars setVar c IPADDR "$IPADDR"
-	$PVOPS vars setVar c MASK "$MASK"
-	$PVOPS vars setVar c GATEWAY "$GATEWAY"
-	$PVOPS vars setVar c DNS1 "$DNS1"
-	$PVOPS vars setVar c DNS2 "$DNS2"
-    fi
-    
-    
-    $PVOPS vars setVar c DRIVEMODE "$DRIVEMODE"
-    
-    case "$DRIVEMODE" in
-	
-	"local" )
-        $PVOPS vars setVar c DRIVELOCALPATH "$DRIVELOCALPATH"
-	;;
-	
-    	"file" )
-	$PVOPS vars setVar c FILEPATH "$FILEPATH"
-	$PVOPS vars setVar c FILEFILESIZE "$FILEFILESIZE"
-        $PVOPS vars setVar c CRYPTFILENAME "$CRYPTFILENAME"
-    	;;
-	
-    esac
-
-
-	$PVOPS vars setVar c SSHBAKSERVER "$SSHBAKSERVER"
-	$PVOPS vars setVar c SSHBAKPORT "$SSHBAKPORT"
-	$PVOPS vars setVar c SSHBAKUSER "$SSHBAKUSER"
-	$PVOPS vars setVar c SSHBAKPASSWD "$SSHBAKPASSWD"
-
-
-    $PVOPS vars setVar c SHARES "$SHARES"
-    $PVOPS vars setVar c THRESHOLD "$THRESHOLD"
 }
 

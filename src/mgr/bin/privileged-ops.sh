@@ -321,7 +321,7 @@ listHDDPartitions () {
 ####################### Gestión de variables ############################
 
 
-if [ "$1" == "vars" ] 
+if [ "$1" == "vars" ]  # TODO revisar todas las llamadas, tb cambiar por disk, mem, usb y slot
     then
 
  #Para que el wizard le pase los valores de las variables definidas por el usuario en la inst.
@@ -333,19 +333,19 @@ if [ "$1" == "vars" ]
      
      #////implementar limitación  de escritura a ciertas variables cuando running?
 
-     checkParameterOrDie "$4" "$5" 0  #//// Teóricamente todos los params están en checkparameter. probar esto.
+     checkParameterOrDie "$4" "$5" 0  # TODO Teóricamente todos los params están en checkparameter. asegurarme.
 
-     setPrivVar "$4" "$5" "$3"
+     setVar "$4" "$5" "$3"
 
      exit 0
  fi
 
 
 
- #Para que el wizard reciba los valores de ciertas variables durante el reset. # TODO Intentar quitar esta mierda, que no reciba nada a ser posible
+ #Para que el wizard reciba los valores de ciertas variables durante el reset.
  # 3-> origen c (clauer) d (disco) r (memoria) s (slot activo)
  # 4-> var name
- if [ "$2" == "getVar" ]  #//// probar
+ if [ "$2" == "getVar" ]
      then
 
      if [ "$3" != "c" -a "$3" != "d" -a "$3" != "r" -a "$3" != "s" ]
@@ -362,7 +362,7 @@ if [ "$1" == "vars" ]
 	 exit 1
      fi
 
-     getPrivVar "$3" "$4" aux
+     getVar "$3" "$4" aux
 
      echo -n $aux
 
@@ -685,13 +685,13 @@ then
     fi
 
     #Load needed configuration variables
-    getPrivVar c DRIVEMODE
+    getVar usb DRIVEMODE
     
-    getPrivVar c DRIVELOCALPATH
+    getVar usb DRIVELOCALPATH
     
-    getPrivVar c FILEPATH    
-    getPrivVar c FILEFILESIZE
-    getPrivVar c CRYPTFILENAME
+    getVar usb FILEPATH    
+    getVar usb FILEFILESIZE
+    getVar usb CRYPTFILENAME
     
     configureCryptoPartition  "$2" "$DRIVEMODE" "$FILEPATH" "$CRYPTFILENAME" "$MOUNTPATH" "$DRIVELOCALPATH" "$MAPNAME" "$DATAPATH" 
     [ $? -ne 0 ] && exit $?
@@ -941,9 +941,9 @@ if [ "$1" == "configureServers" ]
        #checkParameterOrDie MAILRELAY "${4}"
 
 
-       getPrivVar c FQDN
+       getVar usb FQDN
        
-       getPrivVar d MAILRELAY
+       getVar disk MAILRELAY
        
        #Establecemos la configuración del servidor de correo
        if [ "$FQDN" == "" ] 
@@ -974,7 +974,7 @@ if [ "$1" == "configureServers" ]
    if [ "$2" == "mailServerM" ] 
     then
               
-       getPrivVar d MAILRELAY
+       getVar disk MAILRELAY
        
        if [ "$MAILRELAY" == "" ] 
 	   then
@@ -1052,15 +1052,14 @@ if [ "$1" == "configureServers" ]
     if [ "$3" == 'new' ]
 	then
 
-       #Generar la contraseña del usuario de la BD y guardarla entre las vars a escribir en el clauer.
-       randomPassword 15
-       DBPWD=$pw
-       $PVOPS vars setVar d DBPWD "$DBPWD"
+       #Generar la contraseña del usuario de la BD y guardarla en disco
+       
+       DBPWD=$(randomPassword 15)
+       setVar DBPWD "$DBPWD" disk
        
        
        #Cambiar pwd del root por uno aleatorio y largo (solo al crearlo, que luego es persistente)
-       randomPassword 20
-       MYSQLROOTPWD=$pw
+       MYSQLROOTPWD=$(randomPassword 20)
        mysqladmin -u root -p'a' password "$MYSQLROOTPWD" 2>>/tmp/mysqlerr
        [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
 
@@ -1100,12 +1099,12 @@ if [ "$1" == "configureServers" ]
        then
        
 
-       getPrivVar d DBPWD
-       getPrivVar d KEYSIZE
-       getPrivVar d SITESORGSERV
-       getPrivVar d SITESNAMEPURP
+       getVar disk DBPWD
+       getVar disk KEYSIZE
+       getVar disk SITESORGSERV
+       getVar disk SITESNAMEPURP
 
-       #getPrivVar d EXCLUDEDNODE #Actualmente no se guarda
+       #getVar disk EXCLUDEDNODE #Actualmente no se guarda
        
 
    
@@ -1131,7 +1130,7 @@ if [ "$1" == "configureServers" ]
     ### esta ya que la variable SESSION es compartida. Así que aquí no
     ### sirve para nada, ya que no hay más apps. Le damos un valor
     ### random
-    randomPassword
+    pw=$(randomPassword)
     sed -i  -e "s|###\*\*\*secr\*\*\*###|$pw|g" /var/www/*.php
     pw=''
     
@@ -1160,7 +1159,7 @@ if [ "$1" == "configureServers" ]
       
       
       #Param común a las 3 operacuiones de conf del webserver. Es el modo del servidor: con ssl o sin.
-      getPrivVar d WWWMODE
+      getVar disk WWWMODE
        
       
       if [ "$3" == "wsmode" ] 
@@ -1539,7 +1538,7 @@ if [ "$1" == "configureServers" ]
 	  echo -n "RENEW" > $DATAPATH/root/sslcertstate.txt	  
       fi
 
-      $PVOPS vars setVar d WWWMODE "ssl"
+      setVar WWWMODE "ssl" disk # TODO extinguir esta variable
 
 
 
@@ -1711,7 +1710,7 @@ then
         done
 	       
 	       CURRENTSLOT=1
-	       setPrivVar CURRENTSLOT "$CURRENTSLOT" r
+	       setVar CURRENTSLOT "$CURRENTSLOT" mem
 	       
 	       exit 0
     fi
@@ -1723,7 +1722,7 @@ then
     
     #Variables globales a estas operaciones  # TODO, de esto nada, pasarlo a cada sitio donde se emplee, por si luego lo meto en función
     
-    getPrivVar r CURRENTSLOT
+    getVar mem CURRENTSLOT
     slotPath=$ROOTTMP/slot$CURRENTSLOT/
 
 
@@ -1770,23 +1769,22 @@ then
 
 
     
-    #Cambia el slot activo a $3.
+    #Switch active slot
+    #3-> which will be the new active slot
     if [ "$2" == "switchSlot" ] 
-	then
-	
-	checkParameterOrDie INT "${3}" "0"
-	
-	if [ "$3" -gt $SHAREMAXSLOTS -o  "$3" -le 0 ]
-	    then
-	    echo "Bad slot number: $3"  >>$LOGFILE 2>>$LOGFILE
-	    exit 1
-	fi
-
-	setPrivVar CURRENTSLOT "$3" r   #////probar
-	
-	exit 0
+	   then
+	       
+	       checkParameterOrDie INT "${3}" "0"
+	       if [ "$3" -gt $SHAREMAXSLOTS -o  "$3" -le 0 ]
+	       then
+	           echo "switchSlot: Bad slot number: $3"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
+        
+	       setVar CURRENTSLOT "$3" mem
+	       exit 0
     fi
-
+    
 
 
 
@@ -1795,7 +1793,7 @@ then
     #slot, single attempt
     if [ "$2" == "rebuildKey" ] 
 	   then
-		      getPrivVar r CURRENTSLOT
+		      getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
         
 	       numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
@@ -1815,10 +1813,10 @@ then
     #slot, will try all available combinations
     if [ "$2" == "rebuildKeyAllCombs" ] 
 	   then
-		      getPrivVar r CURRENTSLOT
+		      getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
 
-        getPrivVar c THRESHOLD	
+        getVar usb THRESHOLD	
 	       numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
         
         echo "rebuildKeyAllCombs:"  >>$LOGFILE 2>>$LOGFILE
@@ -1974,7 +1972,7 @@ testForDeadShares () {
     return $deadshares
 }
 
-    getPrivVar c THRESHOLD
+    getVar usb THRESHOLD
 
     testForDeadShares "$slotPath"
     [ "$?" -ne 0 ] && exit 1
@@ -2002,7 +2000,7 @@ fi
     if [ "$2" == "compareConfigs" ] 
 	   then
         
-        getPrivVar r CURRENTSLOT
+        getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
         
 	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
@@ -2076,7 +2074,7 @@ fi
     if [ "$2" == "parseConfig" ] 
 	   then
                 
-        getPrivVar r CURRENTSLOT
+        getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
         
 	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
@@ -2108,7 +2106,7 @@ fi
     if [ "$2" == "settleConfig" ] 
 	   then
                 
-        getPrivVar r CURRENTSLOT
+        getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
         
         #Move it to the root home
@@ -2154,7 +2152,7 @@ fi
         checkParameterOrDie DEV "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"              
         
-        getPrivVar r CURRENTSLOT
+        getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
         
 	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
@@ -2182,7 +2180,7 @@ fi
         checkParameterOrDie DEV "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"
         
-        getPrivVar r CURRENTSLOT
+        getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
         
         NEXTSHARENUM=$(cat "$slotPath/NEXTSHARENUM")
@@ -2209,7 +2207,7 @@ fi
     if [ "$2" == "writeKeyShare" ] 
 	then
 	
-	getPrivVar c SHARES
+	getVar usb SHARES
         checkParameterOrDie DEV "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"
 	       
@@ -2328,9 +2326,7 @@ if [ "$1" == "genNfragKey" ]
     genNfragKey () {
 	
         #Generamos una contraseña segura que será la clave de cifrado del disco. # fuente entropia: randomsound
-	randomPassword
-	PARTPWD=$pw
-	pw=""
+	PARTPWD=$(randomPassword)
 	
 	#Limpiamos el slot (por si no han llamado a resetSlot)
 	rm -rf $slotPath/*  >>$LOGFILE 2>>$LOGFILE
@@ -2344,10 +2340,10 @@ if [ "$1" == "genNfragKey" ]
 	return $ret
     }
     
-    getPrivVar c SHARES
-    getPrivVar c THRESHOLD
+    getVar usb SHARES
+    getVar usb THRESHOLD
     
-    getPrivVar r CURRENTSLOT   #////probar
+    getVar mem CURRENTSLOT   #////probar
     slotPath=$ROOTTMP/slot$CURRENTSLOT/
 
 
@@ -2364,7 +2360,7 @@ fi
 if [ "$1" == "grantAdminPrivileges" ] 
     then
     
-    getPrivVar d DBPWD
+    getVar disk DBPWD
 
     privilege=0 
     if [ "$2" == "grant" ] ; then
@@ -2469,7 +2465,7 @@ fi
 if [ "$1" == "suspend" ] #//// probar en entorno real
     then
     
-    getPrivVar r copyOnRAM
+    getVar mem copyOnRAM
     
     #Si no está en RAM, el sistema suspendido puede ser vulnerado.
     if [ "$copyOnRAM" -eq 0 ]
@@ -2502,7 +2498,7 @@ if [ "$1" == "resetAdmin" ]
     then
     
     #Guardamos el valor antiguo
-    getPrivVar d ADMINNAME
+    getVar disk ADMINNAME
     oldADMINNAME="$ADMINNAME"
     
     checkParameterOrDie MGRPWD "${2}"
@@ -2513,7 +2509,7 @@ if [ "$1" == "resetAdmin" ]
     
     MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
     
-    getPrivVar d DBPWD
+    getVar disk DBPWD
        
     # Si no se proporciona un adminname, reseteamos las credenciales del actual
     if [ "$3" == "" ]
@@ -2541,8 +2537,8 @@ if [ "$1" == "resetAdmin" ]
         #El nuevo admin será el que reciba los avisos, en vez del viejo (sólo puede ser uno, y se asume que el nuevo está supliendo al antiguo)
 	echo "update eVotDat set email='$mgremail';"  | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
 
-	setPrivVar MGREMAIL  "$MGREMAIL"  d   #////probar
-	setPrivVar ADMINNAME "$ADMINNAME" d
+	setVar MGREMAIL  "$MGREMAIL"  disk   #////probar
+	setVar ADMINNAME "$ADMINNAME" disk
 	sed -i -re "/^root:/ d" /etc/aliases
 	echo -e "root: $MGREMAIL" >> /etc/aliases   2>>$LOGFILE
 	/usr/bin/newaliases    >>$LOGFILE 2>>$LOGFILE

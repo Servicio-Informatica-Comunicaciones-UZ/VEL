@@ -24,10 +24,8 @@ dlg="dialog $DLGCNF "
 LOGFILE=/tmp/wizardLog
 
 #Unpriileged user space temp directory for operations
-TMPDIR=/home/vtuji/eLectionOperations
+TMPDIR=/home/vtuji/eLectionOperations # TODO See if it can be changed for /tmp, or the unpriv user home
 
-#Drive config vars file. These override those read form usbs.
-VARFILE="$DATAPATH/root/vars.conf"
 
 #If this file contains a 1, no privileged operation will execute
 #unless the valid ciphering key can be rebuilt from the fragments
@@ -62,7 +60,7 @@ DEFSSHPORT=22
 
 #Buffer to pass return strings between the privileged script and the
 #user script when stdout is locked by dialog
-RETBUFFER=$TMPDIR/returnBuffer
+RETBUFFER=$TMPDIR/returnBuffer # TODO see if it is used anymore
 
 
 
@@ -84,7 +82,7 @@ PVOPS="sudo /usr/local/bin/privileged-ops.sh"
 
 
 #Redefine all unhandled dialog return codes to avoid app flow security
-#issues
+#issues, now all return the same so we have only two states, OK and ERR
 export DIALOG_ESC=1
 export DIALOG_ERROR=1
 export DIALOG_HELP=1
@@ -235,6 +233,13 @@ parseInput () {
 	       "freetext" ) #Any string (with limitations)
 	           ALLOWEDCHARSET='- _<>=+@|·&!?.,: a-z A-Z 0-9'
             echo "$2" | grep -oEe "^[- _<>=+@|·&!?.,:a-zA-Z0-9]+$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+
+
+	       "x500" ) #Any string (with limitations, to be part of a distinguished name)
+	           ALLOWEDCHARSET='- _<>+@|·&!?.,: a-z A-Z 0-9' #All but [='\"/$]
+            echo "$2" | grep -oEe "^[- _<>+@|·&!?.,:a-zA-Z0-9]+$" 2>&1 >/dev/null
 	           [ $? -ne 0 ] && ret=1
 	           ;;
         
@@ -504,20 +509,24 @@ isRunning () {
 # $1 -> Length in chars for the password (optional)
 #Stdout: the generated password
 randomPassword () { # TODO eliminar usos var $pw
-    pwlen=91
+    local pwlen=91
     [ "$1" != "" ] && pwlen="$1"
     
-    pw=""
+    local pw=""
     while [ "$pw" == "" ]
-      do
-      pw=$(openssl rand -rand $RANDFILE -base64 $pwlen  2>>$LOGFILE)
-      pw=$(echo $pw | sed -e "s/ //g")
-      #Substitute b64 non-alpha chars (+ -> .  / -> -  = -> :) to avoid escape issues
-      pw=$(echo $pw | sed -e "s/\+/./g")
-      pw=$(echo $pw | sed -e "s/\//-/g")
-      pw=$(echo $pw | sed -e "s/=/:/g")
+    do
+        #Substitute b64 non-alpha chars (+ -> .  / -> - ) to avoid escape issues
+        #Also, delete trailing = as it could affect the entropy of the result
+        pw=$(openssl rand -rand $RANDFILE -base64 $((pwlen*2))  2>>$LOGFILE \
+                    | tr "+/" ".-" | sed -e "s/ //g" | sed -e "s/=//g")
+        
+        #Take only the number of desired characters
+        pw=$(echo $pw | cut -c1-$pwlen)
     done
+    #Return it
+    echo -n $pw
 }
+
 
 
 #Detect removal of a usb device

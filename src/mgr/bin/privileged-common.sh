@@ -246,82 +246,11 @@ forceTimeAdjust () {
 
 
 
-#TODO Esta debería desaparecer, si todos los params se gestionan en root. --> poner esta func en root y cargar todas las variables con esto y punto (primero del clauer y después de vars.conf del hd y después de vars.conf del root.) Revisar todos los params y los que sea imprescindible tener en el wizard, crear servicio que los devuelva.
 
-# TODO possible security issue: create a list of all the possible variable names here and if not matching, don't set (do check before line: export $var=$val). This will prevent some unexpected global var that is not initialized to be overwritten (grep all files on setvar and join)
-
-#Read variables from a config file and set them as global variables
-# $1 --> file to read vars from 
-setVariablesFromFile () {
-    
-    [ "$1" == ""  ] && return 1
-    
-    #For each variable=value tuple
-    BAKIFS=$IFS
-    IFS=$(echo -en "\n\b") # we need these field separators here (as each line is one item and there may be spaces in the values)
-    exec 5<&0    #Store stdin file descriptor
-    exec 0<"$1"  #Overwrites the stdin descriptor and sets the file as the stdin
-    while read -r couple
-    do
-        #echo "Line: " $couple
-        
-        #Get variable and value
-        var=$(echo "$couple" | grep -Eoe "^[^=]+");
-        val=$(echo "$couple" | grep -Eoe "=.+$" | sed "s/=//" | sed 's/^"//' | sed 's/".*$//g');
-        
-        #Verify each variable format with the form variable parser
-        #parseInput function in the 'ipaddr' entry, requieres IFS to have the original value, temporarily restore it.
-        IFS=$BAKIFS
-
-        checkParameter "$var" "$val"
-        chkret=$?
-        
-        if [ "$chkret" -eq 1 ] 
-	       then
-	           echo "ERROR setVariablesFromFile: bad param or value: $var = $val" >>$LOGFILE  2>>$LOGFILE
-	           systemPanic "One of the parameters is corrupt or manipulated." 
-        fi
-        
-        BAKIFS=$IFS
-        IFS=$(echo -en "\n\b")
-        
-        #Set every variable with its value as a global on the code
-        export $var=$val
-    done
-    
-    exec 0<&5 #Restore stdin to the proper descriptor
-    IFS=$BAKIFS
-    
-    return 0
-}
-
-
-
-# TODO llamar a  esta desde las ops.
-
-#Sets the app config variables, for the operations that need them,
-#with the appropiate precedence in case one is defined on several
-#sources (the variable that appears on a file, even if the value is
-#empty string, will overwrite the previous value)
-setAllConfigVariables () {
-    
-    #Determine the active slot, to read the fronfig from
-    getPrivVar r CURRENTSLOT   #TODO probar
-    
-    #First, config vars read from the usb stores
-    setVariablesFromFile "$ROOTTMP/slot$CURRENTSLOT/config"x
-    
-    #Second, vars saved on the encrypted drive
-    setVariablesFromFile "$DATAPATH/root/vars.conf"
-
-    #Last, vars set in 'memory' (that is, values set during this execution of the system)
-    setVariablesFromFile "$ROOTTMP/vars.conf"
-}
-
-
-
-
-#Parse any configuration file, to ensure syntax is adequate
+#Parse a configuration file, to ensure syntax is adequate
+#1 -> filename
+#STDOUT: the file, parsed and trimmed of forbidden lines. Empty string
+#        if no line followed the allowed syntax
 parseConfigFile () {    
     cat "$1" | grep -oEe '^[a-zA-Z][_a-zA-Z0-9]*?=("([^"$]|[\]")*?"|""|[^ "$]+)'
 }
@@ -329,37 +258,35 @@ parseConfigFile () {
 
 
 
+
+
 #Sets a config variable to be shared among invocations of privilegedOps
 # $1 -> variable
 # $2 -> value
-# $3 (optional) -> Destination: 'd' disk;
-#                               'r' or nothing if we want it in volatile memory;
-#                               'c' if we want it on the usb config file;
-#                               's' in the active slot configuration
-setPrivVar () {
-
-    #Vars written on the ramdisk
-    local file="$ROOTTMP/vars.conf"
+# $3 (optional) -> Destination: 'disk' persistent disk;
+#                               'mem' (default) or nothing if we want it in ram;
+#                               'usb' if we want it on the usb config file;
+#                               'slot' in the active slot configuration
+setVar () {
     
-    if [ "$3" == "d" ]
+    #Vars written on the ramdisk
+    local file="$ROOTTMP/vars.conf" #mem   
+    if [ "$3" == "disk" ]
 	   then
         #Vars written on the encrypted drive
 	       file="$DATAPATH/root/vars.conf"
-    fi
-    
-    if [ "$3" == "c" ]
+    elif [ "$3" == "usb" ]
 	   then
         #Vars written on the keysharing stores (the file being used for operation)
 	       file="$ROOTTMP/config"
-    fi
-    
-    if [ "$3" == "s" ]
+    elif [ "$3" == "slot" ]
 	   then
         #Vars written on the keysharing stores (the file loaded on the currently active keybuilding slot)
-	       getPrivVar r CURRENTSLOT
+	       getVar mem CURRENTSLOT
 	       slotPath=$ROOTTMP/slot$CURRENTSLOT/
 	       file="$slotPath/config"
     fi
+    
     echo "****setting var on file $file: '$1'" >>$LOGFILE 2>>$LOGFILE
     #<DEBUG>
     echo "****setting var on file $file: '$1'='$2'" >>$LOGFILE 2>>$LOGFILE
@@ -383,27 +310,25 @@ setPrivVar () {
 
 
 		
-# $1 -> Where to read the var from 'd' disk;
-#                                  'r' or nothing if we want it from volatile memory;
-#                                  'c' if we want it from the usb config file;
-#                                  's' from the active slot's configuration
+# $1 -> Where to read the var from 'disk' disk;
+#                                  'mem' or nothing if we want it from volatile memory;
+#                                  'usb' if we want it from the usb config file;
+#                                  'slot' from the active slot's configuration
 # $2 -> var name (to be read)
 # $3 -> (optional) name of the destination variable
 # if var is not found in file, the current value (if any) of the destination var is not modified.
-getPrivVar () {
+getVar () {
 
-    local file="$ROOTTMP/vars.conf"
-    if [ "$1" == "d" ]
+    local file="$ROOTTMP/vars.conf" # mem
+    if [ "$1" == "disk" ]
 	   then
 	       file="$DATAPATH/root/vars.conf"
-    fi
-    if [ "$1" == "c" ]
+    elif [ "$1" == "usb" ]
 	   then
 	       file="$ROOTTMP/config"
-    fi
-    if [ "$1" == "s" ]
+    elif [ "$1" == "slot" ]
 	   then
-	       getPrivVar r CURRENTSLOT
+	       getVar mem CURRENTSLOT
 	       slotPath=$ROOTTMP/slot$CURRENTSLOT/
 	       file="$slotPath/config"
     fi
@@ -427,7 +352,7 @@ getPrivVar () {
     export $destvar=$value
     #TODO Verificar que si no existe, no pasa nada.
     #<DEBUG>
-    echo "****getting var from file '$file': '$2' on var '$3' = $value" >>$LOGFILE 2>>$LOGFILE  #//// QUITAR
+    echo "****getting var from file '$file': '$2' on var '$3' = $value" >>$LOGFILE 2>>$LOGFILE
     #</DEBUG>
     return 0 
 }
@@ -436,7 +361,7 @@ getPrivVar () {
 
 
 
-
+# TODO SEGUIR, las de abajo quedan por revisar
 
 
 #1 -> Path to the file containing the cert(s) to be checked
@@ -624,7 +549,7 @@ configureCryptoPartition () {
     
     
     #Get the partition encryption password (which is the shared key in the active slot)
-    getPrivVar r CURRENTSLOT
+    getVar mem CURRENTSLOT
     local keyfile="$ROOTTMP/slot$CURRENTSLOT/key"
     if [ -s  "$keyfile" ] 
     then

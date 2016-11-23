@@ -1,171 +1,17 @@
 
-# TODO calcular estas fuera de la func, con otra func, donde haga falta:
+# TODO calcular estas fuera de la func, con otra func, donde haga falta (si hace falta, que creo que no, casi mejor dejarlo para la privop):
 # MGRPWDSUM
 # LOCALPWDSUM
 
-# TODO sacar el selector de keylength a otro sitio
-keyLengthParams () {
-    
-	   #Selector de tamaño de llave  # TODO ver dónde se usa y sacar de aquí. también, aumentar los tamaños de clave, hablar con manolo.
-    KEYSIZE=""
-    exec 4>&1 
-    KEYSIZE=$($dlg --no-cancel  --menu $"Seleccione un tamaño para las llaves del sistema\n(a mayor valor, más robustez, pero más coste computacional):" 0 80  5  \
-	                  1024 - \
-	                  1152 - \
-	                  1280 - \
-	                  2>&1 >&4)
-    [ "$?" -ne 0 ]       && KEYSIZE="1024"
-    [ "$KEYSIZE" == "" ] && KEYSIZE="1024"
-    
-    echo "keysize: $KEYSIZE"   >>$LOGFILE 2>>$LOGFILE
-    
 
-    if [ "$verified" -eq 1 ] 
-	   then
-	       $dlg --yes-label $"Revisar"  --no-label $"Continuar"  --yesno \
-	            $"Datos adquiridos. ¿Desea revisarlos o desea continuar con la configuración del sistema?" 0 0 
-	       verified=$?
-    fi
-}
 
 
 ##### Datos de registro en eSurveySites #####
 
 
-esurveyParamsAndRequest () {
+esurveyRequest () { #SEGUIR mañana. hacer el registro justo tras introducir los datos
 
-
-	    $dlg --msgbox $"Vamos a definir los datos para registrar el sistema como miembro válido de la red eSurvey. Si ya está registrado como usuario de eSurveySites, introduzca los datos correctos. Si no, puede crear una nueva cuenta ahora introduciendo los datos deseados." 0 0
-	    
-	    SITESEMAIL=''
-	    SITESPWD=''
-	    SITESORGSERV=''
-	    SITESNAMEPURP=''
-	    SITESCOUNTRY=''
-	    
-	#Proponemos como email el mismo que para admin la aplic.
-	    SITESEMAIL="$MGREMAIL"
-	    
-
-	    verified=0
-	    while [ "$verified" -eq 0 ]
-	      do
-	      verified=1
-	      
-	      
-	      
-	      SITESEMAIL=$($dlg --no-cancel  --inputbox  \
-		  $"Correo electrónico, identificador de usuario para eSurveySites." 0 0 "$SITESEMAIL"  2>&1 >&4)
-	      
-	      if [ "$SITESEMAIL" == "" ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe proporcionar una dirección de correo." 0 0
-		  continue
-	      fi
-	      
-	      parseInput email "$SITESEMAIL"
-	      if [ $? -ne 0 ] 
-		  then
-		  verified=0 
-		  $dlg --msgbox $"Debe introducir una dirección de correo válida." 0 0
-		  continue
-	      fi
-	      
-	      
-
-	  #yesno: auto-generar password (que recibirá en el correo) o especificarlo
-	      $dlg --yes-label $"Especificar"  --no-label $"Generar"  --yesno \
-		  $"Desea especificar una contraseña para eSurveySites (si ya posee una cuenta elija 'especificar') o prefiere que se genere automáticamente (la recibirá en su correo)?" 0 0 
-	      generatePWD=$?
-	      
-	      
-	      if [ "$generatePWD" -eq 0 ]
-		  then
-	      # Pide la contraseña
-		      getPassword 'new' $"Contraseña de acceso a eSurveySites.\nSi ya posee una cuenta, escriba la contraseña." 1
-		  SITESPWD="$pwd"
-		  pwd=''
-	      else
-	      #Lo auto-genera
-		  randomPassword 10
-		  SITESPWD=$pw
-		  pw=''
-	      fi
-	      
-	      
-	      
-	      SITESORGSERV=$($dlg --no-cancel  --inputbox  \
-		  $"Nombre de su organización o del servidor." 0 0 "$SITESORGSERV"  2>&1 >&4)
-	      
-	      if [ "$SITESORGSERV" == "" ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe proporcionar un nombre." 0 0
-		  continue
-	      fi
-	      
-	      parseInput freetext "$SITESORGSERV"
-	      if [ $? -ne 0 ] 
-		  then 
-		  verified=0 
-		  $dlg --msgbox $"Debe introducir un nombre válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
-		  continue
-	      fi
-	      
-
-
-	      SITESNAMEPURP=$($dlg --no-cancel  --inputbox  \
-		  $"Nombre o propósito del sistema de voto." 0 0 "$SITESNAMEPURP"  2>&1 >&4)
-	      
-	      if [ "$SITESNAMEPURP" == "" ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe proporcionar un nombre." 0 0
-		  continue
-	      fi
-	      
-	      parseInput freetext "$SITESNAMEPURP"
-	      if [ $? -ne 0 ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe introducir un nombre válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
-		  continue
-	      fi
-	      
-
-	      
-	      SITESCOUNTRY=$($dlg --no-cancel  --inputbox  \
-		  $"País en que se ubica su organización o su servidor (2 letras)." 0 0 "$SITESCOUNTRY"  2>&1 >&4)
-	      
-	      if [ "$SITESCOUNTRY" == "" ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe proporcionar un código de país de 2 letras." 0 0
-		  continue
-	      fi
-	      
-	      parseInput cc "$SITESCOUNTRY"
-	      if [ $? -ne 0 ] 
-		  then
-		  verified=0
-		  $dlg --msgbox $"Debe introducir un código válido." 0 0 
-		  continue
-	      fi
-	      
-
-
-	      if [ "$verified" -eq 1 ] 
-		  then
-		  $dlg --yes-label $"Revisar"  --no-label $"Continuar"  --yesno \
-		      $"Datos adquiridos. ¿Desea revisarlos o desea continuar con la configuración del sistema?" 0 0 
-		  verified=$?
-		  [ "$verified" -eq 0 ] && continue
-	      fi
-	      
-	      
-	      
-	      
+  
           ### Generamos los certificados de firma del servidor de voto ###
 	      $dlg --infobox $"Generando certificado para eSurveySites..." 0 0
 	      
@@ -358,8 +204,8 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
 
     #Leemos variables de configuración que necesitamos aquí (si es new, 
     #ya están definidas, si es reset, se redefinen y no pasa nada)
-    WWWMODE=$($PVOPS vars getVar d WWWMODE)
-    SSHBAKSERVER=$($PVOPS vars getVar c SSHBAKSERVER)
+    WWWMODE=$(getVar disk WWWMODE)
+    SSHBAKSERVER=$(getVar usb SSHBAKSERVER)
 
     #Si hay backup de los datos locales
     if [ "$SSHBAKSERVER" != ""  ] ; then
@@ -367,10 +213,10 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
 	           #Escribimos en un fichero los params que necesita el script del cron 
 	           #(sólo al instalar, porque luego pueden ser modificados desde el menú idle)
 	           #(en realidad no importa, porque al cambiarlos reescribe los clauers)
-	           $PVOPS vars setVar d SSHBAKSERVER "$SSHBAKSERVER"
-	           $PVOPS vars setVar d SSHBAKPORT   "$SSHBAKPORT"
-	           $PVOPS vars setVar d SSHBAKUSER   "$SSHBAKUSER"
-	           $PVOPS vars setVar d SSHBAKPASSWD "$SSHBAKPASSWD"
+	           setVar disk SSHBAKSERVER "$SSHBAKSERVER"
+	           setVar disk SSHBAKPORT   "$SSHBAKPORT"
+	           setVar disk SSHBAKUSER   "$SSHBAKUSER"
+	           setVar disk SSHBAKPASSWD "$SSHBAKPASSWD"
 	       fi
     fi
 
@@ -411,8 +257,8 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
 
 
     #Si estamos em modo de disco local, ponemos en marcha el proceso cron de backup cada minuto
-    SSHBAKSERVER=$($PVOPS vars getVar d SSHBAKSERVER)
-	   SSHBAKPORT=$($PVOPS vars getVar d SSHBAKPORT)
+    SSHBAKSERVER=$(getVar disk SSHBAKSERVER)
+	   SSHBAKPORT=$(getVar disk SSHBAKPORT)
     if [ "$SSHBAKSERVER" != ""  ] ; then
 
 	       if [ "$1" == 'reset' ] ; then
@@ -479,7 +325,7 @@ configureServers () {
         #Guardamos las variables d econfiguración correspondientes (esta la pido 
         #al principio pero no se necesita hasta ahora. Además ahora la guardo 
         #sólo en disco, y no tb en el clauer)
-	$PVOPS vars setVar d MAILRELAY "$MAILRELAY"
+	setVar disk MAILRELAY "$MAILRELAY"
     fi
     
     
@@ -511,9 +357,9 @@ configureServers () {
 	    LOCALPWD=''
 
 	    #Guardamos las variables que necesite el programa en el fichero de variables de disco
-	    $PVOPS vars setVar d MGREMAIL  "$MGREMAIL"  #////probar
-	    $PVOPS vars setVar d ADMINNAME "$ADMINNAME"
-	    $PVOPS vars setVar d KEYSIZE   "$KEYSIZE"
+	    setVar disk MGREMAIL  "$MGREMAIL"  #////probar
+	    setVar disk ADMINNAME "$ADMINNAME"
+	    setVar disk KEYSIZE   "$KEYSIZE"
 
      # TODO se llama a la op priv de setadmin? ver dónde se hace en el setup y si no se hace, hacerlo.
 
@@ -564,10 +410,10 @@ configureServers () {
 	    keyyU=$(echo "$keyyU" | sed -n -e "/BEGIN/,/KEY/p")
 
 	    #Guardamos las variables en el fichero del disco.
-	    $PVOPS vars setVar d SITESORGSERV  "$SITESORGSERV"  #////probar
-	    $PVOPS vars setVar d SITESNAMEPURP "$SITESNAMEPURP"
-	    $PVOPS vars setVar d SITESEMAIL    "$SITESEMAIL"
-	    $PVOPS vars setVar d SITESCOUNTRY  "$SITESCOUNTRY"
+	    setVar disk SITESORGSERV  "$SITESORGSERV"  #////probar
+	    setVar disk SITESNAMEPURP "$SITESNAMEPURP"
+	    setVar disk SITESEMAIL    "$SITESEMAIL"
+	    setVar disk SITESCOUNTRY  "$SITESCOUNTRY"
 	    
 	fi
     fi
@@ -665,58 +511,29 @@ configureServers () {
     
 
     if [ "$DORESTORE" -ne 1 ] ; then
-	if [ "$1" == 'new' ]
-	    then :
+	       if [ "$1" == 'new' ]
+	       then :
 
-            #Selección de modo de operación: SSL o Plain # TODO quitar esta mierda. desde ahora sólo SSL (self-signed provisionalmente), y si hace falta, para las pruebas, enviar el cert selfsigned por correo para que lo autorice en el cliente.
-	    while true;
-	      do
-	      exec 4>&1 
-	      selec=$($dlg --no-cancel  --menu $"Seleccione un modo de operación para el servidor web:" 0 80  2  \
-		  1 $"Con certificado SSL" \
-		  2 $"Conexión no cifrada" \
-		  2>&1 >&4)
-	      
-	      case $selec in
-		  
-		  "1" )
-                    WWWMODE="ssl"
-		    wwwmodemsg=$"Añade un nivel más de privacidad y autenticidad del servidor. Requiere la solicitud de un certificado digital, un proceso relativamente costoso temporal y económicamente."
-		    wwwmodename=$"Con certificado SSL"
-		  ;;
-	      	      
-		  "2" )
-		    WWWMODE="plain"
-		    wwwmodemsg=$"La información viajará desprotegida. El sistema podrá emplearse inmediatamente y sin coste adicional. Aunque la seguridad del voto no se verá afectada, si se emplea autenticación local las contraseñas viajarán desprotegidas." 
-		    wwwmodename=$"Conexión no cifrada"
-	          ;;
-	      
-		  * )
-		    continue
-		  ;;
-              esac
-	      $dlg --yesno $"Ha elegido el modo:\n\n$wwwmodename\n\n$wwwmodemsg\n\n¿Continuar?" 0 0 
-	      [ $? -ne 0 ] && continue	  
-	      break
-	    done
+             
 
-	    
-	    $dlg --infobox $"Configurando servidor web..." 0 0
-	
 
-	    #Guardamos el modo como variable persistente 
-	    $PVOPS vars setVar d WWWMODE "$WWWMODE"
+	            
+	            $dlg --infobox $"Configurando servidor web..." 0 0
+	            
 
-	    if [ "$WWWMODE" == "plain" ] ; then
-	    
-		$PVOPS configureServers generateDummyCSR #////probar
-		ret=$?
-		
-		[ "$ret" -ne 0 ] && systemPanic $"Error generando el certificado de pruebas." 0 0	
+	            #Guardamos el modo como variable persistente 
+	            setVar disk WWWMODE "$WWWMODE"  # TODO extinguir. desde ahora sólo SSL (self-signed provisionalmente), y si hace falta, para las pruebas, enviar el cert selfsigned por correo para que lo autorice en el cliente.
 
-	    fi
+	            if [ "$WWWMODE" == "plain" ] ; then
+	                
+		               $PVOPS configureServers generateDummyCSR #////probar
+		               ret=$?
+		               
+		               [ "$ret" -ne 0 ] && systemPanic $"Error generando el certificado de pruebas." 0 0	
 
-	fi   
+	            fi
+
+	       fi   
     fi #DORESTORE -ne 1
     
     
@@ -782,11 +599,6 @@ configureServers () {
 #  Main Program  #
 ##################
 
-
-    #Guardamos los params #////probar
-    setConfigVars
-  
-    #Continuamos con la config inicial del sistema 
 
 
     #Nos aseguramos de que sincronice la hora 

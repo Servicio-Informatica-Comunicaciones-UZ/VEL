@@ -188,7 +188,27 @@ selectTimezone () {
 }
 
 
-
+#Lets the user select which key lengths to use on the web app for the elections
+#Will set the global var KEYSIZE
+selectKeySize () {
+    KEYSIZE=""
+    exec 4>&1 
+    KEYSIZE=$($dlg --cancel-label $"Menu" \
+                   --menu $"Select a size for the RSA keys:" 0 30  5  \
+	                  1024 $"bit" \
+	                  1152 $"bit" \
+	                  1280 $"bit" \
+	                  2>&1 >&4)
+    #Selected back to the menu
+    [ "$?" -ne 0 ] && return 1
+    
+    #Just a guard, shouldn't happen
+    [ "$KEYSIZE" == "" ] && KEYSIZE="1280"
+    
+    echo "KEYSIZE: $KEYSIZE"   >>$LOGFILE 2>>$LOGFILE
+    
+    return 0
+}
 
 
 
@@ -279,67 +299,13 @@ do
     
     #Select startup action
     chooseMaintenanceAction
-
-
-
-
-    
-    #We need to obtain a cipherkey and config parameters from a set of usb stores # TODO enclose as much as possible in functions
-    if [ "$DOBUILDKEY" -eq 1 ] ; then
-        $dlg --msgbox $"We need to rebuild the shared cipher key.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
-        
-        while true
-        do
-            #Ask to insert a device and read config and key share
-            readNextUSB
-            ret=$?
-            [ $ret -eq 1 ] && continue   #Read error: ask for another usb
-            [ $ret -eq 2 ] && continue   #Password error: ask for another usb
-            [ $ret -eq 3 ] && continue   #Read config/keyshare error: ask for another usb
-            [ $ret -eq 4 ] && continue   #Config syntax error: ask for another usb
-            
-            #User cancel
-            if [ $ret -eq 9 ] ; then
-                $dlg --yes-label $"Insert another device" --no-label $"Back to the main menu" \
-                     --yesno  $"Do you want to insert a new device or cancel the procedure?" 0 0  
-
-                [ $? -eq 1 ] && continue 2 #Cancel, go back to the menu
-                continue #Go on, ask for another usb
-            fi
-            
-            #Successfully read and removed, ask if any remaining
-            $dlg --yes-label $"Insert another device" --no-label $"No more left" \
-                 --yesno  $"Successfully read. Are there any devices left?" 0 0
-            
-            [ $? -eq 1 ] && break #None left, go on
-            continue #Any left, ask for another usb
-        done
-        
-        #All devices read, set read config as the working config
-        $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
-        
-        #Try to rebuild key (first a simple attempt and then an all combinations)
-        $dlg --infobox $"Reconstructing ciphering key..." 0 0
-        rebuildKey
-        [ $? -ne 0 ] && continue #Failed, go back to the menu
-        
-        $dlg --msgbox $"Key successfully rebuilt." 0 0 
-    fi
-
-
-
-
     
     
-    # TODO Remember to set all variables from config that we need, here from usb config and, when set up, from crypto part config
-    
-
-
-
-
     
     
-    if [ "$DOFORMAT" -eq 1 ]   # TODO when finished,  put this before the rebuild key section
+    
+    ##### Ask for the configuration parameters #####
+    if [ "$DOFORMAT" -eq 1 ]
     then 
         
         #On fresh install, show EULA
@@ -354,7 +320,7 @@ do
         fi
         
         
-        # Get all configuration parameters # TODO (move here all user input and make sure to update the menu) # TODO 2 , maybe all of this can be put into a function for clarity
+        # Get all configuration parameters #TODO maybe all of this can be put into a function for clarity (maybe not all, but only the largest sections)
         nextSection=1
         while true
         do
@@ -365,6 +331,7 @@ do
                     selectTimezone
                     action=$?
                     ;;
+                
                 
                 "2" ) #Network
                     while true ; do
@@ -385,6 +352,7 @@ do
                         break
                     done
                     ;;
+                
                 
                 "3" ) #Persistence encrypted data drive 
                     selectCryptoDriveMode
@@ -442,25 +410,27 @@ do
                 
                 
                 "8" ) #SSL certificate
-                    
+                    sslCertParameters
                     action=$?
                     ;;
-
-                             
+                
+                
                 "9" ) #Key lengths
-                    
+                    selectKeySize
                     action=$?
                     ;;
                 
                 
                 "10" ) #Anonimity network
-                    
+                    lcnRegisterParams
+                    # SEGUIR provar la de arriba y seguir con el registro
+                    # TODO request aquí
                     action=$?
                     ;;
 
 
 
-                # TODO creo que faltan:  mailer, sharing, sysadmin, cert ssl apache, LCN (opt, se hará la solicitud in situ)
+
                 
                 
                 * ) #Confirmation to proceed with setup
@@ -487,33 +457,204 @@ do
                 #Go back to the main menu
                 [ $ret -eq 254 ] && continue 2
             fi
-        done     
+        done
 
 
+        # TODO Generate persistence drive cipherkey
+        genNfragKey
+
+        # TODO store some config vars now (memory and usb variables) check if the file for the future usb writing has beens et diring yhe key generation or we must do it.
+        #Pasa las variables de configuración empleadas en este caso a una cadena separada por saltos de linea para volcarlo a un clauer
+   
+    
+    setVar usb DRIVEMODE "$DRIVEMODE"
+    
+    case "$DRIVEMODE" in
+	
+	"local" )
+        setVar usb DRIVELOCALPATH "$DRIVELOCALPATH"
+	;;
+	
+    	"file" )
+	setVar usb FILEPATH "$FILEPATH"
+	setVar usb FILEFILESIZE "$FILEFILESIZE"
+        setVar usb CRYPTFILENAME "$CRYPTFILENAME"
+    	;;
+	
+    esac
+
+
+	setVar usb SSHBAKSERVER "$SSHBAKSERVER"
+	setVar usb SSHBAKPORT "$SSHBAKPORT"
+	setVar usb SSHBAKUSER "$SSHBAKUSER"
+	setVar usb SSHBAKPASSWD "$SSHBAKPASSWD"
+
+
+    setVar usb SHARES "$SHARES"
+    setVar usb THRESHOLD "$THRESHOLD"
+
+
+    fi
+    
+    
+    
+    
+    ######## Get parameters and key from usb drives ##########
+    if [ "$DOBUILDKEY" -eq 1 ] ; then
+        #We need to obtain a cipherkey and config parameters from a set of usb stores
+        $dlg --msgbox $"We need to rebuild the shared cipher key.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
         
-        #Execute configuration phase # TODO (does anything need to be done before getting any data? like network or partition?)
-        
-        #Setup hosts file and hostname
-        $PSETUP configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
+        while true
+        do
+            #Ask to insert a device and read config and key share
+            readNextUSB
+            ret=$?
+            [ $ret -eq 1 ] && continue   #Read error: ask for another usb
+            [ $ret -eq 2 ] && continue   #Password error: ask for another usb
+            [ $ret -eq 3 ] && continue   #Read config/keyshare error: ask for another usb
+            [ $ret -eq 4 ] && continue   #Config syntax error: ask for another usb
+            
+            #User cancel
+            if [ $ret -eq 9 ] ; then
+                $dlg --yes-label $"Insert another device" --no-label $"Back to the main menu" \
+                     --yesno  $"Do you want to insert a new device or cancel the procedure?" 0 0  
 
-        #Make sure time is synced
-        $dlg   --infobox $"Syncronizing server time..." 0 0
-        $PSETUP forceTimeAdjust
+                [ $? -eq 1 ] && continue 2 #Cancel, go back to the menu
+                continue #Go on, ask for another usb
+            fi
+            
+            #Successfully read and removed, ask if any remaining
+            $dlg --yes-label $"Insert another device" --no-label $"No more left" \
+                 --yesno  $"Successfully read. Are there any devices left?" 0 0
+            
+            [ $? -eq 1 ] && break #None left, go on
+            continue #Any left, ask for another usb
+        done
         
+        #All devices read, set read config as the working config
+        $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
         
-        # TODO remember to store all config variables, both those in usb and in hard drive
-        $PVOPS vars setVar c IPADDR "$IPADDR" # TODO maybe store it to the hard drive, now that we don0t support remote drives 
-	       $PVOPS vars setVar c HOSTNM "$HOSTNM" #store both on dhcp and manual
+        #Try to rebuild key (first a simple attempt and then an all combinations)
+        $dlg --infobox $"Reconstructing ciphering key..." 0 0
+        rebuildKey
+        [ $? -ne 0 ] && continue #Failed, go back to the menu
+        
+        $dlg --msgbox $"Key successfully rebuilt." 0 0
 
 
-        # TODO write usbs if in install
+        # TODO up to now, we have a key and config in roottmp in both cases. see if we need to read some of the usb vars to userspace (check needs of the userspace app and the calls to privops and psetup) and do it here
+        
+    fi
+
+
+
+
+
+    ######## Setup system ######### # TODO some sections will be new only and some reload only
+
+
+
+    
+    # TODO setup hdd
+    
+    
+    #TODO on new: store all HDD variables now? (store also ip config)
+    
+    setVar usb IPMODE $IPMODE
+	setVar usb HOSTNM "$HOSTNM"
+ setVar usb DOMNAME "$DOMNAME"
+ 
+    if [ "$IPMODE" == "static"  ] #si es 'dhcp' no hacen falta
+	then
+	setVar usb IPADDR "$IPADDR"
+	setVar usb MASK "$MASK"
+	setVar usb GATEWAY "$GATEWAY"
+	setVar usb DNS1 "$DNS1"
+	setVar usb DNS2 "$DNS2"
+    fi
+ 
+
+    
+    # TODO configure network if reloading (read network config from hdd)
+    #
+    # configureNetwork
+    # if [ $? -ne 0 ] ; then
+    #     $dlg --yes-label $"Review" --no-label $"Keep" \
+    #          --yesno  $"Network connectivity error. Go on or review the parameters?" 0 0
+    #     #Review them, loop again
+    #     [ $? -eq 0 ] && continue
+    # fi
+
+
+
+    #Setup hosts file and hostname
+    $PSETUP configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
+    
+    #Make sure time is synced
+    $dlg   --infobox $"Syncronizing server time..." 0 0
+    $PSETUP forceTimeAdjust
+    
+
+    # TODO configure ssh backup key trust if reloading
+
+    # #Set trust on the server
+    # sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
+    # if [ $? -ne 0 ] ; then
+    #     echo "SSH Keyscan error." >>$LOGFILE 2>>$LOGFILE
+    #     return 1
+		  # fi
+
+
+
+    
+    
+    ######## Retrieve backup to restore #########
+
+    ######## Share key and basic config on usbs #########
+
+    #Setup network, persistence drive and other basics
+
+
+
+    
+
+
+
+
+    
+    #TODO Once the system is set up (or maybe before config?), store variables, un usbs, disk, etc. (see all sources and keep them simple and coordinated)
+    # TODO remember to store all config variables, both those in usb and in hard drive (the second group will be done, obviously, after setting up the drive) # TODO cambiar nomenclatura sobre las fuentes. hacver wrapper de getvar y setvar para userspace
+        setVar usb IPADDR "$IPADDR" # TODO maybe store it to the hard drive, now that we don0t support remote drives 
+	       setVar usb HOSTNM "$HOSTNM" #store both on dhcp and manual
+
+        #Guardamos los params # TODO revisra todos los forms para saber qué params guardar. quiatr viejos y ojo a los nuevos.
+        setConfigVars # OJO, las que se guatden en el hdd, pasar a más tarde
+  
+
+        # TODO write usbs if in install # TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
+
 
         # TODO write csr if in install
         
-    fi
+
+    
+    
+    # TODO Remember to set all variables from config that we need, here (from usb config after rebuild or set during installation) and, when set up, from crypto part config
     
 
-# TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
+
+
+
+
+
+
+    
+
+        
+
+        
+    
+
 
 
 
@@ -525,6 +666,18 @@ do
     # TODO give or remove privileges to the admin user, make sure this var is erradicated: SETAPPADMINPRIVILEGES=0
 
 
+
+
+
+
+    # TODO: now, clauers are written at the end, after everything is configured.
+        #Avisamos antes de lo que va a ocurrir.
+    $dlg --msgbox $"Ahora procederemos a repartir la nueva información del sistema en los dispositivos de la comisión de custodia.\n\nLos dispositivos que se empleen NO DEBEN CONTENER NINGUNA INFORMACIÓN, porque VAN A SER FORMATEADOS." 0 0
+    writeClauers   
+    
+
+
+    
     
     
     break # TODO invoke here the maintenance script?
@@ -565,26 +718,10 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 ###### Sistema nuevo #####  
 
 
-    #Guardamos los params # TODO revisra todos los forms para saber qué params guardar. quiatr viejos y ojo a los nuevos.
-    setConfigVars
-  
-    
-    
-    genNfragKey
-    
-    #Ahora que tenemos shares y config, pedimos los Clauers de los miembros de la comisión para guardar los nuevos datos. 
-    
-    #Avisamos antes de lo que va a ocurrir.
-    $dlg --msgbox $"Ahora procederemos a repartir la nueva información del sistema en los dispositivos de la comisión de custodia.\n\nLos dispositivos que se empleen NO DEBEN CONTENER NINGUNA INFORMACIÓN, porque VAN A SER FORMATEADOS." 0 0
 
-
-    writeClauers   
     
-    #Informar de que se han escrito todos los clauers pero aún no se ha configurado el sistema. 
-    $dlg --msgbox $"Se ha terminado de repartir las nuevas llave y configuración. Vamos a proceder a configurar el sistema" 0 0
+    
 
-    #Como en este caso no se elige modo de mantenimiento, indicamos el que corresponde
-    doSystemConfiguration "new"
 
 
     #Forzamos un backup al acabar de instalar       #//// probar

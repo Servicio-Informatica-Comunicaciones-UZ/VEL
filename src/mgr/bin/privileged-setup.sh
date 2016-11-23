@@ -141,7 +141,7 @@ moveToRAM () {
         $dlg --msgbox $"Copy successful.""\n\n"$"Still available RAM filesystem space:"" $aufsFinalFreeSize MB." 0 0
     fi
     #Persist this variable (to the memory config file)
-    setPrivVar copyOnRAM "$copyOnRAM" r
+    setVar copyOnRAM "$copyOnRAM" mem
     
     #Workaround. This directory may not be listable despite the proper permissions  # TODO commented out. If problems detected, uncomment, otherwise, delete
 #    mv /var/www /var/aux >>$LOGFILE 2>>$LOGFILE
@@ -221,12 +221,12 @@ configureNetwork () {
     if [ "$IPMODE" == "" ]
 	   then
 	       echo "configureNetwork: Reading params from usb config file..." >>$LOGFILE 2>>$LOGFILE
-	       getPrivVar c IPMODE
-	       getPrivVar c IPADDR
-	       getPrivVar c MASK
-	       getPrivVar c GATEWAY
-	       getPrivVar c DNS1
-	       getPrivVar c DNS2
+	       getVar usb IPMODE
+	       getVar usb IPADDR
+	       getVar usb MASK
+	       getVar usb GATEWAY
+	       getVar usb DNS1
+	       getVar usb DNS2
    fi
     
     checkParameterOrDie IPMODE  "$IPMODE"  "0"
@@ -335,9 +335,9 @@ configureHostDomain () {
     if [ "$HOSTNM" == "" ]
 	   then
 	       echo "configureHostDomain: Reading params from usb config file..." >>$LOGFILE 2>>$LOGFILE
-	       getPrivVar c IPADDR
-	       getPrivVar c HOSTNM
- 	      getPrivVar c DOMNAME
+	       getVar usb IPADDR
+	       getVar usb HOSTNM
+ 	      getVar usb DOMNAME
     fi
     
     checkParameterOrDie IPADDR  "$IPADDR"  "0"
@@ -395,25 +395,25 @@ configureHostDomain () {
 recoverSSHBackupFileOp () {
 
         #Get backup data ciphering password (the shared hard drive cipher password)
-        getPrivVar r CURRENTSLOT
+        getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
         DATABAKPWD=$(cat $slotPath/key)  #TODO review slot system
         #Get backup file SSH location parameters
-        getPrivVar s SSHBAKUSER    
-        getPrivVar s SSHBAKSERVER
-        getPrivVar s SSHBAKPORT
+        getVar slot SSHBAKUSER    
+        getVar slot SSHBAKSERVER
+        getVar slot SSHBAKPORT
 
 
         #Temporarily save all config variables that must be preserved (as now
         #we need to overwrite some for the restore)
-        getPrivVar d SSHBAKPASSWD
+        getVar disk SSHBAKPASSWD
         SSHBAKPASSWDaux=$SSHBAKPASSWD
 
 
         #Get the ssh password for the location where we must get the backup file
-        getPrivVar s SSHBAKPASSWD
+        getVar slot SSHBAKPASSWD
         #Write it on the disk password file (askBackupPasswd script will search for it there).
-        setPrivVar SSHBAKPASSWD "$SSHBAKPASSWD" d
+        setVar SSHBAKPASSWD "$SSHBAKPASSWD" disk
         
         #Recover backup
         recoverSSHBackupFile "" "$DATABAKPWD" "$SSHBAKUSER" "$SSHBAKSERVER" "$SSHBAKPORT" "$ROOTTMP/backupRecovery"
@@ -431,7 +431,7 @@ recoverSSHBackupFileOp () {
         mv -f "$ROOTTMP/backupRecovery/$DATAPATH/*"  $DATAPATH/  # TODO change this. aufs may not be big enough to hold all of this. Write directly on the peristent data dev, also download the encrypted bak file there
         
         #Restore temporarily saved variables
-        setPrivVar SSHBAKPASSWD "$SSHBAKPASSWDaux" d 
+        setVar SSHBAKPASSWD "$SSHBAKPASSWDaux" disk 
 }
 
 # TODO review this better when implementing and testing  the backup recovery.
@@ -568,7 +568,7 @@ then
 #Set admin e-mail as the recipient for all system notification e-mails  # TODO Add this to the update admin maint op
 elif [ "$1" == "setupNotificationMails" ]
 then
-    getPrivVar d MGREMAIL
+    getVar disk MGREMAIL
     #Check for a previous entry, and overwrite
     found=$(cat /etc/aliases | grep -Ee "^\s*root:")
     if [ "$found" != "" ] ; then
@@ -619,12 +619,12 @@ then
     #No timezone passed, it is a system load
     if [ "$2" == "" ] ; then
         #Read it from usb config (it is already settled)  # TODO check if settled, otherwise read from active slot.
-        getPrivVar c TIMEZONE
+        getVar usb TIMEZONE
     else
         #Check passed timezone
         checkParameterOrDie TIMEZONE "$2"
         #Set it on usb config var (and set the global variable)
-        setPrivVar TIMEZONE "$TIMEZONE" c  # TODO make sure this is not overwritten later. As this is setup, vars should be written here and then shared on the devices, not overwritten by anything
+        setVar TIMEZONE "$TIMEZONE" usb  # TODO make sure this is not overwritten later. As this is setup, vars should be written here and then shared on the devices, not overwritten by anything
     fi
     
     echo "$TIMEZONE" > /etc/timezone
@@ -792,7 +792,7 @@ if [ "$1" == "populateDb" ]
     
     checkParameterOrDie INT "${2}" "0" # Guess inside here if backups are used or not, don't rely on the main program, so delete param $2 and use a locally read vr if needed
 
-    getPrivVar d DBPWD
+    getVar disk DBPWD
 
     #Ejecutamos las sentencias sql genéricas y las específicas (el -f obliga a cont. aunque haya un error, que no nos afectan)
     mysql -f -u election -p"$DBPWD" eLection  </usr/local/bin/buildDB.sql 2>>/tmp/mysqlerr
@@ -816,7 +816,7 @@ fi
 if [ "$1" == "updateDb" ]
     then
 
-    getPrivVar d DBPWD
+    getVar disk DBPWD
 
     #grep /usr/local/bin/buildDB.sql -iEe "\s*alter "  2>>$LOGFILE       > /tmp/dbUpdate.sql
 

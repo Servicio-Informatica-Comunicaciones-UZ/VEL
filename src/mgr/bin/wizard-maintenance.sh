@@ -13,6 +13,10 @@
 
 
 
+# TODO en algún sitio se invoca esto?
+#    $PVOPS  stopServers
+
+
 
 #Fatal error function. It is redefined on each script with the
 #expected behaviour, for security reasons.
@@ -887,7 +891,7 @@ executeSystemAction (){
       
       $dlg --infobox $"Configurando servidor de correo..." 0 0
 
-      $PVOPS vars setVar d MAILRELAY "$MAILRELAY"
+      setVar disk MAILRELAY "$MAILRELAY"
       
       $PVOPS configureServers mailServerM
 
@@ -941,8 +945,8 @@ executeSystemAction (){
 #*-*-SEGUIR
 	  
 	  #////guardamos los nuevos valores de dichos params en fich de clauer y en disco --> asegurarme de que exista el fichero de config de clauer con los parámetros que tocan. Ver cómo hacía para grabarlo, si uso el mismo fichero o lo duplicaba o algo y hacerlo aquí. Ojo a la nueva llave generada, la vieja y la autorización para ejecutar ops.
-	  #SSHBAKSERVER=$($PVOPS vars getVar d SSHBAKSERVER)
-	  # set en vez de get, y set en c y en d, y después de verificar..  SSHBAKPORT=$($PVOPS vars getVar d SSHBAKPORT)
+	  #SSHBAKSERVER=$(getVar disk SSHBAKSERVER)
+	  # set en vez de get, y set en c y en d, y después de verificar..  SSHBAKPORT=$(getVar disk SSHBAKPORT)
 
       #Generar nueva llave externa y almacenarla en un set de clauers.
 
@@ -1012,15 +1016,18 @@ doLoop () {
 ##################
 
 
+# TODO add a maint option to join esurvey lcn network (if not done during setup, and also to change registration)
+
 #//// Variables a leer cada vez que se lance este script:
-MGREMAIL=$($PVOPS vars getVar d MGREMAIL)
-ADMINNAME=$($PVOPS vars getVar d ADMINNAME)
+MGREMAIL=$(getVar disk MGREMAIL)
+ADMINNAME=$(getVar disk ADMINNAME)
 
-SHARES=$($PVOPS vars getVar c SHARES)
+SHARES=$(getVar usb SHARES)
 
-copyOnRAM=$($PVOPS vars getVar r copyOnRAM)
+copyOnRAM=$(getVar mem copyOnRAM)
 
-
+# TODO leer estas variables para el modo mant? para default en la op de renovar cert ssl?
+#"$HOSTNM.$DOMNAME"
 
 sslCertState=$($PVOPS getSslCertState)
 [ "$sslCertState" == "" ] && echo "Error: debería existir algún estado para el cert."  >>$LOGFILE 2>>$LOGFILE
