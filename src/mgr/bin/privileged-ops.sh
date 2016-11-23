@@ -2497,6 +2497,7 @@ fi
 # 4-> full name
 # 5-> user id num
 # 6-> mail addr
+# 7 -> local password  # TODO handle this properly, store it somewehre
 if [ "$1" == "resetAdmin" ]
     then
     

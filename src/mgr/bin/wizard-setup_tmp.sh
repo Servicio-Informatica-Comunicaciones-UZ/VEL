@@ -4,114 +4,28 @@
 # LOCALPWDSUM
 
 # TODO sacar el selector de keylength a otro sitio
-sysadminParams () {  # TODO merge with setAdmin
+keyLengthParams () {
+    
+	   #Selector de tamaño de llave  # TODO ver dónde se usa y sacar de aquí. también, aumentar los tamaños de clave, hablar con manolo.
+    KEYSIZE=""
+    exec 4>&1 
+    KEYSIZE=$($dlg --no-cancel  --menu $"Seleccione un tamaño para las llaves del sistema\n(a mayor valor, más robustez, pero más coste computacional):" 0 80  5  \
+	                  1024 - \
+	                  1152 - \
+	                  1280 - \
+	                  2>&1 >&4)
+    [ "$?" -ne 0 ]       && KEYSIZE="1024"
+    [ "$KEYSIZE" == "" ] && KEYSIZE="1024"
+    
+    echo "keysize: $KEYSIZE"   >>$LOGFILE 2>>$LOGFILE
+    
 
-
-
-      if [ $? -ne 0 ] 
-	  then
-	  verified=0
-	  $dlg --msgbox $"Debe introducir un nombre de usuario válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
-	  continue
-      fi
-
-
-      getPassword 'new' $"Introduzca la contraseña para\nel administrador del sistema de voto." 1
-      MGRPWD="$pwd"
-      pwd=''
-      
-
-      ADMREALNAME=$($dlg --no-cancel  --inputbox  \
-	  $"Nombre completo del administrador del sistema de voto." 0 0 "$ADMREALNAME"  2>&1 >&4)
-      
-      if [ "$ADMREALNAME" == "" ] 
-	  then
-	  verified=0
-	  $dlg --msgbox $"Debe proporcionar un nombre." 0 0
-	  continue
-      fi
-      
-      
-      parseInput freetext "$ADMREALNAME"
-      if [ $? -ne 0 ] 
-	  then
-	  verified=0
-	  $dlg --msgbox $"Debe introducir un nombre válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0
-	  continue
-      fi
-
-
-
-
-      ADMIDNUM=$($dlg --no-cancel  --inputbox  \
-	  $"DNI del administrador del sistema de voto." 0 0 "$ADMIDNUM"  2>&1 >&4)
-      
-      if [ "$ADMIDNUM" == "" ] 
-	  then
-	  verified=0
-	  $dlg --msgbox $"Debe proporcionar un DNI." 0 0
-	  continue
-      fi
-      
-      parseInput dni "$ADMIDNUM"
-      if [ $? -ne 0 ] 
-	  then
-	  verified=0 
-	  $dlg --msgbox $"Debe introducir un numero de DNI válido. Puede contener los caracteres: $ALLOWEDCHARSET" 0 0 
-	  continue
-      fi
-      
-
-
-
-      MGREMAIL=$($dlg --no-cancel  --inputbox  \
-	  $"Correo electrónico del administrador del sistema de voto.\nSe empleará para notificar incidencias del sistema." 0 0 "$MGREMAIL"  2>&1 >&4)
-      
-      if [ "$MGREMAIL" == "" ] 
-	  then
-	  verified=0 
-	  $dlg --msgbox $"Debe proporcionar un correo electrónico." 0 0 
-	  continue
-      fi
-      
-      parseInput email "$MGREMAIL"
-      if [ $? -ne 0 ] 
-	  then 
-	  verified=0
-	  $dlg --msgbox $"Debe introducir una dirección de correo válida." 0 0
-	  continue
-      fi
-      
-
-
-
-
-
-	  #Selector de tamaño de llave  # TODO ver dónde se usa y sacar de aquí. también, aumentar los tamaños de clave, hablar con manolo.
-      KEYSIZE=""
-      exec 4>&1 
-      KEYSIZE=$($dlg --no-cancel  --menu $"Seleccione un tamaño para las llaves del sistema\n(a mayor valor, más robustez, pero más coste computacional):" 0 80  5  \
-	  1024 - \
-	  1152 - \
-	  1280 - \
-	  2>&1 >&4)
-      [ "$?" -ne 0 ]       && KEYSIZE="1024"
-      [ "$KEYSIZE" == "" ] && KEYSIZE="1024"
-      
-      echo "keysize: $KEYSIZE"   >>$LOGFILE 2>>$LOGFILE
-      
-
-      if [ "$verified" -eq 1 ] 
-	  then
-	  $dlg --yes-label $"Revisar"  --no-label $"Continuar"  --yesno \
-	      $"Datos adquiridos. ¿Desea revisarlos o desea continuar con la configuración del sistema?" 0 0 
-	  verified=$?
-      fi
-      
-    done
-
-
-
+    if [ "$verified" -eq 1 ] 
+	   then
+	       $dlg --yes-label $"Revisar"  --no-label $"Continuar"  --yesno \
+	            $"Datos adquiridos. ¿Desea revisarlos o desea continuar con la configuración del sistema?" 0 0 
+	       verified=$?
+    fi
 }
 
 
@@ -583,17 +497,25 @@ configureServers () {
 	if [ "$1" == 'new' ]
 	    then :
 	    
-	    #Pedimos los parámetros del sysadmin
-	    sysadminParams
+	    #Pedimos los parámetros del sysadmin # TODO esto ya lo hago en el menu ahora. Asegurarme de que se hace lo de abajo en cuanto empiece la fase de config
+	    sysAdminParams
 
-            #Ahora el pwd se guarda SALTED
+# TODO esto del sum vale la pena hacerlo aquí o lo pasoa  la op priv?
+     
+     #Ahora el pwd se guarda SALTED
 	    MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
 	    MGRPWD=''
+
+     #TODO también para el pwd local
+	    LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
+	    LOCALPWD=''
 
 	    #Guardamos las variables que necesite el programa en el fichero de variables de disco
 	    $PVOPS vars setVar d MGREMAIL  "$MGREMAIL"  #////probar
 	    $PVOPS vars setVar d ADMINNAME "$ADMINNAME"
 	    $PVOPS vars setVar d KEYSIZE   "$KEYSIZE"
+
+     # TODO se llama a la op priv de setadmin? ver dónde se hace en el setup y si no se hace, hacerlo.
 
 	fi
     fi 

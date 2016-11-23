@@ -439,8 +439,6 @@ do
                     sysAdminParams
                     action=$?
                     ;;
-
-                
                 
                 
                 "8" ) #SSL certificate

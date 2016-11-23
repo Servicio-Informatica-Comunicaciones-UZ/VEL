@@ -298,17 +298,6 @@ systemMonitorScreen () {
 
 
 
-#setAdmin # TODO chage all calls to this funct to the new one.
-# TODO ahora sobreescribirá los params generales, así que si hace falta, guardar los valores originales en unas aux y punto, ya vale de duplicr código a lo tonto.
-# TODO cargar también los default de las vars antes de llamarlo desde el maintenance
-# TODO para saber quién es el administrador actual, ver el valor default
-# TODO: en resumen: esta interfaz permitirá pner todos los valores para el admin y los mostrará como defaults si ya existían. Para el instalador, no sacar nada e insertar new user. Para el new admin, sacar en blanco y update/insert según si existe el username o no (y el dni?). para el new pwd del admin actual, sacar lo mismo relleno.
-# TODO Merge with sysadminParams 
-# TODO Además, no distinguir entre nuevo o viejo. Sacar todos los datos y actualizarlos/insertarlos todos
-
-
-
-
 
 
 
@@ -690,8 +679,19 @@ executeSystemAction (){
       "resetadmin" )
       
       $dlg --msgbox $"Va a resetear la contraseña del usuario administrador." 0 0
+
+
+# TODO cargar también los default de las vars de abajo aquí 
+# TODO para saber quién es el administrador actual, ver el valor default
+# TODO: en resumen: esta interfaz permitirá pner todos los valores para el admin y los mostrará como defaults si ya existían. Para el instalador, no sacar nada e insertar new user. Para el new admin, sacar en blanco y update/insert según si existe el username o no (y el dni?). para el new pwd del admin actual, sacar lo mismo relleno.
+# TODO Además, no distinguir entre nuevo o viejo. Sacar todos los datos y actualizarlos/insertarlos todos
+
+
       
-      setAdmin 0
+      sysAdminParams lock
+      [ $? -ne 0 ] && return 1 # TODO ver la op de abajo
+      
+      $PVOPS resetAdmin "$MGRPWD" "$ADMINNAME" "$ADMREALNAME" "$ADMIDNUM" "$MGREMAIL" "$LOCALPWD" # TODO revisar esta op y ver que hace lo que espero, que es dejar el mismo admin y cambiar sus pwds
       
       #Además, da privilegios al administrador
       grantAdminPrivileges grant
@@ -705,8 +705,20 @@ executeSystemAction (){
       "newadmin" )
       
       $dlg --msgbox $"Va a crear un usuario administrador nuevo." 0 0
+
+
+      # TODO aquí no cargar defaults
       
-      setAdmin 1
+# TODO para saber quién es el administrador actual, ver el valor default (lo cargo aquí? yo creoque no. si hace falta para quitarle los privs, hacerlo en la op priv)
+# TODO: en resumen: esta interfaz permitirá pner todos los valores para el admin y los mostrará como defaults si ya existían. Para el instalador, no sacar nada e insertar new user. Para el new admin, sacar en blanco y update/insert según si existe el username o no (y el dni?). para el new pwd del admin actual, sacar lo mismo relleno.
+# TODO Además, no distinguir entre nuevo o viejo. Sacar todos los datos y actualizarlos/insertarlos todos
+      
+      sysAdminParams
+      [ $? -ne 0 ] && return 1 # TODO ha cancelado la operación. Ver si esto está bien implementado según el flujo (o revisar el flujo, y hacerlo para todas la sops. que todas sean cancelables.)
+      
+      $PVOPS resetAdmin "$MGRPWD" "$ADMINNAME" "$ADMREALNAME" "$ADMIDNUM" "$MGREMAIL" "$LOCALPWD" #TODO revisar esta op y asegurarme de que hace lo que espero, que es cambiar el admin por otro. allí deberá mirar el admin actual y quitarle dicho privilegio.
+
+      # TODO en algún punto se tendrán qu actualizar las vars en privileged. ya sea aquí fuera o al llamara  resetadmin. decidir dónde.
       
       #Además, da privilegios al administrador
       grantAdminPrivileges grant

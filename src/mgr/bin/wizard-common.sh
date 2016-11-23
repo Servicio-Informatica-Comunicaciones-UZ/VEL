@@ -550,6 +550,7 @@ configureNetwork () {
 
 #Will ask the personal and authentication information for the system
 #administrator, so it will be added to the database
+#1 -> if 'lock', it will lock all fields except for passwords
 #Returns 0 if parameters have been set and match the syntax, 1 if back button pressed
 #Will set the following variables:
 # ADMINNAME
@@ -559,20 +560,22 @@ configureNetwork () {
 # MGRPWD
 # LOCALPWD
 sysAdminParams () {
+
+    #If set, allows edition of password fields only
+    local lock=0
+    [ "$1" == 'lock' ] && lock=2
     
     local choice=""
     exec 4>&1
 	   while true
 	   do
-        # TODO poner opción que ponga los campos que no sean pwd como no editables, para llamarlo sobre el admin actual.
-        # TODO comprobar que el local y app pwds no sean iguales
 	       local formlen=8
 	       choice=$($dlg  --cancel-label $"Back"  --mixedform  $"System administrator information" 0 0 21  \
 	                      $"Field"            1  1 $"Value"       1  30  17 15   2  \
-	                      $"User name"        3  1 "$ADMINNAME"   3  30  17 256  0  \
-                       $"ID number"        5  1 "$ADMIDNUM"    5  30  17 256  0  \
-                       $"E-mail address"   7  1 "$MGREMAIL"    7  30  17 256  0  \
-                       $"Full name"        9  1 "$ADMREALNAME" 9  30  17 256  0  \
+	                      $"User name"        3  1 "$ADMINNAME"   3  30  17 256  $lock  \
+                       $"ID number"        5  1 "$ADMIDNUM"    5  30  17 256  $lock  \
+                       $"E-mail address"   7  1 "$MGREMAIL"    7  30  17 256  $lock  \
+                       $"Full name"        9  1 "$ADMREALNAME" 9  30  17 256  $lock  \
 	                      $"Web APP password" 12 1 "$MGRPWD"      12 30  17 256  1  \
 	                      $"Repeat password"  14 1 "$repMGRPWD"   14 30  17 256  1  \
 	                      $"Local password"   17 1 "$LOCALPWD"    17 30  17 256  1  \
@@ -653,6 +656,13 @@ sysAdminParams () {
             #Next item, until the number of expected items
 	           i=$((i+1))
 	       done
+        
+        #One more check: local and web password shouldn't be the same,
+        #for security reasons
+        if [ "$MGRPWD" == "$LOCALPWD" ] ; then
+            loopAgain=1
+            errors="$errors\n"$"Local password and Web app password mustn't be the same."
+        fi
         
         #Show errors in the form, then loop
 	       if [ "$loopAgain" -eq 1 ] ; then

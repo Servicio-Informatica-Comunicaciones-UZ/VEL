@@ -269,7 +269,7 @@ parseInput () {
 }
 
 
-#TODO check which vars do not exist anymore (iscsi, nfs, smb)
+#TODO check which vars do not exist anymore (iscsi, nfs, smb), and add news if needed
 
 #Check if a certain variable has a proper value (content type is inferred from the variable name)
 # $1 -> Variable name
@@ -357,7 +357,7 @@ checkParameter () {
 	           ret=$?
 	           ;;
 	       
-	       "DBPWD" | "SSHBAKPASSWD" | "PARTPWD" | "MYSQLROOTPWD" | "DEVPWD" | "MGRPWD" )
+	       "DBPWD" | "SSHBAKPASSWD" | "PARTPWD" | "MYSQLROOTPWD" | "DEVPWD" | "MGRPWD" | "LOCALPWD" )
             parseInput pwd "$2"
 	           ret=$?
 	           ;;
