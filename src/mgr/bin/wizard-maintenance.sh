@@ -299,7 +299,10 @@ systemMonitorScreen () {
 
 
 #setAdmin # TODO chage all calls to this funct to the new one.
-# TODO ahora sobreescribirá los params generales, así que si hace falta, guardar los valores originales en unas aux y punto, ya vale de duplicr código a lo tonto
+# TODO ahora sobreescribirá los params generales, así que si hace falta, guardar los valores originales en unas aux y punto, ya vale de duplicr código a lo tonto.
+# TODO cargar también los default de las vars antes de llamarlo desde el maintenance
+# TODO para saber quién es el administrador actual, ver el valor default
+# TODO: en resumen: esta interfaz permitirá pner todos los valores para el admin y los mostrará como defaults si ya existían. Para el instalador, no sacar nada e insertar new user. Para el new admin, sacar en blanco y update/insert según si existe el username o no (y el dni?). para el new pwd del admin actual, sacar lo mismo relleno.
 # TODO Merge with sysadminParams 
 # TODO Además, no distinguir entre nuevo o viejo. Sacar todos los datos y actualizarlos/insertarlos todos
 

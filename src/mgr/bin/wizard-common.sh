@@ -548,7 +548,129 @@ configureNetwork () {
 
 
 
+#Will ask the personal and authentication information for the system
+#administrator, so it will be added to the database
+#Returns 0 if parameters have been set and match the syntax, 1 if back button pressed
+#Will set the following variables:
+# ADMINNAME
+# ADMIDNUM
+# MGREMAIL
+# ADMREALNAME
+# MGRPWD
+# LOCALPWD
+sysAdminParams () {
+    
+    local choice=""
+    exec 4>&1
+	   while true
+	   do
+        # TODO poner opción que ponga los campos que no sean pwd como no editables, para llamarlo sobre el admin actual.
+        # TODO comprobar que el local y app pwds no sean iguales
+	       local formlen=8
+	       choice=$($dlg  --cancel-label $"Back"  --mixedform  $"System administrator information" 0 0 21  \
+	                      $"Field"            1  1 $"Value"       1  30  17 15   2  \
+	                      $"User name"        3  1 "$ADMINNAME"   3  30  17 256  0  \
+                       $"ID number"        5  1 "$ADMIDNUM"    5  30  17 256  0  \
+                       $"E-mail address"   7  1 "$MGREMAIL"    7  30  17 256  0  \
+                       $"Full name"        9  1 "$ADMREALNAME" 9  30  17 256  0  \
+	                      $"Web APP password" 12 1 "$MGRPWD"      12 30  17 256  1  \
+	                      $"Repeat password"  14 1 "$repMGRPWD"   14 30  17 256  1  \
+	                      $"Local password"   17 1 "$LOCALPWD"    17 30  17 256  1  \
+	                      $"Repeat password"  19 1 "$repLOCALPWD" 19 30  17 256  1  \
+	                      2>&1 >&4 )
+        
+	       #If cancelled, exit
+        [ $? -ne 0 ] && return 1
+        
+        #Check that all fields have been filled in (choice must
+        #have the expected number of items), otherwise, loop
+        local BAKIFS=$IFS
+        IFS=$(echo -en "\n\b") #We need this to avoid interpreting a space as an entry 
+        local clist=($choice)
+        IFS=$BAKIFS
+        if [ ${#clist[@]} -le "$formlen" ] ; then
+            $dlg --msgbox $"All fields are mandatory" 0 0
+	           continue 
+	       fi
+        
+        #Parse each entry before setting it
+     	  local i=0
+	       local loopAgain=0
+        local errors=""
+        local pwderrmsg=""
+	       for item in $choice
+	       do
+         	  case "$i" in
+				            "1" ) # ADMINNAME
+		                  parseInput user "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"User name not valid. Can contain the following characters:"" $ALLOWEDCHARSET"
+  		                else ADMINNAME="$item" ; fi
+		                  ;;
+		              
+		              "2" ) # ADMIDNUM
+                    parseInput dni "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"User ID number not valid. Can contain the following characters:"" $ALLOWEDCHARSET"
+		                  else ADMIDNUM="$item" ; fi
+		                  ;;
+	               
+		              "3" ) # MGREMAIL
+		                  parseInput email "$item"
+				                if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"E-mail address not valid."
+                    else MGREMAIL="$item" ; fi
+		                  ;;
+	               
+		              "4" ) # ADMREALNAME
+		                  parseInput freetext "$item"
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"User real name string not valid. Can contain the following characters:"" $ALLOWEDCHARSET"
+		                  else ADMREALNAME="$item" ; fi
+				                ;;
+		              
+		              "5" ) # MGRPWD
+                    local auxmgrPwd="$item"
+                    pwderrmsg=$(checkPassword "$item")
+		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Web app password:"" $pwderrmsg"
+		                  else MGRPWD="$item" ; fi
+				                ;;
+	               
+		              "6" ) # repMGRPWD
+		                  if [ "$item" != "$auxmgrPwd" ] ; then loopAgain=1; errors="$errors\n"$"Web app password: passwords don't match."
+		                  else local repMGRPWD="$item" ; fi
+		                  ;;
+                
+		              "7" ) # LOCALPWD
+                    local auxlocalPwd="$item"
+                    pwderrmsg=$(checkPassword "$item")
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Local password:"" $pwderrmsg"
+		                  else LOCALPWD="$item" ; fi
+		                  ;;
 
+                "8" ) # repLOCALPWD
+		                  if [ "$item" != "$auxlocalPwd" ] ; then loopAgain=1; errors="$errors\n"$"Local password: passwords don't match."
+		                  else local repLOCALPWD="$item" ; fi
+		                  ;;
+	           esac
+            
+            #Next item, until the number of expected items
+	           i=$((i+1))
+	       done
+        
+        #Show errors in the form, then loop
+	       if [ "$loopAgain" -eq 1 ] ; then
+            $dlg --msgbox "$errors" 0 0
+            continue
+	       fi
+        break
+    done
+    
+    echo "ADMINNAME:   $ADMINNAME" >>$LOGFILE 2>>$LOGFILE
+    echo "MGRPWD:      $MGRPWD" >>$LOGFILE 2>>$LOGFILE
+    echo "LOCALPWD:    $LOCALPWD" >>$LOGFILE 2>>$LOGFILE
+    echo "ADMIDNUM:    $ADMIDNUM" >>$LOGFILE 2>>$LOGFILE
+    echo "MGREMAIL:    $MGREMAIL" >>$LOGFILE 2>>$LOGFILE
+    echo "ADMREALNAME: $ADMREALNAME" >>$LOGFILE 2>>$LOGFILE
+    
+    return 0
+}
 
 
 

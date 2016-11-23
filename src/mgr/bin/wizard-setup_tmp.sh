@@ -1,33 +1,13 @@
 
+# TODO calcular estas fuera de la func, con otra func, donde haga falta:
+# MGRPWDSUM
+# LOCALPWDSUM
 
+# TODO sacar el selector de keylength a otro sitio
 sysadminParams () {  # TODO merge with setAdmin
 
 
-    $dlg --msgbox $"Vamos a definir los datos de acceso como administrador al programa Web de gestión del sistema de voto. Deberá recordarlos para poder acceder en el futuro.\n\nRecuerde que el acceso a las funciones de administración privilegiadas sólo podrá llevarse a cabo previa autorización de la comisión de custodia por medio de esta aplicación." 0 0
-    
-    MGRPWD=""
-    MGREMAIL=""
-    ADMINNAME=""
-    ADMREALNAME=""
-    ADMIDNUM=""
-    verified=0
-    while [ "$verified" -eq 0 ]
-      do
-      
-      verified=1
 
-
-      ADMINNAME=$($dlg --no-cancel  --inputbox  \
-	  $"Nombre de usuario del administrador del sistema de voto." 0 0 "$ADMINNAME"  2>&1 >&4)
-      
-      if [ "$ADMINNAME" == "" ] 
-	  then
-	  verified=0 
-	  $dlg --msgbox $"Debe proporcionar un nombre de usuario." 0 0 
-	  continue
-      fi
-      
-      parseInput user "$ADMINNAME"
       if [ $? -ne 0 ] 
 	  then
 	  verified=0

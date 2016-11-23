@@ -436,7 +436,7 @@ do
                 
                 
                 "7" ) #System administrator
-                    
+                    sysAdminParams
                     action=$?
                     ;;
 
@@ -448,10 +448,14 @@ do
                     action=$?
                     ;;
 
+                             
+                "9" ) #Key lengths
+                    
+                    action=$?
+                    ;;
                 
                 
-                
-                "9" ) #Anonimity network
+                "10" ) #Anonimity network
                     
                     action=$?
                     ;;
