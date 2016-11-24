@@ -356,7 +356,7 @@ if [ "$1" == "vars" ]  # TODO revisar todas las llamadas, tb cambiar por disk, m
 
 
 # Asegurarme de que $SITESCOUNTRY $SITESORGSERV $SITESEMAIL están en algún fichero de variables      
-     if [ "$4" != "WWWMODE" -a "$4" != "SSHBAKPORT" -a "$4" != "SSHBAKSERVER" -a "$4" != "DOMNAME"   -a "$4" != "copyOnRAM"  -a "$4" != "SHARES" -a "$4" != "SITESCOUNTRY" -a "$4" != "SITESORGSERV" -a "$4" != "SITESEMAIL" -a "$4" != "ADMINNAME" ]  #//// SEGUIR: sacar esta comprobación a una func.
+     if [ "$4" != "WWWMODE" -a "$4" != "SSHBAKPORT" -a "$4" != "SSHBAKSERVER" -a "$4" != "DOMNAME"   -a "$4" != "copyOnRAM"  -a "$4" != "SHARES" -a "$4" != "SITESCOUNTRY" -a "$4" != "SITESORGSERV" -a "$4" != "SITESEMAIL" -a "$4" != "ADMINNAME" ]  # TODO: sacar esta comprobación a una func.
 	 then
 	 echo "getVar: no permission to read var $4" >>$LOGFILE 2>>$LOGFILE
 	 exit 1
@@ -2281,7 +2281,6 @@ fi
 
 
 
-  #//// SEGUIR++++        
 
     # *-*-
     #Comprueba si la clave reconstruida en el slot activo es la correcta.

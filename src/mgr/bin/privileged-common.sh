@@ -361,7 +361,7 @@ getVar () {
 
 
 
-# TODO SEGUIR, las de abajo quedan por revisar
+# SEGUIR, las de abajo quedan por revisar
 
 
 #1 -> Path to the file containing the cert(s) to be checked

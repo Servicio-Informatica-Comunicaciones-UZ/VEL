@@ -33,24 +33,7 @@ export TERM=linux
 #############
 
 
-
-#Fatal error function. It is redefined on each script with the
-#expected behaviour, for security reasons.
-#$1 -> error message
-systemPanic () {
-
-    #Show error message to the user
-    $dlg --msgbox "$1" 0 0
-    
-    #Destroy sensitive variables  # TODO review if this is needed or list of vars must be updated
-    keyyU=''
-    keyyS=''
-    MYSQLROOTPWD=''
-
-   
-}
-
-
+# TODO extinguir systemPanic, al menos en el wizard. cambiar por msgbox y ya
 
 
 # TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
@@ -421,16 +404,22 @@ do
                     ;;
                 
                 
-                "10" ) #Anonimity network
-                    lcnRegisterParams
-                    # SEGUIR provar la de arriba y seguir con el registro
-                    # TODO request aquí
-                    action=$?
+                "10" ) #Anonimity network (optional)
+                    action=0
+                    $dlg --no-label $"Skip"  --yes-label $"Register" \
+                         --yesno  $"Do you wish to register your voting service to allow using the eSurvey Anonimity Network?""\n"$"(it can be done later at any moment)" 0 0
+                    if [ $? -eq 0 ]
+                    then
+                        lcnRegisterParams
+                        #If go to menu pressed
+                        [ $? -ne 0 ] && action=1 && break
+                        
+                        #Perform the registration
+                        esurveyRegisterReq
+                        #If failed
+                        [ $? -ne 0 ] && action=1
+                    fi
                     ;;
-
-
-
-
                 
                 
                 * ) #Confirmation to proceed with setup
@@ -458,11 +447,12 @@ do
                 [ $ret -eq 254 ] && continue 2
             fi
         done
-
-
-        # TODO Generate persistence drive cipherkey
-        genNfragKey
-
+        
+        
+        #Generate persistence drive cipherkey
+        $dlg   --infobox $"Generating shared key for the encrypted disk drive..." 0 0
+        $PVOPS genNfragKey
+        
         # TODO store some config vars now (memory and usb variables) check if the file for the future usb writing has beens et diring yhe key generation or we must do it.
         #Pasa las variables de configuración empleadas en este caso a una cadena separada por saltos de linea para volcarlo a un clauer
    
@@ -677,8 +667,10 @@ do
     
 
 
+    #Forzamos un backup al acabar de instalar       #//// probar
+    $PSETUP   forceBackup
     
-    
+    $dlg --msgbox $"System is running properly.""\n"$"The administrator has now privileged access to the voting web application. Don't forget to remove privileges before running an election. Otherwise he will have the means to disenfranchise targeted voters." 0 0
     
     break # TODO invoke here the maintenance script?
     
@@ -686,11 +678,13 @@ done #Main action loop
 
 
 
-#Test e-mail notifications with admin, neuter setup scripts
+#Send test e-mails and do the final security adjustments to lock down
+#all scripts and operations not needed anymore
 $PSETUP init5
 
-#Clean slots before going into maintenance mode (to void any rebuilt keys that may remain)
-$PVOPS storops resetAllSlots     # TODO implement a delayed rebuilt key anulation? this way, multiple privileged actions can be performed without bothering the keyholders. think about this calmly
+#Clean any remaining rebuilt keys. Any privileged action invoked from
+#now will need a key reconstruction
+$PVOPS storops resetAllSlots
 
 
 #Go into the maintenance mode. Process context is overriden with a new
@@ -701,110 +695,8 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 
 
 
+# TODO implement a delayed rebuilt key anulation? this way, multiple privileged actions can be performed without bothering the keyholders. think about this calmly. maybe a file with the last action timestamp and a cron? but I think it's too risky...
 
+# TODO any action not requiring a key rebuild, now will require admin's local pwd
 
-
-
-
-
-
-
-
-
-
-
-
-
-###### Sistema nuevo #####  
-
-
-
-    
-    
-
-
-
-    #Forzamos un backup al acabar de instalar       #//// probar
-    $PSETUP   forceBackup
-
-
-    #Avisar al admin de que necesita un Clauer, y permitirle formatear uno en blanco. # TODO esto ya no. Darle un punto adicional por privileged
-    $dlg --yes-label $"Omitir este paso" --no-label $"Formatear dispositivo"  --yesno  $"El administrador del sistema de voto necesita poseer un dispositivo Clauer propio con fines identificativos frente a la aplicación, aunque no contenga certificados. Si no posee ya uno, tiene la posibilidad de insertar ahora un dispositivo USB y formatearlo como Clauer." 0 0
-    formatClauer=$?
-
-    #Desea formatear un disp.
-    if [ $formatClauer -eq 1 ]
-	then
-	
-	success=0
-	while [ "$success" -eq  "0" ]
-	  do
-	  
- # TODO refactor this. now insertusb can always be cancelled and return 1, no infinite loop. Below there already is a special case, extenbd also for this
-	  insertUSB $"Inserte el dispositivo USB a escribir y pulse INTRO." "none"
-	 #TODO Verificar comportamiento de esto. si ret 2 es part a format y si es 0, es part montable, luego puede escribir el store directamente
-      
-          #Pedir pasword nuevo
-	  
-          #Acceder  # TODO esto es un mount, checkdev y getpwd (y luego un format usb + format store)
-	  storeConnect $DEV "newpwd" $"Introduzca una contraseña nueva:"
-	  ret=$?
-	  
-          #Si el acceso se cancela, pedimos que se inserte otro
-	  if [ $ret -eq 1 ] 
-	      then
-	      $dlg --msgbox $"Ha abortado el formateo del Clauer. Inserte otro para continuar" 0 0 
-	      continue
-	  fi
-	  
-          #Formatear y particionar el dev
-
-	  $dlg   --infobox $"Preparando Clauer..." 0 0
-	  formatearClauer "$DEV" "$PASSWD"	# TODO ahora la op de format sólo formatea el fichero. Si he de permitir formatear el devie, implementar eso aparte. quitar lo de las dos particiones, ahora sólo una de datos. Para asegurarse, que ponga a cero toda la unidad o que haga un wipe del fichero de store  
-	  if [ $? -ne 0 ] 
-	      then
-	      $dlg --msgbox $"Error durante el formateo." 0 0
-	      continue
-	  fi
-	  
-	  sync
-
-	  success=1
-	  
-	done
-	
-	detectUsbExtraction $DEV $"Clauer escrito con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
-	
-    fi
-    
-
-    $dlg --msgbox $"El sistema se ha iniciado con privilegios para el administrador. Estos se invalidarán en cuanto realice alguna operación de mantenimiento (tal como instalar el certificado SSL del servidor)." 0 0
-  
-    
-fi #if se formatea el sistema
-
-
-
-
-
-
-
-
-
-#*-*-Arreglar al menos el menú de standby y las operaciones que se realizan antes y después de llamar a una op del bucle infinito. ha sacado dos mensajes impresos. supongo que estarán dentro del maintenance, pero revisarlo bien cuando esté mejor el fichero de maintenance poner reads.
-
-
-
-
-
-
-
-#//// Ver las PVOPS en  configureServers (y el resto), porque habrá alguna que podrá ser pasada a PSETUP
-
-
-
-
-
-
-
-#Para verificar la sintaxis:   for i in $(ls ./data/config-tools/*.sh);   do    echo "-->Verificando script $i";   bash -n $i;   if [ $? -ne 0 ];       then       errorsFound=1;   fi; done;
+# TODO (?) Arreglar al menos el menú de standby y las operaciones que se realizan antes y después de llamar a una op del bucle infinito. ha sacado dos mensajes impresos. supongo que estarán dentro del maintenance, pero revisarlo bien cuando esté mejor el fichero de maintenance poner reads

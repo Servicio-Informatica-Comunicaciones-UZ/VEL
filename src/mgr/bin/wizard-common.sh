@@ -477,6 +477,7 @@ networkParams () {
 	               i=$((i+1))
                 IFS=$(echo -en "\n\b")
 	           done
+            IFS=$BAKIFS
             
             #Show errors in the form, then loop
 	           if [ "$loopAgain" -eq 1 ] ; then
@@ -668,6 +669,7 @@ sysAdminParams () {
 	           i=$((i+1))
             IFS=$(echo -en "\n\b")
 	       done
+        IFS=$BAKIFS
         
         #One more check: local and web password shouldn't be the same,
         #for security reasons
@@ -935,6 +937,7 @@ sshBackupParameters () {
             i=$((i+1))
             IFS=$(echo -en "\n\b")
 		      done
+        IFS=$BAKIFS
         
         #Show errors in the form, then loop
 	       if [ "$loopAgain" -eq 1 ] ; then
@@ -1095,6 +1098,7 @@ selectSharingParams () {
 		          i=$((i+1))
             IFS=$(echo -en "\n\b")
 	       done
+        IFS=$BAKIFS
             
         #Show errors in the form, then loop
 	       if [ "$loopAgain" -eq 1 ] ; then
@@ -1232,6 +1236,7 @@ sslCertParameters () {
 		          i=$((i+1))
             IFS=$(echo -en "\n\b")
         done
+        IFS=$BAKIFS
             
         #Show errors in the form, then loop
 	       if [ "$loopAgain" -eq 1 ] ; then
@@ -1272,7 +1277,7 @@ sslCertParameters () {
 #SITESORGSERV
 #SITESNAMEPURP
 #SITESCOUNTRY
-lcnRegisterParams () { #SEGUIR mañana. probar esta func y luego seguir con el registro
+lcnRegisterParams () {
     
     #Default values
     [ "$SITESCOUNTRY" == "" ] && SITESCOUNTRY="$COUNTRY"
@@ -1360,6 +1365,7 @@ lcnRegisterParams () { #SEGUIR mañana. probar esta func y luego seguir con el re
 		          i=$((i+1))
             IFS=$(echo -en "\n\b")
         done
+        IFS=$BAKIFS
         
         #Show errors in the form, then loop
 	       if [ "$loopAgain" -eq 1 ] ; then
@@ -1376,6 +1382,133 @@ lcnRegisterParams () { #SEGUIR mañana. probar esta func y luego seguir con el re
 	   echo "SITESORGSERV: $SITESORGSERV" >>$LOGFILE 2>>$LOGFILE
 	   echo "SITESNAMEPURP: $SITESNAMEPURP" >>$LOGFILE 2>>$LOGFILE
 	   echo "SITESCOUNTRY: $SITESCOUNTRY" >>$LOGFILE 2>>$LOGFILE
+    #</DEBUG>
+    
+    return 0
+}
+
+
+
+
+
+
+
+
+
+
+
+#Issues a register request to the anonimity network central
+#authority. Will produce an authentication token to communicate with
+#them.
+#Global variables accessed:
+#SITESEMAIL
+#SITESPWD
+#SITESORGSERV
+#SITESNAMEPURP
+#SITESCOUNTRY
+#KEYSIZE
+#Will set the following global variables:
+#SITESTOKEN
+#SITESPRIVK
+#SITESCERT
+#SITESEXP
+#SITESMOD
+esurveyRegisterReq () {
+    
+	   $dlg --infobox $"Generating signing certificate for the Anonimity Network Central Authority..." 0 0
+    
+	   #Generate service's package signing certificate with the provided info
+	   local pair=$(openssl req -x509 -newkey rsa:$KEYSIZE -keyout /dev/stdout -nodes -days 3650 \
+		  -subj "/C=$SITESCOUNTRY/O=$SITESORGSERV/CN=$SITESNAMEPURP/emailAddress=$SITESEMAIL" 2>>$LOGFILE)
+	      
+	   if [ "$pair" == "" ] ; then
+        $dlg --msgbox $"Error generating certificate." 0 0
+        return 1
+    fi
+	   
+	   SITESPRIVK=$(echo "$pair" | sed -n -e "/PRIVATE/,/PRIVATE/p");
+	   SITESCERT=$(echo "$pair" | sed -n -e "/CERTIFICATE/,/CERTIFICATE/p")
+	   
+    
+	   SITESEXP=$(echo -n "$SITESPRIVK" | openssl rsa -text 2>/dev/null | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
+	   SITESMOD=$(echo -n "$SITESPRIVK" | openssl rsa -text 2>/dev/null | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
+    
+	   #Generate certificate sign request for the self-signed certificate and then, urlencode it
+	   local certReq=$(echo "$SITESCERT" >/tmp/crt$$; echo "$SITESPRIVK" |
+		                      openssl x509 -signkey /dev/stdin -in /tmp/crt$$ -x509toreq 2>>$LOGFILE |
+                        sed -n -e "/BEGIN/,/END/p" |
+		                      sed -e :a -e N -e 's/\//%2F/g;s/=/%3D/g;s/+/%2B/g;s/\n/%0A/;ta' ; rm /tmp/crt$$);
+	   
+	   #Urlencode email and pwd:
+	   local mail=$($urlenc "$SITESEMAIL" 2>>$LOGFILE)
+	   local pwd=$($urlenc "$SITESPWD" 2>>$LOGFILE)
+    
+    
+    #Send the request
+	   $dlg --infobox $"Connecting with the Anonimity Network Central Authority..." 0 0
+	   
+	   #'once' paramater makes it impossible to unregister the service
+	   #once confirmed. This way, a malicious administrator cannot deny
+	   #anonimity network access on a critical moment (like during an
+	   #election)
+	   local result=$(wget  -O - -o /dev/null "https://esurvey.nisu.org/sites?mailR=$mail&pwdR=$pwd&req=$certReq&lg=es&once=1")
+    echo "Anonimity central authority response: $result"   >>$LOGFILE 2>>$LOGFILE
+    
+	   if [ "$result" == "" ] ; then
+		      $dlg --msgbox $"Error connecting with the Anonimity Network Central Authority." 0 0
+        SITESPRIVK=""
+        SITESCERT=""
+        SITESEXP=""
+        SITESMOD=""
+        return 1
+	   fi
+    
+    #Process response lines
+	   local linenum=1
+	   local errmsg=""
+    local status=""
+	   for line in $(echo "$result")
+		  do 
+		      case "$linenum" in
+		          "1" ) #Status Line
+                status="$line"
+                [ "$status" == "ERR" ] && errmsg=$"Request error. Probably because of e-mail address already registered with a different password."
+			             [ "$status" == "REG" ] && errmsg=$"Request error. Probably because of e-mail address already registered with a different password."
+                [ "$status" == "DUP" ] && errmsg=$"Request error. Found a former request with the same information. Please, modify."
+			             [ "$status" != "OK" ]  && errmsg=$"Unexpected request error."
+		              ;;
+
+		          "2" ) #On ERR,DUP: status message; On OK: service's exponent in b64 extracted from the certificate
+                [ "$status" == "ERR" -o "$status" == "DUP" ] && errmsg="$errmsg\n"$"Returned message:""\n$line"
+		              [ "$status" == "OK" -a "$SITESEXP" != "$line" ] && errmsg=$"Server error. Response information didn't match request."
+                ;;
+		          
+		          "3" ) #On OK service's modulus in b64 extracted from the certificate
+		              [ "$status" == "OK" -a "$SITESMOD" != "$line" ] && errmsg=$"Server error. Response information didn't match request."
+                ;;
+		          
+		          "4" ) #On OK: authentication token for future service-authrotiy communication
+		              [ "$status" == "OK" ] && SITESTOKEN="$line"
+		              ;;	
+		      esac
+		      linenum=$(($linenum+1))
+    done
+    
+    if [ "$errmsg" != "" ] ; then
+        $dlg --msgbox "$errmsg" 0 0
+        SITESPRIVK=""
+        SITESCERT=""
+        SITESEXP=""
+        SITESMOD=""
+        return 1
+    fi
+    
+    #<DEBUG>
+	   echo "SITESTOKEN: $SITESTOKEN"   >>$LOGFILE 2>>$LOGFILE
+	   echo "SITESPRIVK: $SITESPRIVK"   >>$LOGFILE 2>>$LOGFILE
+	   echo "SITESCERT: $SITESCERT"   >>$LOGFILE 2>>$LOGFILE
+	   echo "SITESEXP: $SITESEXP"   >>$LOGFILE 2>>$LOGFILE
+	   echo "SITESMOD: $SITESMOD"   >>$LOGFILE 2>>$LOGFILE
     #</DEBUG>
     
     return 0
@@ -1471,12 +1604,8 @@ umountCryptoPart () {
 
 
 
-genNfragKey () {
 
-    $dlg   --infobox $"Generando llave para la unidad cifrada..." 0 0
 
-    $PVOPS genNfragKey
-}
 
 
 #1-> el dev

@@ -653,7 +653,7 @@ executeSystemAction (){
 
 
   
-    #Acciones a llevar a cabo en cada operación de mantenimiento
+    #Acciones a llevar a cabo en cada operación de mantenimiento # TODO ojo. aquí falta código. revisar a fondo el script de la versión 1.0.2, creo que sólo falta de las ops de mant no revisadas
     case "$MAINTACTION" in 
 
  
@@ -942,7 +942,7 @@ executeSystemAction (){
 	  break
 	  
       done
-#*-*-SEGUIR
+
 	  
 	  #////guardamos los nuevos valores de dichos params en fich de clauer y en disco --> asegurarme de que exista el fichero de config de clauer con los parámetros que tocan. Ver cómo hacía para grabarlo, si uso el mismo fichero o lo duplicaba o algo y hacerlo aquí. Ojo a la nueva llave generada, la vieja y la autorización para ejecutar ops.
 	  #SSHBAKSERVER=$(getVar disk SSHBAKSERVER)
@@ -972,7 +972,7 @@ executeSystemAction (){
 
       ######### Permite modificar los parámetros de acceso a internet. ######### 
       "networkparams" )
-   $dlg --msgbox "Still not reviewed." 0 0 #////SEGUIR
+   $dlg --msgbox "Still not reviewed." 0 0
       ;;
 
 
@@ -989,7 +989,7 @@ executeSystemAction (){
       ;;	
 
 
-      ######### Se cambia la llave interna del sistema. ######### 
+      ######### Se cambia la llave interna del sistema. ######### ### TODO extinguir esta opción. Si hay un compromiso de la llave interna, hacer un backup y un restore y a correr.
       #Requiere reubicar todos los datos cifrados en otra localización (permite elegir de nuevo el modo)
       "newinnerkey" )
       $dlg --msgbox "Still not reviewed." 0 0 

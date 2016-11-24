@@ -176,3 +176,30 @@ IPADDR=$(host "$HOSTNM" | grep -e "has address" | sed -re "s/^.*address\s+([0-9.
 #echo -n "a" > /media/testpart/blocksizeprobe      
 #blocksize=$(ls -s /media/testpart/blocksizeprobe | cut -d " " -f1) #block size in Kb
 #rm -f /media/testpart/blocksizeprobe
+
+
+
+
+#Urlencode implemented with Sed:
+#* Defines a tag 'a'
+#* Reads next line and replaces = with %3D, etc. on said line
+#* Then it jumps to 'a' again.
+local certReq=$(echo "$SITESCERT" >/tmp/crt$$; echo "$SITESPRIVK" |
+		                  openssl x509 -signkey /dev/stdin -in /tmp/crt$$ -x509toreq 2>>$LOGFILE |
+                    sed -n -e "/BEGIN/,/END/p" |
+		                  sed -e :a -e N -e 's/\//%2F/g;s/=/%3D/g;s/+/%2B/g;s/\n/%0A/;ta' ; rm /tmp/crt$$);
+
+
+
+
+
+#Check all bash scripts syntax:
+for i in $(ls ./data/config-tools/*.sh);
+do
+    echo "-->Syntax checking script $i";
+    bash -n $i;
+    if [ $? -ne 0 ];
+    then
+        errorsFound=1;
+    fi;
+done;
