@@ -269,8 +269,8 @@ fi
 $PSETUP moveToRAM
 
 
-
-
+#Init usb and slot system management
+$PVOPS storops init
 
 
 #Main action loop
@@ -448,42 +448,19 @@ do
             fi
         done
         
-        
-        #Generate persistence drive cipherkey
-        $dlg   --infobox $"Generating shared key for the encrypted disk drive..." 0 0
-        $PVOPS genNfragKey
-        
-        # TODO store some config vars now (memory and usb variables) check if the file for the future usb writing has beens et diring yhe key generation or we must do it.
-        #Pasa las variables de configuración empleadas en este caso a una cadena separada por saltos de linea para volcarlo a un clauer
-   
-    
-    setVar usb DRIVEMODE "$DRIVEMODE"
-    
-    case "$DRIVEMODE" in
-	
-	"local" )
-        setVar usb DRIVELOCALPATH "$DRIVELOCALPATH"
-	;;
-	
-    	"file" )
-	setVar usb FILEPATH "$FILEPATH"
-	setVar usb FILEFILESIZE "$FILEFILESIZE"
+        #Set vars that will be put to the usb store
+        setVar usb DRIVEMODE "$DRIVEMODE"        
+        setVar usb DRIVELOCALPATH "$DRIVELOCALPATH"        
+	       setVar usb FILEPATH "$FILEPATH"
+	       setVar usb FILEFILESIZE "$FILEFILESIZE"
         setVar usb CRYPTFILENAME "$CRYPTFILENAME"
-    	;;
-	
-    esac
+        
+        setVar usb SHARES "$SHARES"
+        setVar usb THRESHOLD "$THRESHOLD"
 
-
-	setVar usb SSHBAKSERVER "$SSHBAKSERVER"
-	setVar usb SSHBAKPORT "$SSHBAKPORT"
-	setVar usb SSHBAKUSER "$SSHBAKUSER"
-	setVar usb SSHBAKPASSWD "$SSHBAKPASSWD"
-
-
-    setVar usb SHARES "$SHARES"
-    setVar usb THRESHOLD "$THRESHOLD"
-
-
+        #Generate and fragment persistence drive cipherkey (on the active slot)
+        $dlg   --infobox $"Generating shared key for the encrypted disk drive..." 0 0
+        $PVOPS genNfragKey $SHARES $THRESHOLD
     fi
     
     
@@ -549,20 +526,34 @@ do
     
     
     #TODO on new: store all HDD variables now? (store also ip config)
+    # TODO: add a maint option to change ip config [commis. authorisation]
+
+    # TODO if reset, get the vars instead of set
+    setVar disk IPMODE  "$IPMODE"
+	   setVar disk HOSTNM  "$HOSTNM"
+    setVar disk DOMNAME "$DOMNAME"
+    setVar disk IPADDR  "$IPADDR"
+	   setVar disk MASK    "$MASK"
+	   setVar disk GATEWAY "$GATEWAY"
+	   setVar disk DNS1    "$DNS1"
+	   setVar disk DNS2    "$DNS2"
+
+
     
-    setVar usb IPMODE $IPMODE
-	setVar usb HOSTNM "$HOSTNM"
- setVar usb DOMNAME "$DOMNAME"
- 
-    if [ "$IPMODE" == "static"  ] #si es 'dhcp' no hacen falta
-	then
-	setVar usb IPADDR "$IPADDR"
-	setVar usb MASK "$MASK"
-	setVar usb GATEWAY "$GATEWAY"
-	setVar usb DNS1 "$DNS1"
-	setVar usb DNS2 "$DNS2"
-    fi
- 
+    # TODO set hard drive vars later
+    # TODO on a recovery, ask the backup location parameters there, don't expect to read them from the usbs. Also, on the fresh install he will be able to set new ssh bak location (but on restoring, the values on the hard drive will be there. should we overwrite them? should we avoid defining certain things on a fresh install?) --> should we do this instead?: ask for the restoration clauers at the beginning, and ask for the ssh backup location (and provisional ip config). retrieve backup, setup hdd, restoee ******** I'm getting dizzy, think this really carefully. restoration is an emergency procedure and should not mess with the other ones, leave the other ones simple and see later what to do with this, I personally prefer to have the ip and ssh bak config on the hard drive and minimise usb config. if this means making a whole special flow for the restore, then it is. Think carefully what we backup and what we restore.
+    # TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password)
+	   setVar disk SSHBAKSERVER "$SSHBAKSERVER"
+	   setVar disk SSHBAKPORT   "$SSHBAKPORT"
+	   setVar disk SSHBAKUSER   "$SSHBAKUSER"
+	   setVar disk SSHBAKPASSWD "$SSHBAKPASSWD"
+    
+    
+    
+    
+    
+    
+
 
     
     # TODO configure network if reloading (read network config from hdd)

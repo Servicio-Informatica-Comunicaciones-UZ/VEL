@@ -203,3 +203,10 @@ do
         errorsFound=1;
     fi;
 done;
+
+
+
+
+
+#Don't ask me why, but if the path below (with the asterisk) is encircled in quotes, it doesn't do the rm and doesn't print any error
+rm -rf $ROOTTMP/slot$i/*  >>$LOGFILE 2>>$LOGFILE

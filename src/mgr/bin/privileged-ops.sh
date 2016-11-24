@@ -1685,18 +1685,20 @@ fi
 
 
 
-
+#Operations related to the usb secure storage system and the
+#management of the shared keys and configuration info.
 if [ "$1" == "storops" ]
 then
-    
-    echo "Calling storops $2 ..."  >>$LOGFILE 2>>$LOGFILE
-    
-    if [ "$2" == "" ]
-	   then
-	       echo "ERROR storops: No op code defined"  >>$LOGFILE 2>>$LOGFILE
+
+    if [ "$2" == "" ] ; then
+	       echo "ERROR storops: No op code provided"  >>$LOGFILE 2>>$LOGFILE
 	       exit 1
     fi
-	   
+    echo "Called store operation $2..." >>$LOGFILE 2>>$LOGFILE
+    
+    
+    
+    
     #Init persistent key slot management data
     if [ "$2" == "init" ] 
 	   then
@@ -1716,58 +1718,63 @@ then
     fi
     
     
-
     
     
     
-    #Variables globales a estas operaciones  # TODO, de esto nada, pasarlo a cada sitio donde se emplee, por si luego lo meto en función
     
-    getVar mem CURRENTSLOT
-    slotPath=$ROOTTMP/slot$CURRENTSLOT/
-
-
-
-
-    #Resetea el slot activo. 
+    #Reset currently active slot. 
     if [ "$2" == "resetSlot" ] 
-	then
-	
-	
-	rm -rf "$slotPath/*"  >>$LOGFILE 2>>$LOGFILE
-	echo -n "0" > "$slotPath/NEXTSHARENUM"
-	echo -n "0" > "$slotPath/NEXTCONFIGNUM"
-
-	exit 0
+	   then
+        getVar mem CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+	       
+	       rm -rf "$slotPath/*"  >>$LOGFILE 2>>$LOGFILE
+	       echo -n "0" > "$slotPath/NEXTSHARENUM"
+	       echo -n "0" > "$slotPath/NEXTCONFIGNUM"
+        
+	       exit 0
     fi
+    
+    
+    
+    
 
-
-    #Resetea todos los slots. 
+    
+    #Reset all slots. 
     if [ "$2" == "resetAllSlots" ] 
-	then
-	
-		
-	for i in $(seq $SHAREMAXSLOTS)
-	  do
-	  rm -rf $ROOTTMP/slot$i/*  >>$LOGFILE 2>>$LOGFILE #No me preguntes por qué (el *?), pero si la ruta va entre comillas no hace el RM y no saca error.
-	  echo -n "0" > "$ROOTTMP/slot$i/NEXTSHARENUM"
-	  echo -n "0" > "$ROOTTMP/slot$i/NEXTCONFIGNUM"
-	done
-	
-	exit 0
+	   then
+        for i in $(seq $SHAREMAXSLOTS)
+	       do
+	           rm -rf $ROOTTMP/slot$i/*  >>$LOGFILE 2>>$LOGFILE
+	           echo -n "0" > "$ROOTTMP/slot$i/NEXTSHARENUM"
+	           echo -n "0" > "$ROOTTMP/slot$i/NEXTCONFIGNUM"
+	       done
+	       
+	       exit 0
     fi
-
-
-    #Verifica la llave obtenida en el slot activo #*-*-
+    
+    
+    
+    
+    
+    
+    #Check if the key in the active slot matches the drive's ciphering
+    #password (so, those who added their shares are part of the
+    #legitimate key holding commission)
     if [ "$2" == "checkClearance" ] 
-	then
-	
-	checkClearance $CURRENTSLOT
-	ret="$?"
-	
-	exit $ret
+	   then
+	       getVar mem CURRENTSLOT
+        
+	       checkClearance $CURRENTSLOT #TODO revisar
+	       ret="$?"
+	       
+	       exit $ret
     fi
-
-
+    
+    
+    
+    
+    
     
     #Switch active slot
     #3-> which will be the new active slot
@@ -1785,17 +1792,18 @@ then
 	       exit 0
     fi
     
-
-
-
+    
+    
+    
+    
     
     #Tries to rebuild a key with the available shares on the current
     #slot, single attempt
     if [ "$2" == "rebuildKey" ] 
 	   then
-		      getVar mem CURRENTSLOT
+	       getVar mem CURRENTSLOT
         slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        
+                
 	       numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
         
         #Rebuild key and store it (it expects a set of files named
@@ -1804,6 +1812,7 @@ then
 	       $OPSEXE retrieve $numreadshares $slotPath  2>>$LOGFILE > $slotPath/key
 	       exit $? 
 	   fi
+    
     
     
     
@@ -1882,12 +1891,14 @@ then
 
 
 
-
+#SEGUIR revisando desde aquí
     
     
     if [ "$2" == "testForDeadShares" ] 
 	then
-    
+    	       getVar mem CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+
 
 #1 -> el dir de donde leer las shares a probar.
 testForDeadShares () {
@@ -2126,7 +2137,6 @@ fi
 
     #SEGUIR
     
-    #Comprobación de params comunes a estas ops
 
  
 
@@ -2201,81 +2211,89 @@ fi
     
 
 
-     #3-> dev
+    #3-> dev
     #4-> password   
     # 5 -> El número de share que debe escribir:
     if [ "$2" == "writeKeyShare" ] 
-	then
-	
-	getVar usb SHARES
+	   then
+	       
+	       getVar usb SHARES
         checkParameterOrDie DEV "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"
 	       
-	# $5 debe ser un int
-	checkParameterOrDie INT "${5}" "0"
+	       # $5 debe ser un int
+	       checkParameterOrDie INT "${5}" "0"
 
 
-	# $5 debe estar entre 0 y SHARES-1
-	if [ "$5" -lt 0 -o "$5" -ge "$SHARES" ]
-	    then
-	    echo "writeKeyShare: bad share num $5 (not between 0 and $SHARES)"  >>$LOGFILE 2>>$LOGFILE
-	    exit 1
-	fi
+        getVar mem CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        
+	       # $5 debe estar entre 0 y SHARES-1
+	       if [ "$5" -lt 0 -o "$5" -ge "$SHARES" ]
+	       then
+	           echo "writeKeyShare: bad share num $5 (not between 0 and $SHARES)"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
 
-	shareFileToWrite="$slotPath/keyshare$5"
+	       shareFileToWrite="$slotPath/keyshare$5"
 
-	# Si el fichero de esa share existe y tiene tamaño
-	if [ -s "$shareFileToWrite" ]
-	    then
-	    :
-	else
-	    echo "writeKeyShare: nonexisting or empty share $5 (of $SHARES)"  >>$LOGFILE 2>>$LOGFILE
-	    exit 1
-	fi
-    	
-	
+	       # Si el fichero de esa share existe y tiene tamaño
+	       if [ -s "$shareFileToWrite" ]
+	       then
+	           :
+	       else
+	           echo "writeKeyShare: nonexisting or empty share $5 (of $SHARES)"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
+    	   
+	       
         #echo "***** Written Share$1 ($(ls -l $shareFileToWrite | cut -d \" \" -f 5))*****"
         #hexdump shareFileToWrite
         #echo "******************************"
-	$OPSEXE writeKeyShare -d "$3"  -p "$4" <"$shareFileToWrite" 2>>$LOGFILE  #0 succesully set  1 write error
-	ret=$?
+	       $OPSEXE writeKeyShare -d "$3"  -p "$4" <"$shareFileToWrite" 2>>$LOGFILE  #0 succesully set  1 write error
+	       ret=$?
 
-	exit $ret
+	       exit $ret
     fi
 
 
 
 
-    
-      #3-> dev
+    # TODO revisar
+    #Writes the usb config file (the one settled and being edited
+    #during operation, not one from a slot) to a device
+    #3-> dev
     #4-> password      
     if [ "$2" == "writeConfig" ] 
-	then
+	   then
 
         checkParameterOrDie DEV "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"
-     
-	file="$ROOTTMP/config"	
-		
-	if [ -s "$file" ]
-	    then
-	    :
-	else
-	    echo "writeConfig: No config to write!"  >>$LOGFILE 2>>$LOGFILE
-	    exit 1
-	fi
+        
+	       file="$ROOTTMP/config"	
+		      
+	       if [ -s "$file" ]
+	       then
+	           :
+	       else
+	           echo "writeConfig: No config to write!"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
 
-	config=$(cat "$file" 2>>$LOGFILE)  ## TODO ???
-	
-	echo -e "CHECK1: cfg:  --" >>$LOGFILE 2>>$LOGFILE  # TODO Only in debug
-	cat "$file" >>$LOGFILE 2>>$LOGFILE #*-*- verificar que lo que imprimia era por esto. quitar este cat en prod. 
-	echo "--" >>$LOGFILE 2>>$LOGFILE
+	       config=$(cat "$file" 2>>$LOGFILE)  ## TODO ???
 
-	#Escribimos las vars de config que deben guardarse en el clauer (en el fichero del slot activo)
-	cat "$file" | $OPSEXE writeConfig -d "$3"  -p "$4" 2>>$LOGFILE
-	ret=$?
 
-	exit $ret
+	       echo -e "CHECK1: cfg:  --" >>$LOGFILE 2>>$LOGFILE  # TODO Only in debug
+        #<DEBUG>
+	       cat "$file" >>$LOGFILE 2>>$LOGFILE #*-*- verificar que lo que imprimia era por esto. quitar este cat en prod.
+        #</DEBUG>
+	       echo "--" >>$LOGFILE 2>>$LOGFILE
+
+	       #Escribimos las vars de config que deben guardarse en el clauer
+	       cat "$file" | $OPSEXE writeConfig -d "$3"  -p "$4" 2>>$LOGFILE
+	       ret=$?
+
+	       exit $ret
     fi
     
 
@@ -2283,18 +2301,18 @@ fi
 
 
     # *-*-
-    #Comprueba si la clave reconstruida en el slot activo es la correcta.
+    #Comprueba si la clave reconstruida en el slot activo es la correcta. # TODO esto no estaba ya más arriba? verificar si ya existem si se llama de otro modo o si es que falta código. --> está checkClearance, pero no sé si el uso de ambas es el mismo. buscar las llamadas a ambas
     if [ "$2" == "validateKey" ] 
 	then
-	:
+	    :
+             getVar mem CURRENTSLOT
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
     fi
 
 
-    
 
-
-
-
+    # TODO falta operación para cambiar password del store. revisar todas antes a ver
+    # TODO puede faltar tb una func para formatear?
 
 #readConfig(Share) --> devuelve el estado, pero el contenido lo vuelca  en un directorio inaccesible
 
@@ -2317,38 +2335,38 @@ fi
 
 
 
-
-
+#Generate a large cipher key and divide it in shares using Shamir's
+#algorithm
+#2 -> Number of total shares
+#3 -> Minimum amount of them needed to rebuild
 if [ "$1" == "genNfragKey" ] 
-    then
-
-    genNfragKey () {
-	
-        #Generamos una contraseña segura que será la clave de cifrado del disco. # fuente entropia: randomsound
-	PARTPWD=$(randomPassword)
-	
-	#Limpiamos el slot (por si no han llamado a resetSlot)
-	rm -rf $slotPath/*  >>$LOGFILE 2>>$LOGFILE
-	
-        #Fragmentamos la contraseña
-	echo -n "$PARTPWD" >$slotPath/key
-	$OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key >>$LOGFILE 2>>$LOGFILE 
-	local ret=$?
-	echo "$OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key" >>$LOGFILE 2>>$LOGFILE
-	
-	return $ret
-    }
+then
     
-    getVar usb SHARES
-    getVar usb THRESHOLD
+    #Chedck input parameters
+    checkParameterOrDie SHARES "$2"
+    checkParameterOrDie THRESHOLD "$3"
+    if [ "$SHARES" -lt 2 -o "$SHARES" -lt "$THRESHOLD" ] ; then
+        echo "Bad number of shares ($SHARES) or threshold ($THRESHOLD)"  >>$LOGFILE 2>>$LOGFILE
+        exit 1
+    fi
     
-    getVar mem CURRENTSLOT   #////probar
+    #Get reference to the currently active slot, there we will fragment the key
+    getVar mem CURRENTSLOT
     slotPath=$ROOTTMP/slot$CURRENTSLOT/
-
-
-    genNfragKey
     
-    exit $?
+    #Generate a large (91 char) true random password (entropy source: randomsound)
+	   PARTPWD=$(randomPassword)
+	   
+    #We used to clean the slot, but not anymore, as it might already
+    #contain a ready to use configuration file.
+	
+    #Fragment the password
+	   echo -n "$PARTPWD" >$slotPath/key
+	   $OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key >>$LOGFILE 2>>$LOGFILE 
+	   ret=$?
+	   echo "$OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key" >>$LOGFILE 2>>$LOGFILE
+	   
+    exit $ret
 fi
 
 

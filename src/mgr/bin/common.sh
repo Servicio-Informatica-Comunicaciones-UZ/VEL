@@ -54,6 +54,9 @@ DATAPATH="/media/crypStorage"
 CRYPTFILENAMEBASE="vtUJI-encryptedFS-"
 
 
+#Number of key sharing slots managed by the system.
+SHAREMAXSLOTS=2
+
 #Default SSH port
 DEFSSHPORT=22
 

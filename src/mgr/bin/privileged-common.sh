@@ -14,8 +14,7 @@ ROOTTMP="/root/"
 ROOTFILETMP=$ROOTTMP"/filetmp"
 ROOTSSLTMP=$ROOTTMP"/ssltmp"
 
-#Number of key sharing slots managed by the system.
-SHAREMAXSLOTS=2
+
 
 
 
@@ -41,6 +40,8 @@ systemPanic () {
     exit 99
 }
 
+
+# TODO remove all dialogs from privileged scripts. At least from the ops and common, setup will be fine
 
 
 #Umount encrypted partition in any of the supported modes
