@@ -2554,8 +2554,7 @@ if [ "$1" == "resetAdmin" ]
         #El nuevo admin será el que reciba los avisos, en vez del viejo (sólo puede ser uno, y se asume que el nuevo está supliendo al antiguo)
 	echo "update eVotDat set email='$mgremail';"  | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
 
-	setVar MGREMAIL  "$MGREMAIL"  disk   #////probar
-	setVar ADMINNAME "$ADMINNAME" disk
+
 	sed -i -re "/^root:/ d" /etc/aliases
 	echo -e "root: $MGREMAIL" >> /etc/aliases   2>>$LOGFILE
 	/usr/bin/newaliases    >>$LOGFILE 2>>$LOGFILE

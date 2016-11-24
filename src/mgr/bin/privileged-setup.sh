@@ -615,23 +615,14 @@ then
 #Setup timezone and store variable
 elif [ "$1" == "setupTimezone" ]
 then
-    
-    #No timezone passed, it is a system load
-    if [ "$2" == "" ] ; then
-        #Read it from usb config (it is already settled)  # TODO check if settled, otherwise read from active slot.
-        getVar usb TIMEZONE
-    else
-        #Check passed timezone
-        checkParameterOrDie TIMEZONE "$2"
-        #Set it on usb config var (and set the global variable)
-        setVar TIMEZONE "$TIMEZONE" usb  # TODO make sure this is not overwritten later. As this is setup, vars should be written here and then shared on the devices, not overwritten by anything
-    fi
+    #Check passed timezone
+    checkParameterOrDie TIMEZONE "$2"
     
     echo "$TIMEZONE" > /etc/timezone
     rm -f /etc/localtime
     ln -s "/usr/share/zoneinfo/right/$TIMEZONE" /etc/localtime
     
-
+    
     
     
 #Recover the system from a backup file retrieved through SSH  #  TODO test

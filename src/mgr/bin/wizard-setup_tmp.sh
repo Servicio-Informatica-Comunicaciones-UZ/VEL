@@ -189,10 +189,8 @@ configureServers () {
     if [ "$1" == 'new' ]
 	then :
 	
-        #Guardamos las variables d econfiguración correspondientes (esta la pido 
-        #al principio pero no se necesita hasta ahora. Además ahora la guardo 
-        #sólo en disco, y no tb en el clauer)
-	setVar disk MAILRELAY "$MAILRELAY"
+
+
     fi
     
     
@@ -203,35 +201,6 @@ configureServers () {
 
 
 
-    
-    ######### Solicitar datos del administrador del sistema ######### 
-
-    if [ "$DORESTORE" -ne 1 ] ; then
-	if [ "$1" == 'new' ]
-	    then :
-	    
-	    #Pedimos los parámetros del sysadmin # TODO esto ya lo hago en el menu ahora. Asegurarme de que se hace lo de abajo en cuanto empiece la fase de config
-	    sysAdminParams
-
-# TODO esto del sum vale la pena hacerlo aquí o lo pasoa  la op priv?
-     
-     #Ahora el pwd se guarda SALTED
-	    MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
-	    MGRPWD=''
-
-     #TODO también para el pwd local
-	    LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
-	    LOCALPWD=''
-
-	    #Guardamos las variables que necesite el programa en el fichero de variables de disco
-	    setVar disk MGREMAIL  "$MGREMAIL"  #////probar
-	    setVar disk ADMINNAME "$ADMINNAME"
-	    setVar disk KEYSIZE   "$KEYSIZE"
-
-     # TODO se llama a la op priv de setadmin? ver dónde se hace en el setup y si no se hace, hacerlo.
-
-	fi
-    fi 
 
 
 
@@ -304,7 +273,11 @@ configureServers () {
 	    then
 	    rm -f $TMPDIR/config.sql
 	    touch $TMPDIR/config.sql
-	    
+
+
+     #Si no está, añadir una op de mant que permita cambiar el mailer
+
+     # TODO OJO!! casi todo esto ya está en una op de mant. invocar a esta op para no duplicar
             #Escapamos los campos que pueden contener caracteres problemáticos (o los que reciben entrada directa del usuario)
 	    adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
 	    admidnum=$($addslashes "$ADMIDNUM" 2>>$LOGFILE)

@@ -124,12 +124,16 @@ selectParameterSection () {
     local selec=''
     while true; do
         selec=$($dlg --cancel-label $"Go back to the main menu"  --menu $"Select parameter section:" 0 80  6  \
-	                    1 $"Set local timezone." \
-                     2 $"Network configuration." \
-	                    3 $"Encrypted drive configuration." \ # TODO add here all ops in the flow
-	                    4 $"SSH system backup." \
-                     5 $"aa." \
-	                    6 $"aa." \
+	                    1  $"Set local timezone." \
+                     2  $"Network configuration." \
+	                    3  $"Encrypted drive configuration." \
+	                    4  $"SSH system backup." \
+                     5  $"Mail server configuration." \
+	                    6  $"Secret sharing parameters." \
+	                    7  $"System administrator data." \
+	                    8  $"SSL certificate." \
+	                    9  $"Key strength." \
+	                    10 $"Anonimity Network Registration (optional)." \
                      99 $"Continue to system setup" \
 	                    2>&1 >&4)
         [ "$selec" != "" ] && return $selec
@@ -137,7 +141,49 @@ selectParameterSection () {
     done
 }
 
+#Stores those configuration variables that go to the disk
+setDiskVariables () {
+    
+    setVar disk IPMODE  "$IPMODE"
+	   setVar disk HOSTNM  "$HOSTNM"
+    setVar disk DOMNAME "$DOMNAME"
+    setVar disk IPADDR  "$IPADDR"
+	   setVar disk MASK    "$MASK"
+	   setVar disk GATEWAY "$GATEWAY"
+	   setVar disk DNS1    "$DNS1"
+	   setVar disk DNS2    "$DNS2"
+    
+    setVar disk TIMEZONE "$TIMEZONE"
+    
+    setVar disk SSHBAKSERVER "$SSHBAKSERVER"
+	   setVar disk SSHBAKPORT   "$SSHBAKPORT"
+	   setVar disk SSHBAKUSER   "$SSHBAKUSER"
+	   setVar disk SSHBAKPASSWD "$SSHBAKPASSWD"
 
+    setVar disk MAILRELAY "$MAILRELAY"
+
+    setVar disk ADMINNAME "$ADMINNAME"
+	   setVar disk MGREMAIL "$MGREMAIL"
+	   setVar disk LOCALPWDSUM "$LOCALPWDSUM"
+    
+    setVar disk KEYSIZE   "$KEYSIZE"
+
+    #These are saved only to be loaded as defaults on the maintenance operation form
+    setVar disk COMPANY "$COMPANY"
+    setVar disk DEPARTMENT "$DEPARTMENT"
+    setVar disk COUNTRY "$COUNTRY"
+    setVar disk STATE "$STATE"
+    setVar disk LOC "$LOC"
+    setVar disk SERVEREMAIL "$SERVEREMAIL"
+    setVar disk SERVERCN "$SERVERCN"
+}
+
+
+getDiskVariables () {
+
+# TODO
+
+}
 
 
 
@@ -457,7 +503,14 @@ do
         
         setVar usb SHARES "$SHARES"
         setVar usb THRESHOLD "$THRESHOLD"
-
+        
+        
+        #Hash passwords for use, for security reasons
+	       MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
+	       MGRPWD=''
+        LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
+	       LOCALPWD=''
+        
         #Generate and fragment persistence drive cipherkey (on the active slot)
         $dlg   --infobox $"Generating shared key for the encrypted disk drive..." 0 0
         $PVOPS genNfragKey $SHARES $THRESHOLD
@@ -525,28 +578,24 @@ do
     # TODO setup hdd
     
     
-    #TODO on new: store all HDD variables now? (store also ip config)
-    # TODO: add a maint option to change ip config [commis. authorisation]
 
-    # TODO if reset, get the vars instead of set
-    setVar disk IPMODE  "$IPMODE"
-	   setVar disk HOSTNM  "$HOSTNM"
-    setVar disk DOMNAME "$DOMNAME"
-    setVar disk IPADDR  "$IPADDR"
-	   setVar disk MASK    "$MASK"
-	   setVar disk GATEWAY "$GATEWAY"
-	   setVar disk DNS1    "$DNS1"
-	   setVar disk DNS2    "$DNS2"
+    #Save config variables on the persistent ciphered drive after
+    #installing it
+    if [ "$DOFORMAT" -eq 1 ] ; then
+        setDiskVariables
+    else
+        #On startup, get the required vars instead
+        ## TODO
+        getDiskVariables
+    fi
 
 
     
+        
     # TODO set hard drive vars later
     # TODO on a recovery, ask the backup location parameters there, don't expect to read them from the usbs. Also, on the fresh install he will be able to set new ssh bak location (but on restoring, the values on the hard drive will be there. should we overwrite them? should we avoid defining certain things on a fresh install?) --> should we do this instead?: ask for the restoration clauers at the beginning, and ask for the ssh backup location (and provisional ip config). retrieve backup, setup hdd, restoee ******** I'm getting dizzy, think this really carefully. restoration is an emergency procedure and should not mess with the other ones, leave the other ones simple and see later what to do with this, I personally prefer to have the ip and ssh bak config on the hard drive and minimise usb config. if this means making a whole special flow for the restore, then it is. Think carefully what we backup and what we restore.
     # TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password)
-	   setVar disk SSHBAKSERVER "$SSHBAKSERVER"
-	   setVar disk SSHBAKPORT   "$SSHBAKPORT"
-	   setVar disk SSHBAKUSER   "$SSHBAKUSER"
-	   setVar disk SSHBAKPASSWD "$SSHBAKPASSWD"
+
     
     
     
@@ -596,22 +645,6 @@ do
     #Setup network, persistence drive and other basics
 
 
-
-    
-
-
-
-
-    
-    #TODO Once the system is set up (or maybe before config?), store variables, un usbs, disk, etc. (see all sources and keep them simple and coordinated)
-    # TODO remember to store all config variables, both those in usb and in hard drive (the second group will be done, obviously, after setting up the drive) # TODO cambiar nomenclatura sobre las fuentes. hacver wrapper de getvar y setvar para userspace
-        setVar usb IPADDR "$IPADDR" # TODO maybe store it to the hard drive, now that we don0t support remote drives 
-	       setVar usb HOSTNM "$HOSTNM" #store both on dhcp and manual
-
-        #Guardamos los params # TODO revisra todos los forms para saber qué params guardar. quiatr viejos y ojo a los nuevos.
-        setConfigVars # OJO, las que se guatden en el hdd, pasar a más tarde
-  
-
         # TODO write usbs if in install # TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
 
 
@@ -626,15 +659,6 @@ do
 
 
 
-
-
-
-    
-
-        
-
-        
-    
 
 
 
@@ -691,3 +715,6 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 # TODO any action not requiring a key rebuild, now will require admin's local pwd
 
 # TODO (?) Arreglar al menos el menú de standby y las operaciones que se realizan antes y después de llamar a una op del bucle infinito. ha sacado dos mensajes impresos. supongo que estarán dentro del maintenance, pero revisarlo bien cuando esté mejor el fichero de maintenance poner reads
+
+
+# TODO: add a maint option to change ip config [commis. authorisation]
