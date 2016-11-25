@@ -34,22 +34,19 @@ relocateLogs () {
 
 
 #Configure access to ciphered data
-#1 -> '1': setup new ciphered device
-#     '0': load existing ciphered device
+#1 -> 'new': setup new ciphered device
+#     reset: load existing ciphered device
 configureCryptoPartition () {
-
-    local mode=''
-    if [ "$1" -eq 1 ] ; then
-        mode='new'
+    
+    if [ "$1" -eq 'new' ] ; then
 	       $dlg --infobox $"Creating ciphered data device..." 0 0
     else
-        mode='reset'
 	       $dlg --infobox $"Accessing ciphered data device..." 0 0
     fi
     sleep 1
     
     #Setup the partition
-    $PVOPS configureCryptoPartition "$mode"
+    $PVOPS configureCryptoPartition "$1"
     local ret=$?
     [ "$ret" -eq 2 ] && $dlg --msgbox  $"Error mounting base drive." 0 0
     [ "$ret" -eq 3 ] && $dlg --msgbox  $"Critical error: no empty loopback device found" 0 0
@@ -1508,6 +1505,17 @@ esurveyRegisterReq () {
 
 
 
+#Checks all existing shares on the active slot
+testForDeadShares () {
+    
+    $PVOPS storops testForDeadShares
+    local ret="$?"
+    
+    [ "$ret" -eq 2 ] && $dlg --msgbox $"Internal error. Lacking needed configuration." 0 0
+    [ "$ret" -eq 3 ] && $dlg --msgbox $"Can't rebuild. Not enough shares." 0 0
+    
+    return $ret
+}
 
 
 
@@ -1564,32 +1572,9 @@ generateCSR () { #*-*-adaptando al  nuevo conjunto de datos
 
 
 
-#Comprueba todas las shares existentes en el slot activo
-testForDeadShares () {
-    
-    $PVOPS storops testForDeadShares
-    local ret="$?"
-
-    [ "$ret" -eq 2 ] && systemPanic $"Error interno. Faltan datos de configuración para realizar la resconstrucción."
-      
-    [ "$ret" -eq 3 ] && systemPanic $"No se puede reconstruir la llave. No hay suficientes piezas."
-
-    return $ret
-}
 
 
 
-
-#1 -> Modo de acceso a la partición cifrada "$DRIVEMODE"
-#2 -> Ruta donde se monta el dev que contiene el fichero de loopback "$MOUNTPATH" (puede ser cadena vacía)
-#3 -> Nombre del mapper device donde se monta el sistema cifrado "$MAPNAME"
-#4 -> Path donde se monta la partición final "$DATAPATH"
-#5 -> Ruta al dev loop que contiene la part cifrada "$CRYPTDEV"  (puede ser cadena vacía)  # TODO this var is no maintained on the private part. just ignore it
-umountCryptoPart () {
-
-    $PVOPS umountCryptoPart "$1" "$2" "$3" "$4" "$5"
-
-}
 
 
 

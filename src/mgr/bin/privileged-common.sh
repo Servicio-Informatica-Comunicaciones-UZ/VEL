@@ -7,7 +7,7 @@
 #  Constants  #
 ###############
 
-OPSEXE=/usr/local/bin/eLectionOps  # TODO Ver si alguna operación es crítica, y hacerlo sólo root y cambiar esta var para que invoque al sudo --> Porque resulta absurdo que la func encargada de leer clauers y reconstruir claves pida la clave, claro. Si todo es legal para vtuji y este puede usarla, darle permisos de ejecución sin necesidad de que sea root.# //// Probar opsexe desde un terminal vtuji para asegurarme de que puede hacerlo todo siendo un usuario no privilegiado.  #--> Sólo accesible por el root (cambiar permisos) verificar que al final en setup no se usa o defihnir esta var en ambos sitios.
+OPSEXE=/usr/local/bin/eLectionOps
 
 #Temp dirs for the privileged operations
 ROOTTMP="/root/"
@@ -24,7 +24,7 @@ ROOTSSLTMP=$ROOTTMP"/ssltmp"
 #############
 
 
-
+# TODO try to extinguish. Should be a simple exit and movce all of the interface to the wizard. Split the operations.
 #Fatal error function. It is redefined on each script with the
 #expected behaviour, for security reasons.
 #$1 -> error message
@@ -375,35 +375,6 @@ checkRAIDs () {
 
 
 
-#Umount encrypted partition in any of the supported modes
-#1 -> Partition acces mode "$DRIVEMODE"
-#2 -> [May be empty string] Path where the dev containing the loopback file is mounted "$MOUNTPATH"
-#3 -> Name of the mapper device where the encrypted fs is mounted "$MAPNAME"
-#4 -> Path where the final partition is mounted "$DATAPATH"
-#5 -> [May be empty string] Path to the loop dev containing the ciphered partition "$CRYPTDEV"
-umountCryptoPart () {
-
-    #Umount final route
-    umount  "$4"
-
-    #Umount encrypted filesystem
-    cryptsetup luksClose /dev/mapper/$3 >>$LOGFILE 2>>$LOGFILE
-    
-    case "$1" in
-        #If we were using a physical drive, nothing else to be done
-	       "local" )
-            :
-	           ;;
-
-		      #If using a loopback file filesystem
-	       "file" )
-	           losetup -d $5
-	           umount $2   #Desmonta la partición que contiene el fichero de loopback
-            ;;
-	   esac
-}
-
-
 
 
 
@@ -578,6 +549,8 @@ manageLoopbackFS () {
 #7 -> localdev, partition to be encrypted on local mode
 #8 -> mapperName, name of the mapped device over which the cryptsetup will be mounted  (any name)
 #9 -> exposedpath, the final path of the device, where data can be accesed ($DATAPATH)
+#Return: 0 if OK, != 0 if error
+#Will set CRYPTDEV global variable.
 configureCryptoPartition () {
     
     local cryptdev=""
@@ -605,7 +578,7 @@ configureCryptoPartition () {
         :
     else
         echo "Error: No rebuilt key in active slot!! ($CURRENTSLOT)"  >>$LOGFILE 2>>$LOGFILE
-        exit 1
+        return 1
     fi
     local PARTPWD=$(cat "$keyfile")
     
@@ -667,8 +640,40 @@ EOF
     echo -n "$PARTPWD" > $ROOTTMP/dataBackupPassword
     chmod 400  $ROOTTMP/dataBackupPassword   >>$LOGFILE 2>>$LOGFILE
     
-    #Return device path
-    echo -n $cryptdev
-
+    #Return final encrypted device path (needed if using loopback to delete the loopback)
+    CRYPTDEV="$cryptdev"
     return 0
 }
+
+
+
+
+
+#Umount encrypted partition in any of the supported modes
+#1 -> Partition acces mode "$DRIVEMODE"
+#2 -> [May be empty string] Path where the dev containing the loopback file is mounted "$MOUNTPATH"
+#3 -> Name of the mapper device where the encrypted fs is mounted "$MAPNAME"
+#4 -> Path where the final partition is mounted "$DATAPATH"
+#5 -> [May be empty string] Path to the loop dev containing the ciphered partition "$CRYPTDEV"
+umountCryptoPart () {
+
+    #Umount final route
+    umount  "$4"
+
+    #Umount encrypted filesystem
+    cryptsetup luksClose /dev/mapper/$3 >>$LOGFILE 2>>$LOGFILE
+    
+    case "$1" in
+        #If we were using a physical drive, nothing else to be done
+	       "local" )
+            :
+	           ;;
+
+		      #If using a loopback file filesystem
+	       "file" )
+	           losetup -d $5
+	           umount $2   #Desmonta la partición que contiene el fichero de loopback
+            ;;
+	   esac
+}
+

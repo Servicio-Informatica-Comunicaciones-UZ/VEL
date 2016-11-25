@@ -5,106 +5,52 @@ doSystemConfiguration (){
 
 
 
-
-
-    
-
-    #Si estamos creando el sistema, la red se habrá configurado durante el setup
-    if [ "$1" == 'reset' ]
-        then
-        configureNetwork 'Panic'
-    fi
-
-	
-    #Abrimos o creamos la zona segura de datos.
-    configureCryptoPartition "$1"
-    #En $CRYPTDEV está el dev empleado, para desmontarlo  # TODO cambiar este retorno, ahora no es una global. De hecho, quitar y mantener en la parte priv, en una var de ram si hace falta
-
-
     
     #Si se está ejecutando una restauración
     if [ "$DORESTORE" -eq 1 ] ; then #////probar
-	
-	while true; do 
-	    
-	    $dlg --msgbox $"Prepare ahora los Clauers del sistema anterior. Vamos a recuperar los datos." 0 0
+	       
+	       while true; do 
+	           
+	           $dlg --msgbox $"Prepare ahora los Clauers del sistema anterior. Vamos a recuperar los datos." 0 0
 
             #La llave y la config a restaurar las metemos en el slot 2
-	    $PVOPS storops switchSlot 2
+	           $PVOPS storops switchSlot 2
 
-	   
+	           
 
             #Pedir Clauers con la config y rebuild key
-	    getClauersRebuildKey  b
-	    ret=$?
+	           getClauersRebuildKey  b
+	           ret=$?
 
-	    if [ $ret -ne 0 ] 
-		then 
-		$dlg --msgbox $"Error durante la recuperación del backup. Vuelva a intentarlo." 0 0 
-		continue
-	    fi
-
-
-	    #Recuperamos el fichero y lo desciframos
-	    $PSETUP recoverSSHBackup_phase1 
-	    if [ $? -ne 0 ] 
-		then
-		$dlg --msgbox $"Error durante la recuperación del backup. Vuelva a intentarlo." 0 0
-		continue
-	    fi
-	    
-	
-	    #Volvemos al Slot de la instalación nueva (sobre la que estamso restaurando la vieja)
-	    $PVOPS storops switchSlot 1
+	           if [ $ret -ne 0 ] 
+		          then 
+		              $dlg --msgbox $"Error durante la recuperación del backup. Vuelva a intentarlo." 0 0 
+		              continue
+	           fi
 
 
-	    break
-	done
+	           #Recuperamos el fichero y lo desciframos
+	           $PSETUP recoverSSHBackup_phase1 
+	           if [ $? -ne 0 ] 
+		          then
+		              $dlg --msgbox $"Error durante la recuperación del backup. Vuelva a intentarlo." 0 0
+		              continue
+	           fi
+	           
+	           
+	           #Volvemos al Slot de la instalación nueva (sobre la que estamso restaurando la vieja)
+	           $PVOPS storops switchSlot 1
+
+
+	           break
+	       done
 
 
     fi
     
 
-    #Leemos variables de configuración que necesitamos aquí (si es new, 
-    #ya están definidas, si es reset, se redefinen y no pasa nada)
-#    WWWMODE=$(getVar disk WWWMODE) # extinguido
-    SSHBAKSERVER=$(getVar disk SSHBAKSERVER)
 
-    #Si hay backup de los datos locales
-    if [ "$SSHBAKSERVER" != ""  ] ; then
-	       if [ "$1" == "new"  ] ; then  #*-*-en restore estos valen los nuevos. restaurar el vars original y que los machaque aquí?
-	           #Escribimos en un fichero los params que necesita el script del cron 
-	           #(sólo al instalar, porque luego pueden ser modificados desde el menú idle)
-	           #(en realidad no importa, porque al cambiarlos reescribe los clauers)
-	           setVar disk SSHBAKSERVER "$SSHBAKSERVER"
-	           setVar disk SSHBAKPORT   "$SSHBAKPORT"
-	           setVar disk SSHBAKUSER   "$SSHBAKUSER"
-	           setVar disk SSHBAKPASSWD "$SSHBAKPASSWD"
-	       fi
-    fi
-
-    # Una vez montada la partición cifrada, sea new o reset (en este caso, ya habrá leido las vars del disco) o restore (ya habrá copiado los datos correspondientes)
-    relocateLogs "$1"
-
-    #////Si he de hacer algún cambio a la part cifrada, llamarlo aquí si es una op aislada. creo que en la de configurecryptopart ya hago los cambios correspondientes -> COMPROBAR Y BORRAR
     
-    
-    
-    #Solo verificamos las piezas si es un reset, no si es nuevo servidor
-    if [ "$1" == 'reset' ]
-	then
-
-        #Verificamos las piezas de la llave, pero sólo con fin informativo, no obligamos a cambiarla ya.
-	$dlg --infobox $"Verificando piezas de la llave..." 0 0
-
-	testForDeadShares 
-	res=$?
-	
-        #Si no todas las piezas son correctas, solicitamos regeneración.
-	if [ "$res" -ne "0" ];  then
-	    $dlg --msgbox $"Se detectaron piezas corruptas.\n\nPara evitar una pérdida de datos, debería reunirse la comisión al completo en el menor tiempo posible y proceder a cambiar la llave." 0 0 
-	fi	
-    fi
 
     
 
@@ -168,6 +114,14 @@ doSystemConfiguration (){
     
 
 }  #end doSystemConfiguration
+
+
+
+
+
+
+
+
 
 
 

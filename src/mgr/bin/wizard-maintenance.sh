@@ -21,7 +21,7 @@
 #Fatal error function. It is redefined on each script with the
 #expected behaviour, for security reasons.
 #$1 -> error message
-systemPanic () {
+systemPanic () { # TODO TRY TO EXTINGUISH
     
     #Show error message to the user
     $dlg --msgbox "$1" 0 0

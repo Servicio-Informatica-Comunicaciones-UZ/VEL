@@ -45,7 +45,7 @@ chooseMaintenanceAction () {
         
         case "$selec" in
 	           "1" )
-                DOBUILDKEY=1
+                DOSTART=1
                 DOINSTALL=0
                 DORESTORE=0
 	               return 1
@@ -57,7 +57,7 @@ chooseMaintenanceAction () {
                      --yesno  $"You chose NEW system.\nThis will destroy any previous installation of the voting system. Do you wish to continue?" 0 0
                 [ $? -eq 0 ] && continue
                 
-                DOBUILDKEY=0
+                DOSTART=0
 	               DOINSTALL=1
                 DORESTORE=0
 	               return 2
@@ -69,8 +69,8 @@ chooseMaintenanceAction () {
                      --yesno  $"You chose to RECOVER a backup.\nThis will destroy any changes on a previously existing system. Do you wish to continue?" 0 0
                 [ $? -eq 0 ] && continue
                 
-                DOBUILDKEY=1
-	               DOINSTALL=1
+                DOSTART=0
+	               DOINSTALL=0
 	               DORESTORE=1
 	               return 3
                 ;;
@@ -96,8 +96,8 @@ chooseMaintenanceAction () {
 	               ;;
 	           
 	           * )
-	               echo "systemPanic: bad selection"  >>$LOGFILE 2>>$LOGFILE
-	               $dlg --msgbox "BAD SELECTION" 0 0
+	               echo "system panic: bad selection"  >>$LOGFILE 2>>$LOGFILE
+	               $dlg --msgbox "THIS SHOULDN'T HAPPEN: BAD SELECTION" 0 0
 	               shutdownServer "h"
 	               ;;
 	       esac   
@@ -297,6 +297,7 @@ if [ "$1" == "" ]
         #Print credits
         $dlg --msgbox "UJI Telematic voting system v.$VERSION" 0 0
         
+        
         #Show language selector
         exec 4>&1 
         lan=""
@@ -311,7 +312,7 @@ if [ "$1" == "" ]
         export LANGUAGE="$lan.UTF-8"
         export LANG="$lan.UTF-8" 
         export LC_ALL=""
-                
+        
         # TODO rebuild localization from scratch.
         #    export TEXTDOMAINDIR=/usr/share/locale
         #    export TEXTDOMAIN=wizard-setup.sh  # TODO ver si es factible invocar a los otros scripts con cadenas localizadas. Si no, separar las funcs y devolver valores para que las acdenas se impriman en este (y considerarlo tb por seguridad una vez funcione todo)
@@ -354,9 +355,11 @@ $PVOPS storops init
 #Main action loop
 while true
 do
-
+    
     #Clean active slot, to avoid inconsistencies
     $PVOPS storops resetAllSlots
+    
+    
     
     #Select startup action
     chooseMaintenanceAction
@@ -364,22 +367,25 @@ do
     
     
     
+    #On fresh install, show EULA
+    if [ "$DOINSTALL" -eq 1 ] ; then
+        $dlg --extra-button --extra-label $"I do not agree" --no-cancel \
+             --ok-label $"I agree"  --textbox /usr/share/doc/License.$LANGUAGE 0 0
+        #Does not accept EULA, halt
+        [ $? -eq 3 ] && $PSETUP halt
+    fi
+
+    #On restore, inform about the procedure # TODO CHECK IF THE PROCEDURE IS RIGHT, review that all sections of the restore are right and well ordered
+    if [ "$DORESTORE" -eq 1 ] ; then
+        $dlg --msgbox $"You chose to restore a backup. A fresh installation will be performed first, where you will be able to change basic configuration. Please, use a NEW SET of usb drives on it. You will be asked to insert the OLD SET at the end to perform the restoration." 0 0
+    fi
+    
+    
+    
     
     ##### Ask for the configuration parameters #####
-    if [ "$DOINSTALL" -eq 1 ]
-    then 
-        
-        #On fresh install, show EULA
-        if [ "$DORESTORE" -eq 0 ] ; then
-            $dlg --extra-button --extra-label $"I do not agree" --no-cancel \
-                 --ok-label $"I agree"  --textbox /usr/share/doc/License.$LANGUAGE 0 0
-            #Does not accept EULA, halt
-            [ $? -eq 3 ] && $PSETUP halt
-        else
-            #On restore, inform about the procedure
-            $dlg --msgbox $"You chose to restore a backup. A fresh installation will be performed first, where you will be able to change basic configuration. Please, use a NEW SET of usb drives on it. You will be asked to insert the OLD SET at the end to perform the restoration." 0 0
-        fi
-        
+    if [ "$DOINSTALL" -eq 1  -o  "$DORESTORE" -eq 1 ]
+    then
         
         # Get all configuration parameters [some perform ad-hoc configurations]
         nextSection=1
@@ -545,7 +551,7 @@ do
 	       LOCALPWD=''
         
         #Generate and fragment persistence drive cipherkey (on the active slot)
-        $dlg   --infobox $"Generating shared key for the encrypted disk drive..." 0 0
+        $dlg --infobox $"Generating shared key for the encrypted disk drive..." 0 0
         $PVOPS genNfragKey $SHARES $THRESHOLD
         if [ $? -ne 0 ] ; then
             $dlg --msgbox $"Error while fragmenting key." 0 0
@@ -556,8 +562,10 @@ do
     
     
     
+    
+    
     ######## Get parameters and key from usb drives ##########
-    if [ "$DOBUILDKEY" -eq 1 ] ; then
+    if [ "$DOSTART" -eq 1  -o  "$DORESTORE" -eq 1 ] ; then
         #We need to obtain a cipherkey and config parameters from a set of usb stores
         $dlg --msgbox $"We need to rebuild the shared cipher key.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
         
@@ -598,6 +606,18 @@ do
         
         $dlg --msgbox $"Key successfully rebuilt." 0 0
 
+
+        #If this is a simple startup, check if any share is corrupted
+        if [ "$DOSTART" -eq 1 ]
+	       then
+    	       $dlg --infobox $"Checking all key shares..." 0 0
+            testForDeadShares #SEGUIR, comprobar la privop
+	           #If any share is dead, recommend a key renewal.
+	           if [ $? -ne 0 ] ; then
+	               $dlg --msgbox $"Dead key shares detected. Please, generate and share a new key as soon as possible." 0 0 
+	           fi
+        fi
+        
         #Read (as globals) the configuration variables needed on the setup
         getUsbVariables
     fi
@@ -606,27 +626,33 @@ do
     
     
     
+    
     ######## Setup system #########
     
     
+    mode='new'
+    [ "$DOINSTALL" -eq 0 ] && mode='reset'
+    
+    
     #Setup ciphered persistence drive
-    configureCryptoPartition "$DOINSTALL"
+    configureCryptoPartition "$mode"
     [ $? -ne 0 ] && continue #Failed, go back to the menu
+
+    
+    #Move system logs to the drive
+    relocateLogs "$mode"
     
     
-    if [ "$DOINSTALL" -eq 1 ] ; then
-        #Save config variables on the persistent ciphered drive after
-        #installing it
+    
+    #Save config variables on the persistent ciphered drive after installing it
+    if [ "$DOINSTALL" -eq 1  -o  "$DORESTORE" -eq 1 ] ; then
         setDiskVariables
-    else
-        #On startup, get the required vars instead
-        getDiskVariables
     fi
     
-    
-    
-    
-    
+    #On startup, get the required vars instead
+    if [ "$DOSTART" -eq 1 ] ; then 
+        getDiskVariables
+    fi
     
     
     
@@ -642,16 +668,20 @@ do
     $PSETUP configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
     
     
-    #Configure timezone
-    $PSETUP setupTimezone "$TIMEZONE"
     
+    
+    #Configure timezone
+    $PSETUP setupTimezone "$TIMEZONE"    
     
     #Make sure time is synced
     $dlg   --infobox $"Syncronizing server time..." 0 0
     $PSETUP forceTimeAdjust
     
-
+    
+    
+    
     # TODO configure ssh backup key trust if reloading
+    if [ "$DOSTART" -eq 1 ] ; then 
 
     # #Set trust on the server
     # sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
@@ -660,7 +690,7 @@ do
     #     return 1
 		  # fi
 
-
+    fi
 
     
     

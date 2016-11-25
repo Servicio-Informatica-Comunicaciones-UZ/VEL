@@ -723,7 +723,7 @@ exit 0
 
 
 
-
+#Move logs to the encrypted persistent drive
 # $1 -> 'new' o 'reset'
 relocateLogs () {
     

@@ -551,24 +551,6 @@ fi
 
 
 
-#Umounts persistent data unit
-
-#2 -> Modo de acceso a la partición cifrada "$DRIVEMODE"
-#3 -> Ruta donde se monta el dev que contiene el fichero de loopback "$MOUNTPATH" (puede ser cadena vacía)
-#4 -> Nombre del mapper device donde se monta el sistema cifrado "$MAPNAME"
-#5 -> Path donde se monta la partición final "$DATAPATH"
-#6 -> Ruta al dev loop que contiene la part cifrada "$CRYPTDEV"  (puede ser cadena vacía)
-
-if [ "$1" == "umountCryptoPart" ] 
-    then
-
-    #*-*- revisar qué parámetros cojo de los ficheros (ver si lo llamo antes de que haya ficheros)
-
-    umountCryptoPart "$2" "$3" "$4" "$5" "$6"
-    
-    exit 0
-fi
-
 
 
 
@@ -590,8 +572,11 @@ shutdownServer(){
     /etc/init.d/apache2 stop  >>$LOGFILE 2>>$LOGFILE
     /etc/init.d/postfix stop  >>$LOGFILE 2>>$LOGFILE
     /etc/init.d/mysql   stop  >>$LOGFILE 2>>$LOGFILE  
+
     
-    umountCryptoPart "$DRIVEMODE"  "$MOUNTPATH"  "$MAPNAME"  "$DATAPATH" "$CRYPTDEV"  "$ISCSITARGET" "$ISCSISERVER" "$ISCSIPORT"
+    getVar usb DRIVEMODE
+    getVar mem CRYPTDEV
+    umountCryptoPart "$DRIVEMODE" "$MOUNTPATH" "$MAPNAME" "$DATAPATH" "$CRYPTDEV"
 
     rm -rf /tmp/*
     clear
@@ -675,6 +660,7 @@ fi
 
 #Formats or loads an encrypted drive, for persistent data
 #storage. Either a physical drive partition or a loopback filesystem
+# 2 -> either formatting a new system ('new') or just reloading it ('reset')
 if [ "$1" == "configureCryptoPartition" ] 
 then
     
@@ -695,6 +681,9 @@ then
     
     configureCryptoPartition  "$2" "$DRIVEMODE" "$FILEPATH" "$CRYPTFILENAME" "$MOUNTPATH" "$DRIVELOCALPATH" "$MAPNAME" "$DATAPATH" 
     [ $? -ne 0 ] && exit $?
+    
+    #If everything went well, store a memory variable referencing the final mounted device
+    setVar CRYPTDEV "$CRYPTDEV" mem
     
     #Setup permissions on the ciphered partition
     chmod 751  $DATAPATH  >>$LOGFILE 2>>$LOGFILE
@@ -723,6 +712,34 @@ then
     
     exit 0
 fi
+
+
+
+
+
+
+#Umounts persistent data unit
+#All parameters are either on the usb, memory or are constants  # TODO I think this op was meant for the inner key change, since we are dropping it, I believe it is not needed anymore (function is called only on the shutdown). At the end, review and if not used, delete
+if [ "$1" == "umountCryptoPart" ] 
+then
+    
+    getVar usb DRIVEMODE
+    getVar mem CRYPTDEV
+    
+    umountCryptoPart "$DRIVEMODE" "$MOUNTPATH" "$MAPNAME" "$DATAPATH" "$CRYPTDEV"
+    
+    #Reset memory variable
+    setVar CRYPTDEV "" mem
+    
+    exit 0
+fi
+
+
+
+
+
+
+
 
 
 
