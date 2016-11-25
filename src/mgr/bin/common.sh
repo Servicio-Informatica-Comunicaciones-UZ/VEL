@@ -23,9 +23,6 @@ dlg="dialog $DLGCNF "
 #Wizard log file
 LOGFILE=/tmp/wizardLog
 
-#Unpriileged user space temp directory for operations
-TMPDIR=/home/vtuji/eLectionOperations # TODO See if it can be changed for /tmp, or the unpriv user home
-
 
 #If this file contains a 1, no privileged operation will execute
 #unless the valid ciphering key can be rebuilt from the fragments
@@ -59,11 +56,6 @@ SHAREMAXSLOTS=2
 
 #Default SSH port
 DEFSSHPORT=22
-
-
-#Buffer to pass return strings between the privileged script and the
-#user script when stdout is locked by dialog
-RETBUFFER=$TMPDIR/returnBuffer # TODO see if it is used anymore
 
 
 
@@ -435,29 +427,6 @@ checkParameter () {
     
 		  [ "$ret" -ne 0 ] && return 1
     return 0	    
-}
-
-
-
-
-#Function to pass return strings between the privileged script and the
-#user script when stdout is locked by dialog
-# $1 -> return string
-doReturn () {
-    rm -f $RETBUFFER     >>$LOGFILE 2>>$LOGFILE
-    touch $RETBUFFER >>$LOGFILE 2>>$LOGFILE    
-    chmod 644 $RETBUFFER >>$LOGFILE 2>>$LOGFILE    
-    echo -n "$1" > $RETBUFFER
-}
-
-
-#Print and delete the last string returned by a privileged op   # TODO probably will be useless. check usage, and try to delete it
-getReturn () {
-    if [ -e "$RETBUFFER" ]
-	   then
-	       cat "$RETBUFFER"  2>>$LOGFILE
-        rm -f $RETBUFFER  >>$LOGFILE 2>>$LOGFILE
-    fi
 }
 
 

@@ -3,14 +3,10 @@
 doSystemConfiguration (){
 
 
-# TODO This is what should be done on a new install to setup timezonem, and also on loading. See how we organize process below and include this in both processes. Ensure it is done after config file from usbs is settled when reloading.
 
-if [ "$DOFORMAT" -eq 1 ] 
-then 
 
-fi
 
-$PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus triggering the read from config
+
     
 
     #Si estamos creando el sistema, la red se habrá configurado durante el setup
@@ -71,8 +67,8 @@ $PSETUP setupTimezone "$TIMEZONE" #When reloading, timezone will be empty, thus 
 
     #Leemos variables de configuración que necesitamos aquí (si es new, 
     #ya están definidas, si es reset, se redefinen y no pasa nada)
-    WWWMODE=$(getVar disk WWWMODE)
-    SSHBAKSERVER=$(getVar usb SSHBAKSERVER)
+#    WWWMODE=$(getVar disk WWWMODE) # extinguido
+    SSHBAKSERVER=$(getVar disk SSHBAKSERVER)
 
     #Si hay backup de los datos locales
     if [ "$SSHBAKSERVER" != ""  ] ; then
@@ -244,12 +240,6 @@ configureServers () {
 	    expU=$(echo -n "$keyyU" | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
 	    
 	    keyyU=$(echo "$keyyU" | sed -n -e "/BEGIN/,/KEY/p")
-
-	    #Guardamos las variables en el fichero del disco.
-	    setVar disk SITESORGSERV  "$SITESORGSERV"  #////probar
-	    setVar disk SITESNAMEPURP "$SITESNAMEPURP"
-	    setVar disk SITESEMAIL    "$SITESEMAIL"
-	    setVar disk SITESCOUNTRY  "$SITESCOUNTRY"
 	    
 	fi
     fi
@@ -271,8 +261,8 @@ configureServers () {
     if [ "$DORESTORE" -ne 1 ] ; then
 	if [ "$1" == 'new' ] 
 	    then
-	    rm -f $TMPDIR/config.sql
-	    touch $TMPDIR/config.sql
+	    rm -f /tmp/config.sql
+	    touch /tmp/config.sql
 
 
      #Si no está, añadir una op de mant que permita cambiar el mailer
@@ -287,19 +277,19 @@ configureServers () {
 	    
 	    
             #Inserción del usuario administrador (ahora no puede entrar cuando quiera, sólo cuando se le autorice)
-	    echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo) values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,-1,'$mgremail');" >> $TMPDIR/config.sql
+	    echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo) values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,-1,'$mgremail');" >> /tmp/config.sql
 	    
 	    
             #Inserción del email del admin
             #El primero debe ser un insert. El update no traga. --> ya hay un insert, en el script del dump, pero fallaba por no tener permisos de ALTER y se abortaba el resto del script sql.
-	    echo "update eVotDat set email='$mgremail';" >> $TMPDIR/config.sql
+	    echo "update eVotDat set email='$mgremail';" >> /tmp/config.sql
 	    
 	    
             #Insertamos las llaves de la urna
             # modU -> mod de la urna (B64)
             # expU -> exp público de la urna (B64)
             # keyyU -> llave privada de la urna. (PEM)
-	    echo "update eVotDat set modU='$modU', expU='$expU', keyyU='$keyyU';" >> $TMPDIR/config.sql 
+	    echo "update eVotDat set modU='$modU', expU='$expU', keyyU='$keyyU';" >> /tmp/config.sql 
 	    
 	    
             #Insertamos las llaves y el certificado autofirmado enviado a eSurveySites.
@@ -307,15 +297,15 @@ configureServers () {
             # certS -> certificado autofirmado del servidor de firma (B64)
             # expS  -> exponente público del cert de firma (B64)
             # modS  -> módulo del cert de firma (B64)
-	    echo "update eVotDat set keyyS='$SITESPRIVK', certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';" >> $TMPDIR/config.sql 
+	    echo "update eVotDat set keyyS='$SITESPRIVK', certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';" >> /tmp/config.sql 
 	    
             #Insertamos el token de verificación que nos ha devuelto eSurveySites
-	    echo "update eVotDat set tkD='$SITESTOKEN';" >> $TMPDIR/config.sql 
+	    echo "update eVotDat set tkD='$SITESTOKEN';" >> /tmp/config.sql 
 
             #echo "tkD al insertarlo: $SITESTOKEN"   >>$LOGFILE 2>>$LOGFILE
 
             #La timezone del servidor
-	    echo "update eVotDat set TZ='$TIMEZONE';" >> $TMPDIR/config.sql 
+	    echo "update eVotDat set TZ='$TIMEZONE';" >> /tmp/config.sql 
 	    
 	fi	
     fi

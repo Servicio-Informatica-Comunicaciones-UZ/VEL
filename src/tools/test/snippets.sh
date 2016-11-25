@@ -210,3 +210,43 @@ done;
 
 #Don't ask me why, but if the path below (with the asterisk) is encircled in quotes, it doesn't do the rm and doesn't print any error
 rm -rf $ROOTTMP/slot$i/*  >>$LOGFILE 2>>$LOGFILE
+
+
+
+
+#Create unprivileged user tmp directory
+createUserTempDir (){
+    #If it doesn't exist, create
+    [ -e "$TMPDIR" ] || mkdir "$TMPDIR"
+    #if it's not a dir, delete and create
+    [ -d "$TMPDIR" ] || (rm "$TMPDIR" && mkdir "$TMPDIR") 
+    #If it exists, empty it
+    [ -e "$TMPDIR" ] && rm -rf "$TMPDIR"/*
+}    
+
+
+
+#Buffer to pass return strings between the privileged script and the
+#user script when stdout is locked by dialog
+RETBUFFER=$TMPDIR/returnBuffer # TODO see if it is used anymore
+
+
+#Function to pass return strings between the privileged script and the
+#user script when stdout is locked by dialog
+# $1 -> return string
+doReturn () {
+    rm -f $RETBUFFER     >>$LOGFILE 2>>$LOGFILE
+    touch $RETBUFFER >>$LOGFILE 2>>$LOGFILE    
+    chmod 644 $RETBUFFER >>$LOGFILE 2>>$LOGFILE    
+    echo -n "$1" > $RETBUFFER
+}
+
+
+#Print and delete the last string returned by a privileged op   # TODO probably will be useless. check usage, and try to delete it
+getReturn () {
+    if [ -e "$RETBUFFER" ]
+	   then
+	       cat "$RETBUFFER"  2>>$LOGFILE
+        rm -f $RETBUFFER  >>$LOGFILE 2>>$LOGFILE
+    fi
+}

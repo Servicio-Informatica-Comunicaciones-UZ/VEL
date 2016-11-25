@@ -44,218 +44,21 @@ systemPanic () {
 # TODO remove all dialogs from privileged scripts. At least from the ops and common, setup will be fine
 
 
-#Umount encrypted partition in any of the supported modes
-#1 -> Partition acces mode "$DRIVEMODE"
-#2 -> [May be empty string] Path where the dev containing the loopback file is mounted "$MOUNTPATH"
-#3 -> Name of the mapper device where the encrypted fs is mounted "$MAPNAME"
-#4 -> Path where the final partition is mounted "$DATAPATH"
-#5 -> [May be empty string] Path to the loop dev containing the ciphered partition "$CRYPTDEV"
-umountCryptoPart () {
 
-    #Umount final route
-    umount  "$4"
 
-    #Umount encrypted filesystem
-    cryptsetup luksClose /dev/mapper/$3 >>$LOGFILE 2>>$LOGFILE
+#Remove everything from a slot and reset counters
+#1 -> slot number
+resetSlot () {
     
-    case "$1" in
-        #If we were using a physical drive, nothing else to be done
-	       "local" )
-            :
-	           ;;
-
-		      #If using a loopback file filesystem
-	       "file" )
-	           losetup -d $5
-	           umount $2   #Desmonta la partición que contiene el fichero de loopback
-            ;;
-	   esac
-}
-
-
-
-#Recursively set a different mask for files and directories
-#$1 -> Base route
-#$2 -> Octal perms for files
-#$3 -> Octal perms for dirs
-setPerm () {
-    local directorios="$1 "$(ls -R $1/* | grep -oEe "^.*:$" | sed -re "s/^(.*):$/\1/")
+    [ "$1" -lt 1 -o "$1" -gt $SHAREMAXSLOTS ] && return 1
     
-    echo -e "Directories:\n $directorios"  >>$LOGFILE 2>>$LOGFILE
-
-    for direct in $directorios
-    do
-        
-        local pfiles=$(ls -p $direct | grep -oEe "^.*[^/]$")
-        local pds=$(ls -p $direct | grep -oEe "^.*[/]$")
-        
-        echo -e "=== Dir $direct files: ===\n$pfiles"  >>$LOGFILE 2>>$LOGFILE
-        echo -e "=== Dir $direct dirs : ===\n$pds"  >>$LOGFILE 2>>$LOGFILE
-        
-        for pf in $pfiles
-	       do
-	           echo "chmod $2 $direct/$pf"  >>$LOGFILE 2>>$LOGFILE
-	           chmod $2 $direct/$pf  >>$LOGFILE 2>>$LOGFILE
-        done
-        
-        for pd in $pds
-	       do
-	           echo "chmod $3 $direct/$pd"  >>$LOGFILE 2>>$LOGFILE
-	           chmod $3 $direct/$pd  >>$LOGFILE 2>>$LOGFILE
-        done
-    done
-}
-
-
-
-
-
-
-#List of usb connected storage devices ( printed on stdout) and the number (return value)
-#$1 -> 'devs'  : show all usb storage devices, not partitions (default)
-#      'valid' : show partitions from usb devices that can be mounted
-listUSBs  () {
-    
-    local USBDEVS=""
-    local devs=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
-    local count=0
-    if [ "$1" == 'valid' ] ; then
-        #Check all devices and partitions to be mountable
-        for f in $devs
-        do
-            local currdev=$(realpath /dev/disk/by-id/$f)
-            mount $currdev /mnt  >>$LOGFILE 2>>$LOGFILE
-            if [ "$?" -eq 0 ] ; then
-                USBDEVS="$USBDEVS $currdev"
-                count=$((count+1))
-                umount /mnt >>$LOGFILE 2>>$LOGFILE
-            fi
-        done
-    else
-        #Show only the devices, not partitions
-        for f in $devs
-        do
-            local currdev=$(realpath /dev/disk/by-id/$f)
-            if [ $(echo "$currdev" | grep -Ee "/dev/[a-z]+[0-9]+") ] ; then :
-            else
-                USBDEVS="$USBDEVS $currdev"
-                count=$((count+1))
-            fi
-        done
-    fi
-    echo -n "$USBDEVS"
-    return $count
-}
-
-
-#Lists all serial and parallel devices that are not usb
-listHDDs () {   
-    local drives=""
-    
-    local usbs=''
-    usbs=$(listUSBs devs)
-
-    for n in a b c d e f g h i j k l m n o p q r s t u v w x y z 
-      do
-      #All existing PATA drives are added
-      drivename=/dev/hd$n 
-      [ -e $drivename ] && drives="$drives $drivename"
-
-      #All existing serial drives not conneted through USB are added
-      drivename=/dev/sd$n
-      for usb in $usbs
-	     do
-	         #If drive among usbs, ignore
-	         [ "$drivename" == "$usb" ]   && continue 2
-      done
-      [ -e $drivename ] && drives="$drives $drivename"     
-    done
-
-    echo "$drives"
-}
-
-
-#If any RAID array, do an online check for health
-checkRAIDs () {
-    
-    #Check if there are RAID volumes.
-    mdadm --examine --scan --config=partitions >/tmp/mdadm.conf  2>>$LOGFILE
-    
-    if [ "$(cat /tmp/mdadm.conf)" != "" ] 
-	   then
-	       #Check RAID status
-	       mdadm --detail --scan --config=/tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
-	       local ret=$?
-        if ["$ret" -ne 0 ]
-	       then
-            #Raid degraded, etc.
-            return $ret
-        fi
-    fi
+    rm -rf "$ROOTTMP/slot$1/*"  >>$LOGFILE 2>>$LOGFILE
+	   echo -n "0" > "$ROOTTMP/slot$1/NEXTSHARENUM"
+	   echo -n "0" > "$ROOTTMP/slot$1/NEXTCONFIGNUM"
     
     return 0
 }
-
-
-
-#Check if a parameter fits the expected syntax or kill the process
-#$1 -> variable: variable is uniquely recognized to belong to a data type
-#$2 -> value:    to set in the variable if fits the data type
-#$3 -> 0:           don't set the variable value, just check if it fits.
-#      1 (default): set the variable with the value.
-checkParameterOrDie () {
     
-    local val=$(echo "$2" | sed -re "s/\s+//g")
-    if [ "$val" == "" ]
-	   then
-	       return 0
-    fi
-    
-    if checkParameter "$1" "$val"
-	   then
-        echo "param OK: $1"   >>$LOGFILE 2>>$LOGFILE
-        #<DEBUG>
-	       echo "param OK: $1=$2"   >>$LOGFILE 2>>$LOGFILE
-        #</DEBUG>
-	       if [ "$3" != "0" ]
-	       then
-	           export "$1"="$val"
-	       fi
-    else
-        echo "param ERR (exiting 1): $1"   >>$LOGFILE 2>>$LOGFILE
-        #<DEBUG>
-	       echo "param ERR (exiting 1): $1=$2"   >>$LOGFILE 2>>$LOGFILE
-        #</DEBUG>
-	       exit 1
-    fi
-}
-
-
-
-
-#Forces a time adjust based on the ntp server time
-forceTimeAdjust () {
-    
-    #Force time adjust, system and hardware clocks
-    /etc/init.d/openntpd stop  >>$LOGFILE 2>>$LOGFILE
-    /etc/init.d/openntpd start >>$LOGFILE 2>>$LOGFILE
-    ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
-    hwclock -w >>$LOGFILE 2>>$LOGFILE
-}
-
-
-
-
-
-
-#Parse a configuration file, to ensure syntax is adequate
-#1 -> filename
-#STDOUT: the file, parsed and trimmed of forbidden lines. Empty string
-#        if no line followed the allowed syntax
-parseConfigFile () {    
-    cat "$1" | grep -oEe '^[a-zA-Z][_a-zA-Z0-9]*?=("([^"$]|[\]")*?"|""|[^ "$]+)'
-}
-
 
 
 
@@ -357,6 +160,251 @@ getVar () {
     #</DEBUG>
     return 0 
 }
+
+
+
+
+
+
+#Check if a parameter fits the expected syntax or kill the process
+#$1 -> variable: variable is uniquely recognized to belong to a data type
+#$2 -> value:    to set in the variable if fits the data type
+#$3 -> 0:           don't set the variable value, just check if it fits.
+#      1 (default): set the variable with the value.
+checkParameterOrDie () {
+    
+    local val=$(echo "$2" | sed -re "s/\s+//g")
+    if [ "$val" == "" ]
+	   then
+	       return 0
+    fi
+    
+    if checkParameter "$1" "$val"
+	   then
+        echo "param OK: $1"   >>$LOGFILE 2>>$LOGFILE
+        #<DEBUG>
+	       echo "param OK: $1=$2"   >>$LOGFILE 2>>$LOGFILE
+        #</DEBUG>
+	       if [ "$3" != "0" ]
+	       then
+	           export "$1"="$val"
+	       fi
+    else
+        echo "param ERR (exiting 1): $1"   >>$LOGFILE 2>>$LOGFILE
+        #<DEBUG>
+	       echo "param ERR (exiting 1): $1=$2"   >>$LOGFILE 2>>$LOGFILE
+        #</DEBUG>
+	       exit 1
+    fi
+}
+
+
+
+
+
+#Parse a configuration file, to ensure syntax is adequate
+#1 -> filename
+#STDOUT: the file, parsed and trimmed of forbidden lines. Empty string
+#        if no line followed the allowed syntax
+parseConfigFile () {    
+    cat "$1" | grep -oEe '^[a-zA-Z][_a-zA-Z0-9]*?=("([^"$]|[\]")*?"|""|[^ "$]+)'
+}
+
+
+
+
+
+
+
+
+#Recursively set a different mask for files and directories
+#$1 -> Base route
+#$2 -> Octal perms for files
+#$3 -> Octal perms for dirs
+setPerm () {
+    local directorios="$1 "$(ls -R $1/* | grep -oEe "^.*:$" | sed -re "s/^(.*):$/\1/")
+    
+    echo -e "Directories:\n $directorios"  >>$LOGFILE 2>>$LOGFILE
+
+    for direct in $directorios
+    do
+        
+        local pfiles=$(ls -p $direct | grep -oEe "^.*[^/]$")
+        local pds=$(ls -p $direct | grep -oEe "^.*[/]$")
+        
+        echo -e "=== Dir $direct files: ===\n$pfiles"  >>$LOGFILE 2>>$LOGFILE
+        echo -e "=== Dir $direct dirs : ===\n$pds"  >>$LOGFILE 2>>$LOGFILE
+        
+        for pf in $pfiles
+	       do
+	           echo "chmod $2 $direct/$pf"  >>$LOGFILE 2>>$LOGFILE
+	           chmod $2 $direct/$pf  >>$LOGFILE 2>>$LOGFILE
+        done
+        
+        for pd in $pds
+	       do
+	           echo "chmod $3 $direct/$pd"  >>$LOGFILE 2>>$LOGFILE
+	           chmod $3 $direct/$pd  >>$LOGFILE 2>>$LOGFILE
+        done
+    done
+}
+
+
+
+
+
+
+
+
+
+
+
+
+#Forces a time adjust based on the ntp server time
+forceTimeAdjust () {
+    
+    #Force time adjust, system and hardware clocks
+    /etc/init.d/openntpd stop  >>$LOGFILE 2>>$LOGFILE
+    /etc/init.d/openntpd start >>$LOGFILE 2>>$LOGFILE
+    ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
+    hwclock -w >>$LOGFILE 2>>$LOGFILE
+}
+
+
+
+
+
+
+
+
+
+
+#List of usb connected storage devices ( printed on stdout) and the number (return value)
+#$1 -> 'devs'  : show all usb storage devices, not partitions (default)
+#      'valid' : show partitions from usb devices that can be mounted
+listUSBs  () {
+    
+    local USBDEVS=""
+    local devs=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
+    local count=0
+    if [ "$1" == 'valid' ] ; then
+        #Check all devices and partitions to be mountable
+        for f in $devs
+        do
+            local currdev=$(realpath /dev/disk/by-id/$f)
+            mount $currdev /mnt  >>$LOGFILE 2>>$LOGFILE
+            if [ "$?" -eq 0 ] ; then
+                USBDEVS="$USBDEVS $currdev"
+                count=$((count+1))
+                umount /mnt >>$LOGFILE 2>>$LOGFILE
+            fi
+        done
+    else
+        #Show only the devices, not partitions
+        for f in $devs
+        do
+            local currdev=$(realpath /dev/disk/by-id/$f)
+            if [ $(echo "$currdev" | grep -Ee "/dev/[a-z]+[0-9]+") ] ; then :
+            else
+                USBDEVS="$USBDEVS $currdev"
+                count=$((count+1))
+            fi
+        done
+    fi
+    echo -n "$USBDEVS"
+    return $count
+}
+
+
+#Lists all serial and parallel devices that are not usb
+listHDDs () {   
+    local drives=""
+    
+    local usbs=''
+    usbs=$(listUSBs devs)
+
+    for n in a b c d e f g h i j k l m n o p q r s t u v w x y z 
+      do
+      #All existing PATA drives are added
+      drivename=/dev/hd$n 
+      [ -e $drivename ] && drives="$drives $drivename"
+
+      #All existing serial drives not conneted through USB are added
+      drivename=/dev/sd$n
+      for usb in $usbs
+	     do
+	         #If drive among usbs, ignore
+	         [ "$drivename" == "$usb" ]   && continue 2
+      done
+      [ -e $drivename ] && drives="$drives $drivename"     
+    done
+
+    echo "$drives"
+}
+
+
+#If any RAID array, do an online check for health
+checkRAIDs () {
+    
+    #Check if there are RAID volumes.
+    mdadm --examine --scan --config=partitions >/tmp/mdadm.conf  2>>$LOGFILE
+    
+    if [ "$(cat /tmp/mdadm.conf)" != "" ] 
+	   then
+	       #Check RAID status
+	       mdadm --detail --scan --config=/tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
+	       local ret=$?
+        if ["$ret" -ne 0 ]
+	       then
+            #Raid degraded, etc.
+            return $ret
+        fi
+    fi
+    
+    return 0
+}
+
+
+
+
+
+
+
+
+
+
+
+
+#Umount encrypted partition in any of the supported modes
+#1 -> Partition acces mode "$DRIVEMODE"
+#2 -> [May be empty string] Path where the dev containing the loopback file is mounted "$MOUNTPATH"
+#3 -> Name of the mapper device where the encrypted fs is mounted "$MAPNAME"
+#4 -> Path where the final partition is mounted "$DATAPATH"
+#5 -> [May be empty string] Path to the loop dev containing the ciphered partition "$CRYPTDEV"
+umountCryptoPart () {
+
+    #Umount final route
+    umount  "$4"
+
+    #Umount encrypted filesystem
+    cryptsetup luksClose /dev/mapper/$3 >>$LOGFILE 2>>$LOGFILE
+    
+    case "$1" in
+        #If we were using a physical drive, nothing else to be done
+	       "local" )
+            :
+	           ;;
+
+		      #If using a loopback file filesystem
+	       "file" )
+	           losetup -d $5
+	           umount $2   #Desmonta la partición que contiene el fichero de loopback
+            ;;
+	   esac
+}
+
+
+
 
 
 

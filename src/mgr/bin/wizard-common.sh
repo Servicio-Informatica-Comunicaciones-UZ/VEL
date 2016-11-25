@@ -32,44 +32,35 @@ relocateLogs () {
 
 
 
-#Create unprivileged user tmp directory # TODO I think this and all its references can be deleted, as it is not used, or if used, it can go to /tmp, just overwrite the variable
-createUserTempDir (){
-    #If it doesn't exist, create
-    [ -e "$TMPDIR" ] || mkdir "$TMPDIR"
-    #if it's not a dir, delete and create
-    [ -d "$TMPDIR" ] || (rm "$TMPDIR" && mkdir "$TMPDIR") 
-    #If it exists, empty it
-    [ -e "$TMPDIR" ] && rm -rf "$TMPDIR"/*
-}    
-
-
-
 
 #Configure access to ciphered data
-#1 -> 'new': setup new ciphered device
-#     'reset': load existing ciphered device
+#1 -> '1': setup new ciphered device
+#     '0': load existing ciphered device
 configureCryptoPartition () {
-    
-    if [ "$1" == 'new' ]
-	   then
+
+    local mode=''
+    if [ "$1" -eq 1 ] ; then
+        mode='new'
 	       $dlg --infobox $"Creating ciphered data device..." 0 0
     else
+        mode='reset'
 	       $dlg --infobox $"Accessing ciphered data device..." 0 0
     fi
     sleep 1
     
     #Setup the partition
-    $PVOPS configureCryptoPartition "$1"
+    $PVOPS configureCryptoPartition "$mode"
     local ret=$?
-    [ "$ret" -eq 2 ] && systemPanic $"Error mounting base drive."
-    [ "$ret" -eq 3 ] && systemPanic $"Critical error: no empty loopback device found"
-    [ "$ret" -ne 4 ] && systemPanic $"Unknown data access mode. Configuration is corrupted or tampered."
-    [ "$ret" -ne 5 ] && systemPanic $"Couldn't encrypt the storage area."
-    [ "$ret" -ne 6 ] && systemPanic $"Couldn't access storage area." 
-    [ "$ret" -ne 7 ] && systemPanic $"Couldn't format the filesystem."
-    [ "$ret" -ne 8 ] && systemPanic $"Couldn't mount the filesystem."
-    [ "$ret" -ne 0 ] && systemPanic $"Error configuring encrypted drive."
+    [ "$ret" -eq 2 ] && $dlg --msgbox  $"Error mounting base drive." 0 0
+    [ "$ret" -eq 3 ] && $dlg --msgbox  $"Critical error: no empty loopback device found" 0 0
+    [ "$ret" -ne 4 ] && $dlg --msgbox  $"Unknown data access mode. Configuration is corrupted or tampered." 0 0
+    [ "$ret" -ne 5 ] && $dlg --msgbox  $"Couldn't encrypt the storage area." 0 0
+    [ "$ret" -ne 6 ] && $dlg --msgbox  $"Couldn't access storage area."  0 0
+    [ "$ret" -ne 7 ] && $dlg --msgbox  $"Couldn't format the filesystem." 0 0
+    [ "$ret" -ne 8 ] && $dlg --msgbox  $"Couldn't mount the filesystem." 0 0
+    [ "$ret" -ne 0 -a "$ret" -lt 2 -a "$ret" -gt 8 ] && $dlg --msgbox  $"Error configuring encrypted drive." 0 0
     
+    return $ret
 }
 
 

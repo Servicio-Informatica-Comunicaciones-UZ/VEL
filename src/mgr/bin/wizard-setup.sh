@@ -11,8 +11,6 @@
 
 
 
-
-
 ##################################
 #  Global Variables / Constants  #
 ##################################
@@ -24,19 +22,11 @@ export TERM=linux
 
 
 
-# TODO Cuando elija la config, renombrar a un nombre genérico e ignorar el resto
-
-
 
 #############
 #  Methods  #
 #############
 
-
-# TODO extinguir systemPanic, al menos en el wizard. cambiar por msgbox y ya
-
-
-# TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
 
 
 #Main setup menu
@@ -56,7 +46,7 @@ chooseMaintenanceAction () {
         case "$selec" in
 	           "1" )
                 DOBUILDKEY=1
-                DOFORMAT=0
+                DOINSTALL=0
                 DORESTORE=0
 	               return 1
                 ;;
@@ -68,7 +58,7 @@ chooseMaintenanceAction () {
                 [ $? -eq 0 ] && continue
                 
                 DOBUILDKEY=0
-	               DOFORMAT=1
+	               DOINSTALL=1
                 DORESTORE=0
 	               return 2
                 ;;
@@ -80,7 +70,7 @@ chooseMaintenanceAction () {
                 [ $? -eq 0 ] && continue
                 
                 DOBUILDKEY=1
-	               DOFORMAT=1
+	               DOINSTALL=1
 	               DORESTORE=1
 	               return 3
                 ;;
@@ -159,15 +149,21 @@ setDiskVariables () {
 	   setVar disk SSHBAKPORT   "$SSHBAKPORT"
 	   setVar disk SSHBAKUSER   "$SSHBAKUSER"
 	   setVar disk SSHBAKPASSWD "$SSHBAKPASSWD"
-
+    
     setVar disk MAILRELAY "$MAILRELAY"
-
+    
     setVar disk ADMINNAME "$ADMINNAME"
 	   setVar disk MGREMAIL "$MGREMAIL"
 	   setVar disk LOCALPWDSUM "$LOCALPWDSUM"
     
     setVar disk KEYSIZE   "$KEYSIZE"
-
+    
+    #Some of these are used on the webapp, for the STORK authentication # TODO review: will we still support it?
+    setVar disk SITESORGSERV  "$SITESORGSERV"
+	   setVar disk SITESNAMEPURP "$SITESNAMEPURP"
+	   setVar disk SITESEMAIL    "$SITESEMAIL"
+	   setVar disk SITESCOUNTRY  "$SITESCOUNTRY"
+    
     #These are saved only to be loaded as defaults on the maintenance operation form
     setVar disk COMPANY "$COMPANY"
     setVar disk DEPARTMENT "$DEPARTMENT"
@@ -178,11 +174,48 @@ setDiskVariables () {
     setVar disk SERVERCN "$SERVERCN"
 }
 
+#Reads needed variables from the usb config file
+getUsbVariables () {
+    
+    getVar usb DRIVEMODE
+    getVar usb DRIVELOCALPATH
+	   getVar usb FILEPATH
+	   getVar usb FILEFILESIZE
+    getVar usb CRYPTFILENAME
+    
+    getVar usb SHARES
+    getVar usb THRESHOLD
+}
 
+#Reads needed variables from the disk config file
 getDiskVariables () {
 
-# TODO
+    getVar disk IPMODE
+	   getVar disk HOSTNM
+    getVar disk DOMNAME
+    getVar disk IPADDR
+	   getVar disk MASK
+	   getVar disk GATEWAY
+	   getVar disk DNS1
+	   getVar disk DNS2
+    
+    getVar disk TIMEZONE
+    
+    getVar disk SSHBAKSERVER
+	   getVar disk SSHBAKPORT
+	   getVar disk SSHBAKUSER
+	   getVar disk SSHBAKPASSWD
 
+    getVar disk MAILRELAY
+
+    getVar disk ADMINNAME
+	   getVar disk MGREMAIL
+	   getVar disk LOCALPWDSUM
+    
+    getVar disk KEYSIZE
+    
+    getVar disk SITESORGSERV
+	   getVar disk SITESNAMEPURP
 }
 
 
@@ -260,7 +293,6 @@ if [ "$1" == "" ]
         #preliminary system setup is made
         $PSETUP   init1
         
-        createUserTempDir  # TODO if this functiionality unused and can be deleted, do it
         
         #Print credits
         $dlg --msgbox "UJI Telematic voting system v.$VERSION" 0 0
@@ -280,7 +312,7 @@ if [ "$1" == "" ]
         export LANG="$lan.UTF-8" 
         export LC_ALL=""
                 
-        # TODO rebuild localization from scratch. For now, I'll rewrite everything only in english
+        # TODO rebuild localization from scratch.
         #    export TEXTDOMAINDIR=/usr/share/locale
         #    export TEXTDOMAIN=wizard-setup.sh  # TODO ver si es factible invocar a los otros scripts con cadenas localizadas. Si no, separar las funcs y devolver valores para que las acdenas se impriman en este (y considerarlo tb por seguridad una vez funcione todo)
         
@@ -324,7 +356,7 @@ while true
 do
 
     #Clean active slot, to avoid inconsistencies
-    $PVOPS storops resetSlot #TODO maybe call here function that cleans all slots? decide once finished. (resetAllSlots)
+    $PVOPS storops resetAllSlots
     
     #Select startup action
     chooseMaintenanceAction
@@ -334,7 +366,7 @@ do
     
     
     ##### Ask for the configuration parameters #####
-    if [ "$DOFORMAT" -eq 1 ]
+    if [ "$DOINSTALL" -eq 1 ]
     then 
         
         #On fresh install, show EULA
@@ -349,7 +381,7 @@ do
         fi
         
         
-        # Get all configuration parameters #TODO maybe all of this can be put into a function for clarity (maybe not all, but only the largest sections)
+        # Get all configuration parameters [some perform ad-hoc configurations]
         nextSection=1
         while true
         do
@@ -494,7 +526,8 @@ do
             fi
         done
         
-        #Set vars that will be put to the usb store
+        #Set vars that will be put to the usb store (only the basic
+        #ones, needed to load the encrypted drive)
         setVar usb DRIVEMODE "$DRIVEMODE"        
         setVar usb DRIVELOCALPATH "$DRIVELOCALPATH"        
 	       setVar usb FILEPATH "$FILEPATH"
@@ -514,6 +547,10 @@ do
         #Generate and fragment persistence drive cipherkey (on the active slot)
         $dlg   --infobox $"Generating shared key for the encrypted disk drive..." 0 0
         $PVOPS genNfragKey $SHARES $THRESHOLD
+        if [ $? -ne 0 ] ; then
+            $dlg --msgbox $"Error while fragmenting key." 0 0
+            continue #Failed, go back to the menu
+        fi
     fi
     
     
@@ -561,64 +598,53 @@ do
         
         $dlg --msgbox $"Key successfully rebuilt." 0 0
 
-
-        # TODO up to now, we have a key and config in roottmp in both cases. see if we need to read some of the usb vars to userspace (check needs of the userspace app and the calls to privops and psetup) and do it here
-        
+        #Read (as globals) the configuration variables needed on the setup
+        getUsbVariables
     fi
-
-
-
-
-
-    ######## Setup system ######### # TODO some sections will be new only and some reload only
-
-
-
-    
-    # TODO setup hdd
     
     
-
-    #Save config variables on the persistent ciphered drive after
-    #installing it
-    if [ "$DOFORMAT" -eq 1 ] ; then
+    
+    
+    
+    ######## Setup system #########
+    
+    
+    #Setup ciphered persistence drive
+    configureCryptoPartition "$DOINSTALL"
+    [ $? -ne 0 ] && continue #Failed, go back to the menu
+    
+    
+    if [ "$DOINSTALL" -eq 1 ] ; then
+        #Save config variables on the persistent ciphered drive after
+        #installing it
         setDiskVariables
     else
         #On startup, get the required vars instead
-        ## TODO
         getDiskVariables
     fi
-
-
-    
-        
-    # TODO set hard drive vars later
-    # TODO on a recovery, ask the backup location parameters there, don't expect to read them from the usbs. Also, on the fresh install he will be able to set new ssh bak location (but on restoring, the values on the hard drive will be there. should we overwrite them? should we avoid defining certain things on a fresh install?) --> should we do this instead?: ask for the restoration clauers at the beginning, and ask for the ssh backup location (and provisional ip config). retrieve backup, setup hdd, restoee ******** I'm getting dizzy, think this really carefully. restoration is an emergency procedure and should not mess with the other ones, leave the other ones simple and see later what to do with this, I personally prefer to have the ip and ssh bak config on the hard drive and minimise usb config. if this means making a whole special flow for the restore, then it is. Think carefully what we backup and what we restore.
-    # TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password)
-
     
     
     
     
     
     
-
-
     
-    # TODO configure network if reloading (read network config from hdd)
-    #
-    # configureNetwork
-    # if [ $? -ne 0 ] ; then
-    #     $dlg --yes-label $"Review" --no-label $"Keep" \
-    #          --yesno  $"Network connectivity error. Go on or review the parameters?" 0 0
-    #     #Review them, loop again
-    #     [ $? -eq 0 ] && continue
-    # fi
-
-
-
+    
+    
+    #Configure network [only on reload]
+    if [ "$DOINSTALL" -eq 0 ]
+    then
+        configureNetwork
+        [ $? -ne 0 ] && $dlg --msgbox $"Network connectivity error. We'll go on with system load. At the end, please, check." 0 0
+    fi
+    
     #Setup hosts file and hostname
     $PSETUP configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
+    
+    
+    #Configure timezone
+    $PSETUP setupTimezone "$TIMEZONE"
+    
     
     #Make sure time is synced
     $dlg   --infobox $"Syncronizing server time..." 0 0
@@ -709,6 +735,19 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 
 
 
+# TODO extinguir systemPanic, al menos en el wizard. cambiar por msgbox y ya
+
+
+# TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
+
+
+    
+    
+    # TODO on a recovery, ask the backup location parameters there, don't expect to read them from the usbs. Also, on the fresh install he will be able to set new ssh bak location (but on restoring, the values on the hard drive will be there. should we overwrite them? should we avoid defining certain things on a fresh install?) --> should we do this instead?: ask for the restoration clauers at the beginning, and ask for the ssh backup location (and provisional ip config). retrieve backup, setup hdd, restoee ******** I'm getting dizzy, think this really carefully. restoration is an emergency procedure and should not mess with the other ones, leave the other ones simple and see later what to do with this, I personally prefer to have the ip and ssh bak config on the hard drive and minimise usb config. if this means making a whole special flow for the restore, then it is. Think carefully what we backup and what we restore.
+
+    
+    
+    
 
 # TODO implement a delayed rebuilt key anulation? this way, multiple privileged actions can be performed without bothering the keyholders. think about this calmly. maybe a file with the last action timestamp and a cron? but I think it's too risky...
 
@@ -718,3 +757,5 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 
 
 # TODO: add a maint option to change ip config [commis. authorisation]
+
+# TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password)

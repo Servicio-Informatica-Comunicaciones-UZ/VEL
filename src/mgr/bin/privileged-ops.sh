@@ -354,7 +354,7 @@ if [ "$1" == "vars" ]  # TODO revisar todas las llamadas, tb cambiar por disk, m
 	 exit 1
      fi
 
-
+# TODO quitar esta restricción. O si hace falta leer alguna var sin autorización de la comisión, marcar sólo las excepciones
 # Asegurarme de que $SITESCOUNTRY $SITESORGSERV $SITESEMAIL están en algún fichero de variables      
      if [ "$4" != "WWWMODE" -a "$4" != "SSHBAKPORT" -a "$4" != "SSHBAKSERVER" -a "$4" != "DOMNAME"   -a "$4" != "copyOnRAM"  -a "$4" != "SHARES" -a "$4" != "SITESCOUNTRY" -a "$4" != "SITESORGSERV" -a "$4" != "SITESEMAIL" -a "$4" != "ADMINNAME" ]  # TODO: sacar esta comprobación a una func.
 	 then
@@ -593,7 +593,7 @@ shutdownServer(){
     
     umountCryptoPart "$DRIVEMODE"  "$MOUNTPATH"  "$MAPNAME"  "$DATAPATH" "$CRYPTDEV"  "$ISCSITARGET" "$ISCSISERVER" "$ISCSIPORT"
 
-    rm -rf $TMPDIR/*
+    rm -rf /tmp/*
     clear
     
     if [ "$2" == "h" ] 
@@ -699,7 +699,7 @@ then
     #Setup permissions on the ciphered partition
     chmod 751  $DATAPATH  >>$LOGFILE 2>>$LOGFILE
     
-    #If new,setup cryptoFS directories, with proper owners and permissions
+    #If new,setup cryptoFS directories, with proper owners and permissions # TODO add here any new directories to persist
     if [ "$2" == 'new' ]
     then
         mkdir -p $DATAPATH/root >>$LOGFILE 2>>$LOGFILE
@@ -1707,8 +1707,7 @@ then
 	       do
 	  	    	   mkdir -p "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
 	           chmod 600 "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
-	           echo -n "0" > "$ROOTTMP/slot$i/NEXTSHARENUM"
-  	         echo -n "0" > "$ROOTTMP/slot$i/NEXTCONFIGNUM"
+	           resetSlot "$i"
         done
 	       
 	       CURRENTSLOT=1
@@ -1720,34 +1719,24 @@ then
     
     
     
-    
-    
     #Reset currently active slot. 
     if [ "$2" == "resetSlot" ] 
 	   then
         getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
 	       
-	       rm -rf "$slotPath/*"  >>$LOGFILE 2>>$LOGFILE
-	       echo -n "0" > "$slotPath/NEXTSHARENUM"
-	       echo -n "0" > "$slotPath/NEXTCONFIGNUM"
-        
-	       exit 0
+	       resetSlot $CURRENTSLOT
+        exit $?
     fi
     
     
     
-    
-
     
     #Reset all slots. 
     if [ "$2" == "resetAllSlots" ] 
 	   then
         for i in $(seq $SHAREMAXSLOTS)
 	       do
-	           rm -rf $ROOTTMP/slot$i/*  >>$LOGFILE 2>>$LOGFILE
-	           echo -n "0" > "$ROOTTMP/slot$i/NEXTSHARENUM"
-	           echo -n "0" > "$ROOTTMP/slot$i/NEXTCONFIGNUM"
+	          resetSlot "$i"
 	       done
 	       
 	       exit 0

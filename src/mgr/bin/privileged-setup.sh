@@ -787,11 +787,11 @@ if [ "$1" == "populateDb" ]
 
     #Ejecutamos las sentencias sql genéricas y las específicas (el -f obliga a cont. aunque haya un error, que no nos afectan)
     mysql -f -u election -p"$DBPWD" eLection  </usr/local/bin/buildDB.sql 2>>/tmp/mysqlerr
-    mysql -f -u election -p"$DBPWD" eLection  <$TMPDIR/config.sql 2>>/tmp/mysqlerr
+    mysql -f -u election -p"$DBPWD" eLection  </tmp/config.sql 2>>/tmp/mysqlerr
     [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
     
 
-    rm -f $TMPDIR/config.sql
+    rm -f /tmp/config.sql
     
     #Si no se usan backups alteramos la Bd para indicarlo
     if [ "$2" -ne 1 ] 
