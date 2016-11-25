@@ -643,6 +643,11 @@ then
 
 
 
+
+
+
+    
+    #Enable backup cron
 elif [ "$1" == "enableBackup" ]
 then
     #Write cron to check every minute for a pending backup
@@ -653,10 +658,13 @@ then
     fi
     
     
+    
+    #Disable backup cron
 elif [ "$1" == "disableBackup" ]
 then
-    #Delete backup cron line (if exists)
+    #Delete backup cron line (if it exists)
     sed -i -re "/backup.sh/d" /etc/crontab
+    
     
     
 #Mark system to force a backup

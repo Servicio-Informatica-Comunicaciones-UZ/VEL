@@ -1890,6 +1890,93 @@ then
     fi
     
     
+    
+    
+    
+    
+    
+    
+    #Check if any share is corrupt. We rebuild key with N sets of
+    #THRESHOLD shares, so the set of all the shares is covered. Every
+    #rebuilt key is compared with the previous one to grant they are
+    #the same.
+    if [ "$2" == "testForDeadShares" ] 
+	   then
+    	   getVar mem CURRENTSLOT
+        getVar usb THRESHOLD
+        
+        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+        
+        [ "$THRESHOLD" == "" ] && exit 2
+        [ "$CURRENTSLOT" == "" ] && exit 2
+        
+        #Get list of shares on the active slot
+        echo "testForDeadShares: Available shares: "$(ls -l  $slotPath 2>>$LOGFILE )   >>$LOGFILE 2>>$LOGFILE    
+        sharefiles=$(ls "$slotPath/" | grep -Ee "^keyshare[0-9]+$")
+        numsharefiles=$(echo $sharefiles 2>>$LOGFILE | wc -w)
+        
+        #If no shares
+        if [ "$sharefiles" == ""  ] ; then
+            echo "Error. No shares found" >>$LOGFILE 2>>$LOGFILE
+            exit 1
+        fi
+        
+        #If not enough shares
+        [ "$THRESHOLD" -gt "$numsharefiles" ] && exit 3
+
+        
+        mkdir -p $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
+        LASTKEY=""
+        CURRKEY=""
+        count=0
+        failed=0
+        #For each share
+        while [ "$count" -lt "$numsharefiles"  ]
+        do
+            #Clean test dir
+            rm -f $ROOTTMP/testdir/* >>$LOGFILE 2>>$LOGFILE
+            
+            #Calculate which share numbers to use
+            offset=0
+            while [ "$offset" -lt "$THRESHOLD" ]
+	           do
+	               pos=$(( (count+offset)%numsharefiles ))
+
+                #Copy keyshare to the test dir [rename it so they are correlative]
+                echo "copying keyshare$pos to $ROOTTMP/testdir named $ROOTTMP/testdir/keyshare$offset"  >>$LOGFILE 2>>$LOGFILE
+	               cp $slotPath/keyshare$pos $ROOTTMP/testdir/keyshare$offset   >>$LOGFILE 2>>$LOGFILE
+	                   
+	               offset=$((offset+1))
+            done
+            echo "Shares copied to test directory: "$(ls -l  $ROOTTMP/testdir)   >>$LOGFILE 2>>$LOGFILE
+            
+            #Rebuild cipher key and store it on the var. 
+            CURRKEY=$($OPSEXE retrieve $THRESHOLD $ROOTTMP/testdir  2>>$LOGFILE)
+            #If failed, exit.
+            [ $? -ne 0 ] && failed=1 && break
+            
+            echo "Could rebuild key"  >>$LOGFILE 2>>$LOGFILE
+            
+            #If key not matching the previous one, exit      
+            [ "$LASTKEY" != "" -a "$LASTKEY" != "$CURRKEY"   ] && failed=1 && break
+            
+            echo "Matches previous"  >>$LOGFILE 2>>$LOGFILE
+            
+            #Shift current key
+            LASTKEY="$CURRKEY"
+            
+            #Next rebuild will start from the next to the last used now
+            count=$(( count + THRESHOLD ))
+        done
+        
+        #Remove directory, to avoid leaving sensitive data behind
+        rm -rf $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
+        
+        echo "found deadshares? $failed" >>$LOGFILE 2>>$LOGFILE
+        
+        exit $failed
+    fi
+    
 
 
 
@@ -1898,112 +1985,6 @@ then
 
 
 #SEGUIR revisando desde aquí
-    
-    
-    if [ "$2" == "testForDeadShares" ] 
-	then
-    	       getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-
-
-#1 -> el dir de donde leer las shares a probar.
-testForDeadShares () {
-    
-    sourcesharedir=$1
-    
-    echo "Available shares: "$(ls -l  $sourcesharedir 2>>$LOGFILE )   >>$LOGFILE 2>>$LOGFILE
-    
-    sharefiles=$(ls "$sourcesharedir/" | grep -Ee "^keyshare[0-9]+$")
-    numsharefiles=$(echo $sharefiles 2>>$LOGFILE | wc -w)
-
-    [ "$sharefiles" == ""  ] && echo "NO SHARES TO TEST!!" >>$LOGFILE 2>>$LOGFILE && return 1
-    
-    mkdir -p $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
-
-    
-    ###  Reconstruimos la clave con N conjuntos de THRESHOLD shares
-    ###  tales que cubran todo el conjunto de shares. Si hay un solo
-    ###  error, se solicita regenerarla. Cada llave reconstruida se 
-    ###  compara con la anterior, para verificar que coinciden.
-    
-    LASTKEY=""
-    CURRKEY=""
-
-    count=0
-    deadshares=0
-    while [ "$count" -lt "$numsharefiles"  ]
-      do
-      
-      [ "$THRESHOLD" == "" ] && exit 2
-      
-      [ "$THRESHOLD" -gt "$numsharefiles" ] && exit 3
-      
-      #Limpiamos el directorio
-      rm -f $ROOTTMP/testdir/* >>$LOGFILE 2>>$LOGFILE
-      
-      
-      #Calcular qué números de pieza usar en esta reconstrucción y copiarlos al directorio de prueba
-      offset=0
-      while [ "$offset" -lt "$THRESHOLD" ]
-	do
-	
-	pos=$(( (count+offset)%numsharefiles ))
-
-        #copiamos keyshare$pos a $ROOTTMP/testdir" renombrándola para que sean correlativas empezando desde cero (lo necesita el retrieve)
-	echo "copying keyshare$pos to $ROOTTMP/testdir named $ROOTTMP/testdir/keyshare$offset"  >>$LOGFILE 2>>$LOGFILE
-	cp $sourcesharedir/keyshare$pos $ROOTTMP/testdir/keyshare$offset   >>$LOGFILE 2>>$LOGFILE
-	
-	offset=$((offset+1))
-      done
-      
-      echo "Shares copied to test directory: "$(ls -l  $ROOTTMP/testdir)   >>$LOGFILE 2>>$LOGFILE
-      
-      #Reconstruir llave de cifrado y mapearla a su variable. 
-      CURRKEY=$($OPSEXE retrieve $THRESHOLD $ROOTTMP/testdir  2>>$LOGFILE)
-      stat=$? 
-      
-      #limpiamos el directorio
-      rm -f $ROOTTMP/testdir/* >>$LOGFILE 2>>$LOGFILE
-      
-      #Si no logra reconstruir, sale.
-      [ $stat -ne 0 ] && deadshares=1 && break 
-      
-      echo "Could rebuild key"  >>$LOGFILE 2>>$LOGFILE
-      
-      #Si no coincide con la reconstrucción anterior, sale      
-
-      [ "$LASTKEY" != "" -a "$LASTKEY" != "$CURRKEY"   ] && deadshares=1 && break
-      LASTKEY="$CURRKEY"
-      
-      echo "Matches previous"  >>$LOGFILE 2>>$LOGFILE
-            
-      count=$(( count + THRESHOLD ))
-      
-    done
-    
-
-    rm -rf $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
-
-    echo "deadshares? $deadshares" >>$LOGFILE 2>>$LOGFILE
-
-    return $deadshares
-}
-
-    getVar usb THRESHOLD
-
-    testForDeadShares "$slotPath"
-    [ "$?" -ne 0 ] && exit 1
-
-    exit 0
-fi
-
-
-
-
-
-
-
-
 
 
 

@@ -8,7 +8,9 @@ doSystemConfiguration (){
     
     #Si se está ejecutando una restauración
     if [ "$DORESTORE" -eq 1 ] ; then #////probar
-	       
+
+        # TODO asegurarme de que se hace el trust antes de descargar el backup
+        
 	       while true; do 
 	           
 	           $dlg --msgbox $"Prepare ahora los Clauers del sistema anterior. Vamos a recuperar los datos." 0 0
@@ -48,48 +50,29 @@ doSystemConfiguration (){
 
     fi
     
-
-
-    
-
-    
-
-    #Lanzamos los servicios del sistema (y acabamos la configuración de la instalación)
-    configureServers "$1" 
-
-
-    if [ "$DORESTORE" -eq 1 ] ; then
+   if [ "$DORESTORE" -eq 1 ] ; then
 
 	$PSETUP recoverSSHBackup_phase2
 	
     fi
 
+    
 
-    #Si estamos em modo de disco local, ponemos en marcha el proceso cron de backup cada minuto
-    SSHBAKSERVER=$(getVar disk SSHBAKSERVER)
-	   SSHBAKPORT=$(getVar disk SSHBAKPORT)
-    if [ "$SSHBAKSERVER" != ""  ] ; then
+    
 
-	       if [ "$1" == 'reset' ] ; then
-	           
-	           #Añadimos las llaves del servidor SSH al known_hosts # TODO hace falta? al hacer el test en el config, se habrán añadido. O hacer dos ops separadas?
-	           $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"# TODO ESto no debería hacerse antes del restore, porque se necesita que se confíe en el servidor?? se hace con cada conexión del proceso de backup? verificar
-            ret=$?
-	           if [ "$ret" -ne 0 ] ; then
-		              systemPanic $"Error configurando el acceso al servidor de copia de seguridad."
-	           fi
-	       fi
-	
-	       $PSETUP enableBackup	    
-	       
-    fi
+
+ 
+
+
+   
+
     
     
     
     #Lanzamos el sistema de recogida de estadísticas en RRDs
     if [ "$1" == "new"  ] ; then
-	#Construye las RRD
-	$PVOPS stats startLog 
+	       #Construye las RRD
+	       $PVOPS stats startLog 
     fi
     
     #Creamos el cron que actualiza los resultados y genera las gráficas
@@ -98,25 +81,17 @@ doSystemConfiguration (){
     #Actualizamos los gráficos al inicio (vacíos en la creación, no vacíos en el reboot)
     $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE
     
-
+    
     #Escribimos el alias que permite que
     #se envien los emails de emergencia del smart y demás
     #servicios al correo del administrador
     
     $PSETUP setupNotificationMails
-
+    
     
     #Realizamos los ajustes finales
     $PSETUP init4
         
-
-    $dlg --msgbox $"Sistema iniciado correctamente y a la espera." 0 0
-    
-
-}  #end doSystemConfiguration
-
-
-
 
 
 

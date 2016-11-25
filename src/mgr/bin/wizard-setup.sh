@@ -432,6 +432,7 @@ do
                     $dlg  --yes-label $"Yes" --no-label $"No" \
                           --yesno $"Do you want to set up periodic system backups through SSH?" 0 0
 	                   if [ $? -ne 0 ] ; then #No
+                        SSHBAKSERVER="" #To mark it is not used
                         action=0 #Go on
                     else
                         while true; do
@@ -607,14 +608,14 @@ do
         $dlg --msgbox $"Key successfully rebuilt." 0 0
 
 
-        #If this is a simple startup, check if any share is corrupted
+        #If this is a simple startup, check whether any share is corrupted
         if [ "$DOSTART" -eq 1 ]
 	       then
     	       $dlg --infobox $"Checking all key shares..." 0 0
-            testForDeadShares #SEGUIR, comprobar la privop
+            testForDeadShares
 	           #If any share is dead, recommend a key renewal.
 	           if [ $? -ne 0 ] ; then
-	               $dlg --msgbox $"Dead key shares detected. Please, generate and share a new key as soon as possible." 0 0 
+	               $dlg --msgbox $"Corrupt key shares detected. Please, generate and share a new key as soon as possible." 0 0 
 	           fi
         fi
         
@@ -680,56 +681,90 @@ do
     
     
     
-    # TODO configure ssh backup key trust if reloading
-    if [ "$DOSTART" -eq 1 ] ; then 
-
-    # #Set trust on the server
-    # sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
-    # if [ $? -ne 0 ] ; then
-    #     echo "SSH Keyscan error." >>$LOGFILE 2>>$LOGFILE
-    #     return 1
-		  # fi
-
-    fi
-
     
-    
-    ######## Retrieve backup to restore #########
-
-    ######## Share key and basic config on usbs #########
-
-    #Setup network, persistence drive and other basics
-
-
-        # TODO write usbs if in install # TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
-
-
-        # TODO write csr if in install
+    #If using SSH backups, configure it
+    if [ "$SSHBAKSERVER" != ""  ] ; then
         
-
+        #Set trust on the backup server
+	       $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"
+        if [ "$?" -ne 0 ] ; then
+		          dlg --msgbox $"Error configuring SSH backup service." 0 0
+            continue #Failed, go back to the menu
+	       fi
+        
+        #Enable the backup cron
+	       $PSETUP enableBackup	    
+    fi
     
     
-    # TODO Remember to set all variables from config that we need, here (from usb config after rebuild or set during installation) and, when set up, from crypto part config
+
+
+
+
+
     
-
-
-
-
-
-
-
-
-
-    #Saltar a  la sección de config de red/cryptfs  # TODO refactor this function, inside or outside the loop?
-    doSystemConfiguration "reset/new"   
+    ## TODO aquí el contenido de configureservers
     
     
-    # TODO give or remove privileges to the admin user, make sure this var is erradicated: SETAPPADMINPRIVILEGES=0
+    
+    
+    
+    
+    
+    
+    
+    #Setup statistics system
+    if [ "$DOINSTALL" -eq 1 ] ; then
+	       #Build RRDs
+	       $PVOPS stats startLog  # TODO review this op.
+    fi
+    
+    #Setup cron that updates the results and generates the graphics
+    $PVOPS stats installCron # TODO review this op.
+    
+    #Draw the stat graphs
+    $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE  # TODO review this op.
+    
 
+# TODO SEGUIR
+    
+    #Escribimos el alias que permite que
+    #se envien los emails de emergencia del smart y demás
+    #servicios al correo del administrador
+    
+    $PSETUP setupNotificationMails
+    
+    
+    #Realizamos los ajustes finales
+    $PSETUP init4
+    
+    
+    
+    # TODO give (install) or remove privileges (reboot) the admin user, make sure this var is erradicated: SETAPPADMINPRIVILEGES=0 
+    # TODO give extra auth point on  install
+    
+    
+    
+    ######## Retrieve backup to restore #########  # TODO decidir dónde
+    
+    
+    
+    
+    ######## Store certificate request ########
+    
+    # TODO write csr if in install
+    
 
-
-
-
+    
+    ######## Share key and basic config on usbs #########
+    
+    # TODO write usbs if in install # TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
+    
+    
+    
+    
+    
+    
 
     # TODO: now, clauers are written at the end, after everything is configured.
         #Avisamos antes de lo que va a ocurrir.
