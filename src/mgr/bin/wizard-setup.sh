@@ -153,12 +153,14 @@ setDiskVariables () {
     setVar disk MAILRELAY "$MAILRELAY"
     
     setVar disk ADMINNAME "$ADMINNAME"
+    setVar disk ADMIDNUM "$ADMIDNUM"
+    setVar disk ADMREALNAME "$ADMREALNAME"
 	   setVar disk MGREMAIL "$MGREMAIL"
-	   setVar disk LOCALPWDSUM "$LOCALPWDSUM"
+    setVar disk ADMINIP "$ADMINIP"
     
     setVar disk KEYSIZE   "$KEYSIZE"
     
-    #Some of these are used on the webapp, for the STORK authentication # TODO review: will we still support it?
+    #Some of these are used on the webapp, for the STORK authentication # TODO review: will we still support STORK?
     setVar disk SITESORGSERV  "$SITESORGSERV"
 	   setVar disk SITESNAMEPURP "$SITESNAMEPURP"
 	   setVar disk SITESEMAIL    "$SITESEMAIL"
@@ -209,8 +211,11 @@ getDiskVariables () {
     getVar disk MAILRELAY
 
     getVar disk ADMINNAME
+    getVar disk ADMIDNUM
+    getVar disk ADMREALNAME
 	   getVar disk MGREMAIL
-	   getVar disk LOCALPWDSUM
+    getVar disk ADMINIP
+	   getVar disk LOCALPWDSUM # TODO decide how we use this password for semi-priv op verification and if it must be loaded here (maybe, an op to check it)
     
     getVar disk KEYSIZE
     
@@ -543,13 +548,6 @@ do
         
         setVar usb SHARES "$SHARES"
         setVar usb THRESHOLD "$THRESHOLD"
-        
-        
-        #Hash passwords for use, for security reasons
-	       MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
-	       MGRPWD=''
-        LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
-	       LOCALPWD=''
         
         #Generate and fragment persistence drive cipherkey (on the active slot)
         $dlg --infobox $"Generating shared key for the encrypted disk drive..." 0 0

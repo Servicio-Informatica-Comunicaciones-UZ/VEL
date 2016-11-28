@@ -277,7 +277,7 @@ parseInput () {
 #Ret: 0 Ok, value meets the type syntax;  1 wrong value syntax
 checkParameter () {
     
-    #These vars can accept an empty value and we ch
+    #These vars can accept an empty value and we ch ## TODO should we accept empty struing by default? see where this sis used and where checkParameterordie is used
     if [ "$2" == "" ]
 	   then
 	     	 case "$1" in 
@@ -308,7 +308,7 @@ checkParameter () {
 	           fi
 	           ;;
 	       
-	       "IPADDR" | "MASK" | "GATEWAY" | "DNS1" | "DNS2"  )
+	       "IPADDR" | "MASK" | "GATEWAY" | "DNS1" | "DNS2" | "ADMINIP" )
 	           parseInput ipaddr "$2"
 	           ret=$?
             ;;

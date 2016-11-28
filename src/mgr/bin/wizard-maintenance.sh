@@ -35,10 +35,6 @@ systemPanic () { # TODO TRY TO EXTINGUISH
 
 
 
-
-
-
-
 # Pide que se inserte un dev USB y que se seleccione un fichero del mismo, que luego se copairá a un temporal del root
 # $1 -> Mensaje de inserción de dev
 # $2 -> Background message
@@ -695,7 +691,7 @@ executeSystemAction (){
       sysAdminParams lock
       [ $? -ne 0 ] && return 1 # TODO ver la op de abajo
       
-      $PVOPS resetAdmin "$MGRPWD" "$ADMINNAME" "$ADMREALNAME" "$ADMIDNUM" "$MGREMAIL" "$LOCALPWD" # TODO revisar esta op y ver que hace lo que espero, que es dejar el mismo admin y cambiar sus pwds
+      $PVOPS resetAdmin "$MGRPWD" "$ADMINNAME" "$ADMREALNAME" "$ADMIDNUM" "$MGREMAIL" "$LOCALPWD" "$ADMINIP" # TODO revisar esta op y ver que hace lo que espero, que es dejar el mismo admin y cambiar sus pwds
       
       #Además, da privilegios al administrador
       grantAdminPrivileges grant
@@ -720,7 +716,7 @@ executeSystemAction (){
       sysAdminParams
       [ $? -ne 0 ] && return 1 # TODO ha cancelado la operación. Ver si esto está bien implementado según el flujo (o revisar el flujo, y hacerlo para todas la sops. que todas sean cancelables.)
       
-      $PVOPS resetAdmin "$MGRPWD" "$ADMINNAME" "$ADMREALNAME" "$ADMIDNUM" "$MGREMAIL" "$LOCALPWD" #TODO revisar esta op y asegurarme de que hace lo que espero, que es cambiar el admin por otro. allí deberá mirar el admin actual y quitarle dicho privilegio.
+      $PVOPS resetAdmin "$MGRPWD" "$ADMINNAME" "$ADMREALNAME" "$ADMIDNUM" "$MGREMAIL" "$LOCALPWD" "$ADMINIP"#TODO revisar esta op y asegurarme de que hace lo que espero, que es cambiar el admin por otro. allí deberá mirar el admin actual y quitarle dicho privilegio.
 
       # TODO en algún punto se tendrán qu actualizar las vars en privileged. ya sea aquí fuera o al llamara  resetadmin. decidir dónde.
       
@@ -1018,7 +1014,7 @@ doLoop () {
 
 # TODO add a maint option to join esurvey lcn network (if not done during setup, and also to change registration)
 
-#//// Variables a leer cada vez que se lance este script:
+#//// Variables a leer cada vez que se lance este script: # TODO revisar esto. probablemente faltan, pero leerlas en cada func, según hagan falta mejor
 MGREMAIL=$(getVar disk MGREMAIL)
 ADMINNAME=$(getVar disk ADMINNAME)
 

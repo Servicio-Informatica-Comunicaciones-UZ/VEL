@@ -131,6 +131,10 @@ privilegedSetupPhase1 () {
     #Prepare root user tmp dir
     chmod 700 $ROOTTMP/ >>$LOGFILE 2>>$LOGFILE
     $PVOPS storops init
+    
+    #Prepare whitelist file
+    touch /etc/whitelist
+    chmod 644 /etc/whitelist
 }
 
 
@@ -213,7 +217,13 @@ moveToRAM () {
 
 privilegedSetupPhase4 () {
     
-    #Load initial whitelist # TODO add gui form to spec the admin's ip and add it permanently to the whitelist. Add that as an option on the edit admin op. IF necessary move these calls ahead until we have the admin's IP
+    
+    #Add administrator's IP to the whitelist
+    getVar disk ADMINIP
+    echo "$ADMINIP" >> /etc/whitelist
+    
+    
+    #Load initial whitelist
 	   bash /usr/local/bin/whitelistLCN.sh >>$LOGFILE 2>>$LOGFILE
     bash /usr/local/bin/updateWhitelist.sh>>$LOGFILE 2>>$LOGFILE
     

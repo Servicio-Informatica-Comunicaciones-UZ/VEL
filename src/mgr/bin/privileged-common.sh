@@ -173,7 +173,10 @@ getVar () {
 #      1 (default): set the variable with the value.
 checkParameterOrDie () {
     
-    local val=$(echo "$2" | sed -re "s/\s+//g")
+    #Trim value # TODO: warning, this deletes all the spaces. If there's a freetext string, we are screwed-> changed to trim the ends of the string. see if anything unexpected si happening
+    local val=$(echo "$2"  | sed -r -e "s/^\s+//g" -e "s/\s+$//g")
+    
+    #We accept an empty parameter
     if [ "$val" == "" ]
 	   then
 	       return 0
@@ -196,6 +199,8 @@ checkParameterOrDie () {
         #</DEBUG>
 	       exit 1
     fi
+    
+    return 0
 }
 
 

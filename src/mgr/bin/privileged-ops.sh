@@ -2491,37 +2491,55 @@ fi
 
 
 
-#Resetea las credenciales del admin o, si lleva más parámetros, lo sustituye por uno nuevo.
-# 2-> password
-# 3-> username
-# 4-> full name
-# 5-> user id num
-# 6-> mail addr
-# 7 -> local password  # TODO handle this properly, store it somewehre
+#Create admin users, substitute admin user or update admin user credentials
+# 2-> Operation: 'new', 'update' or 'replace'
+# 3-> Username
+# 4-> Web application password
+# 5-> Full Name
+# 6-> Personal ID number
+# 7-> IP address
+# 8-> Mail address
+# 9-> Local password
 if [ "$1" == "resetAdmin" ]
+then
+    if [ "$2" != "new" -a "$2" != "update" -a "$2" != "replace" ]
     then
+	       echo "resetAdmin: Bad operation parameter $2" >>$LOGFILE 2>>$LOGFILE
+	       exit 1
+    fi
     
-    #Guardamos el valor antiguo
+    checkParameterOrDie ADMINNAME   "${3}"
+    checkParameterOrDie MGRPWD      "${4}"
+    checkParameterOrDie ADMREALNAME "${5}"
+    checkParameterOrDie ADMIDNUM    "${6}"
+    checkParameterOrDie ADMINIP     "${7}"
+    checkParameterOrDie MGREMAIL    "${8}"
+    checkParameterOrDie LOCALPWD    "${9}"
+    
+    #Get database password
+    getVar disk DBPWD
+    
+    #Get stored value for the admin username
     getVar disk ADMINNAME
     oldADMINNAME="$ADMINNAME"
     
-    checkParameterOrDie MGRPWD "${2}"
-    checkParameterOrDie ADMINNAME "${3}"
-    checkParameterOrDie ADMREALNAME "${4}"
-    checkParameterOrDie ADMIDNUM "${5}"
-    checkParameterOrDie MGREMAIL "${6}"
+    #Hash passwords for storage, for security reasons
+	   MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
     
-    MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
+    #In any of the operations above, update local manager password (if any)
+    if [ "$LOCALPWD" != "" ] ; then
+        LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
+        setVar disk LOCALPWDSUM "$LOCALPWDSUM"
+    fi
     
-    getVar disk DBPWD
-       
-    # Si no se proporciona un adminname, reseteamos las credenciales del actual
-    if [ "$3" == "" ]
-	then
-	
-	#Update del PWD, IP y Clauer sólo para el usuario admin
-	echo "update eVotPob set clId=-1,oIP=-1,pwd='$MGRPWDSUM' where us='$oldADMINNAME';" | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
-	
+    #Reset credentials of current admin (web app password and IP address)
+    if [ "$2" == "reset" ]
+	   then
+        newIP= # TODO needed method to turn ip into number
+        [ "$ADMINIP" == "" ] && 
+        
+	       echo "update eVotPob set clId=-1,oIP=-1,pwd='$MGRPWDSUM' where us='$oldADMINNAME';" | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
+	       
     else
 	
 	#Escapamos los campos que pueden contener caracteres problemáticos (o los que reciben entrada directa del usuario)

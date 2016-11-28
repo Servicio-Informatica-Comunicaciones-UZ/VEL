@@ -557,6 +557,7 @@ configureNetwork () {
 # ADMREALNAME
 # MGRPWD
 # LOCALPWD
+# ADMINIP
 sysAdminParams () {
 
     #If set, allows edition of password fields only
@@ -567,17 +568,18 @@ sysAdminParams () {
     exec 4>&1
 	   while true
 	   do
-	       local formlen=8
-	       choice=$($dlg  --cancel-label $"Back"  --mixedform  $"System administrator information" 0 0 21  \
-	                      $"Field"            1  1 $"Value"       1  30  17 15   2  \
-	                      $"User name"        3  1 "$ADMINNAME"   3  30  17 256  $lock  \
-                       $"ID number"        5  1 "$ADMIDNUM"    5  30  17 256  $lock  \
-                       $"E-mail address"   7  1 "$MGREMAIL"    7  30  17 256  $lock  \
-                       $"Full name"        9  1 "$ADMREALNAME" 9  30  17 256  $lock  \
-	                      $"Web APP password" 12 1 "$MGRPWD"      12 30  17 256  1  \
-	                      $"Repeat password"  14 1 "$repMGRPWD"   14 30  17 256  1  \
-	                      $"Local password"   17 1 "$LOCALPWD"    17 30  17 256  1  \
-	                      $"Repeat password"  19 1 "$repLOCALPWD" 19 30  17 256  1  \
+	       local formlen=9
+	       choice=$($dlg  --cancel-label $"Back"  --mixedform  $"System administrator information" 0 0 23  \
+	                      $"Field"              1  1 $"Value"       1  30  17 15   2  \
+	                      $"User name"          3  1 "$ADMINNAME"   3  30  17 256  $lock  \
+                       $"ID number"          5  1 "$ADMIDNUM"    5  30  17 256  $lock  \
+                       $"E-mail address"     7  1 "$MGREMAIL"    7  30  17 256  $lock  \
+                       $"Full name"          9  1 "$ADMREALNAME" 9  30  17 256  $lock  \
+                       $"Admin's IP address" 12 1 "$ADMINIP"     12 30  17 15   0  \
+	                      $"Web APP password"   15 1 "$MGRPWD"      15 30  17 256  1  \
+	                      $"Repeat password"    17 1 "$repMGRPWD"   17 30  17 256  1  \
+	                      $"Local password"     20 1 "$LOCALPWD"    20 30  17 256  1  \
+	                      $"Repeat password"    22 1 "$repLOCALPWD" 22 30  17 256  1  \
 	                      2>&1 >&4 )
         
 	       #If cancelled, exit
@@ -627,27 +629,33 @@ sysAdminParams () {
 		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"User real name string not valid. Can contain the following characters:"" $ALLOWEDCHARSET"
 		                  else ADMREALNAME="$item" ; fi
 				                ;;
-		              
-		              "5" ) # MGRPWD
+                
+		              "5" ) # ADMINIP
+		                  parseInput ipaddr "$item"
+				                if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Administrator's IP address not valid."
+                    else ADMINIP="$item" ; fi
+		                  ;;
+                
+		              "6" ) # MGRPWD
                     local auxmgrPwd="$item"
                     pwderrmsg=$(checkPassword "$item")
 		                  if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Web app password:"" $pwderrmsg"
 		                  else MGRPWD="$item" ; fi
 				                ;;
 	               
-		              "6" ) # repMGRPWD
+		              "7" ) # repMGRPWD
 		                  if [ "$item" != "$auxmgrPwd" ] ; then loopAgain=1; errors="$errors\n"$"Web app password: passwords don't match."
 		                  else local repMGRPWD="$item" ; fi
 		                  ;;
                 
-		              "7" ) # LOCALPWD
+		              "8" ) # LOCALPWD
                     local auxlocalPwd="$item"
                     pwderrmsg=$(checkPassword "$item")
                     if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Local password:"" $pwderrmsg"
 		                  else LOCALPWD="$item" ; fi
 		                  ;;
 
-                "8" ) # repLOCALPWD
+                "9" ) # repLOCALPWD
 		                  if [ "$item" != "$auxlocalPwd" ] ; then loopAgain=1; errors="$errors\n"$"Local password: passwords don't match."
 		                  else local repLOCALPWD="$item" ; fi
 		                  ;;
@@ -681,6 +689,7 @@ sysAdminParams () {
     echo "ADMIDNUM:    $ADMIDNUM" >>$LOGFILE 2>>$LOGFILE
     echo "MGREMAIL:    $MGREMAIL" >>$LOGFILE 2>>$LOGFILE
     echo "ADMREALNAME: $ADMREALNAME" >>$LOGFILE 2>>$LOGFILE
+    echo "ADMINIP:     $ADMINIP" >>$LOGFILE 2>>$LOGFILE
     #</DEBUG>
     
     return 0

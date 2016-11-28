@@ -80,20 +80,6 @@ doSystemConfiguration (){
 configureServers () {
 
  
-            ### Construcción de la urna ###
-	    $dlg --infobox $"Generando llaves de la urna..." 0 0
-	    
-	    keyyU=$(openssl genrsa $KEYSIZE 2>/dev/null | openssl rsa -text 2>/dev/null)
-	    
-	    modU=$(echo -n "$keyyU" | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
-	    expU=$(echo -n "$keyyU" | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
-	    
-	    keyyU=$(echo "$keyyU" | sed -n -e "/BEGIN/,/KEY/p")
-	    
-	fi
-    fi
-
-
 
 
 
@@ -116,6 +102,8 @@ configureServers () {
 
      #Si no está, añadir una op de mant que permita cambiar el mailer
 
+
+     # TODO add ADMINIP to the insert
      # TODO OJO!! casi todo esto ya está en una op de mant. invocar a esta op para no duplicar
             #Escapamos los campos que pueden contener caracteres problemáticos (o los que reciben entrada directa del usuario)
 	    adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
