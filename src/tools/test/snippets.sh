@@ -250,3 +250,24 @@ getReturn () {
         rm -f $RETBUFFER  >>$LOGFILE 2>>$LOGFILE
     fi
 }
+
+
+
+
+
+
+
+#Download node list and check if there are at least two active nodes
+wget https://esurvey.nisu.org/sites?lstnodest=1 -O /tmp/nodelist 2>/dev/null
+ret=$?
+
+if [ "$ret" -ne  0  ]
+then
+		  $dlg --msgbox $"Error downloading list." 0 0
+else
+		  numnodes=$(wc -l /tmp/nodelist | cut -d " " -f 1)
+    
+		  [ "$numnodes" -lt "2"  ] && $dlg --msgbox $"Not enough nodes." 0 0
+    
+fi
+rm /tmp/tempdlg /tmp/nodelist 2>/dev/null

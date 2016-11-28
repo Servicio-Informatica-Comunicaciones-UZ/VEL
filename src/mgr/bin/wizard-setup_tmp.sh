@@ -66,33 +66,7 @@ doSystemConfiguration (){
 
    
 
-    
-    
-    
-    #Lanzamos el sistema de recogida de estadísticas en RRDs
-    if [ "$1" == "new"  ] ; then
-	       #Construye las RRD
-	       $PVOPS stats startLog 
-    fi
-    
-    #Creamos el cron que actualiza los resultados y genera las gráficas
-    $PVOPS stats installCron
-    
-    #Actualizamos los gráficos al inicio (vacíos en la creación, no vacíos en el reboot)
-    $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE
-    
-    
-    #Escribimos el alias que permite que
-    #se envien los emails de emergencia del smart y demás
-    #servicios al correo del administrador
-    
-    $PSETUP setupNotificationMails
-    
-    
-    #Realizamos los ajustes finales
-    $PSETUP init4
-        
-
+  
 
 
 
@@ -105,61 +79,7 @@ doSystemConfiguration (){
 #1 -> 'new' or 'reset'
 configureServers () {
 
-
-
-
-    ######### Activación del servidor postfix ##########
-    $dlg --infobox $"Configurando servidor de correo..." 0 0
-
-    if [ "$1" == 'new' ]
-	then :
-	
-
-
-    fi
-    
-    
-    $PVOPS configureServers mailServer
-    
-    [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de correo." f
-    
-
-
-
-
-
-
-
-
-    #########  Solicitar datos de registro en eSurveySites ######### 
-
-    if [ "$DORESTORE" -ne 1 ] ; then
-	if [ "$1" == 'new' ]
-	    then :
-	    
-            #Pedimos los parámetros para registrar el servidor en eSruveySites, 
-	    #genera la petición de cert y la envia. # TODO en cualquier caso, esta fase del setup que necesita estar online, puede ejecutarse y si falla volver a pedir los datos, o directamente, como será algo opcional, pasarla al maintenance.
-            esurveyParamsAndRequest
-	    
-	    
-	    #Descargamos la lista de nodos y advertimos si no hay al menos dos nodos
-	    wget https://esurvey.nisu.org/sites?lstnodest=1 -O /tmp/nodelist 2>/dev/null
-	    ret=$?
-
-	    if [ "$ret" -ne  0  ]
-		then
-		$dlg --msgbox $"Ha habido un error al descargar la lista de nodos. No podemos verificar si existen al menos dos nodos para garantizar el anonimato." 0 0
-	    else
-		numnodes=$(wc -l /tmp/nodelist | cut -d " " -f 1)
-    
-		[ "$numnodes" -lt "2"  ] && $dlg --msgbox $"No existen suficientes nodos en la red de latencia para garantizar un nivel mínimo de anonimato. Opere este sistema bajo su propia responsabilidad." 0 0
-    
-	    fi
-	    rm /tmp/tempdlg /tmp/nodelist 2>/dev/null
-	    
-	    
-	    
-	    
+ 
             ### Construcción de la urna ###
 	    $dlg --infobox $"Generando llaves de la urna..." 0 0
 	    

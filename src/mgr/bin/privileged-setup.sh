@@ -25,6 +25,57 @@
 
 
 
+
+#Move logs to the encrypted persistent drive
+# $1 -> 'new' o 'reset'
+relocateLogs () {
+    
+    #Stop all services that might be logging
+    RESTARTMYSQL=0
+    RESTARTAPACHE=0
+
+    if isRunning mysqld
+	   then
+	       /etc/init.d/mysql stop >>$LOGFILE 2>>$LOGFILE 
+	       RESTARTMYSQL=1
+    fi
+    if isRunning apache2
+	   then
+	       /etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE 
+	       RESTARTAPACHE=1
+    fi
+    
+    /etc/init.d/rsyslog stop >>$LOGFILE 2>>$LOGFILE 
+    
+    #If new, move /var/log to the ciphered partition
+    if [ "$1" == "new"  ]
+	   then
+	       mv /var/log $DATAPATH >>$LOGFILE 2>>$LOGFILE 
+    else
+        #If reset, save boot process logs in a temporary dir in case
+	       #they are needed.
+	       mv /var/log /var/currbootlogs >>$LOGFILE 2>>$LOGFILE 
+    fi
+    #Substitute them with the ones on the ciphered partition
+    ln -s $DATAPATH/log/ /var/log >>$LOGFILE 2>>$LOGFILE 
+    
+    #Restore stopped services
+    /etc/init.d/rsyslog start >>$LOGFILE 2>>$LOGFILE 
+    
+    if [ "$RESTARTMYSQL" -eq "1" ]
+	   then
+	       /etc/init.d/mysql start >>$LOGFILE 2>>$LOGFILE
+    fi
+    if [ "$RESTARTAPACHE" -eq "1" ]
+	   then
+	       /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE 
+    fi
+}
+
+
+
+
+
 privilegedSetupPhase1 () {
     
     #Init log (unprivileged user can write but not read, nor copy, delete or substitute it, as /tmp has sticky bit).
@@ -208,182 +259,6 @@ privilegedSetupPhase5 () {
 
 
 
-#Sets up the network configuration. Expects global variables with configuration:
-# IPMODE
-# IPADDR
-# MASK
-# GATEWAY
-# DNS1
-# DNS2
-configureNetwork () {
-    
-    #If parameters are empty, read them from config
-    if [ "$IPMODE" == "" ]
-	   then
-	       echo "configureNetwork: Reading params from usb config file..." >>$LOGFILE 2>>$LOGFILE
-	       getVar usb IPMODE
-	       getVar usb IPADDR
-	       getVar usb MASK
-	       getVar usb GATEWAY
-	       getVar usb DNS1
-	       getVar usb DNS2
-   fi
-    
-    checkParameterOrDie IPMODE  "$IPMODE"  "0"
-    checkParameterOrDie IPADDR  "$IPADDR"  "0"
-    checkParameterOrDie MASK    "$MASK"    "0"
-    checkParameterOrDie GATEWAY "$GATEWAY" "0"
-    checkParameterOrDie DNS1    "$DNS1"    "0"
-    checkParameterOrDie DNS2    "$DNS2"    "0"
-
-    echo "ipmode: $IPMODE" >>$LOGFILE 2>>$LOGFILE
-    echo "ipad: $IPADDR" >>$LOGFILE 2>>$LOGFILE
-    echo "mask: $MASK" >>$LOGFILE 2>>$LOGFILE
-    echo "gatw: $GATEWAY" >>$LOGFILE 2>>$LOGFILE
-    echo "dns : $DNS1" >>$LOGFILE 2>>$LOGFILE
-    echo "dns2: $DNS2" >>$LOGFILE 2>>$LOGFILE
-
-    if [ "$IPMODE" == "static" ]
-	   then
-	       killall dhclient3 dhclient  >>$LOGFILE 2>>$LOGFILE 
-	       
-	       local interfacelist=$(cat /etc/network/interfaces | grep  -Ee "^[^#]*iface" | sed -re 's/^.*iface\s+([^\t ]+).*$/\1/g')
-        #Switch all interfaces (except lo) to manual
-	       for intfc in $interfacelist ; do
-	           if [ "$intfc" != "lo" ] ; then
-	               sed  -i -re "s/^([^#]*iface\s+$intfc\s+\w+\s+).+$/\1manual/g" /etc/network/interfaces
-	           fi
-	       done
-	       
-        #List eth interfaces (sometimes kernel may not set first interface to eth0)
-	       local interfaces=$(/sbin/ifconfig -s  2>>$LOGFILE  | cut -d " " -f1 | grep -oEe "eth[0-9]+")
-	       
-	       if [ "$interfaces" == "" ] ; then
-	           echo "Error: no eth interfaces available."  >>$LOGFILE 2>>$LOGFILE 
-	           return 11
-	       fi
-        
-        #For each available eth interface, configure and check connectivity
-	       local settledaninterface=0
-	       for interface in $interfaces; do
-            
-	           #Set IP and netmask.
-	           echo "/sbin/ifconfig $interface $IPADDR netmask $MASK" >>$LOGFILE 2>>$LOGFILE
-            /sbin/ifconfig "$interface" "$IPADDR" netmask "$MASK"  >>$LOGFILE 2>>$LOGFILE 
-            
-            #Set default gateway
-	           echo "/sbin/route add default gw $GATEWAY">>$LOGFILE 2>>$LOGFILE
-            /sbin/route del default
-            /sbin/route add default gw "$GATEWAY"  >>$LOGFILE 2>>$LOGFILE 
-	           
-            #Set NameServers
-	           echo -e "nameserver $DNS1\nnameserver $DNS2" > /etc/resolv.conf
-	           
-	           #Check interface connectivity. If found, settle
-	           echo "Checking connectivity on $interface..."  >>$LOGFILE 2>>$LOGFILE
-	           ping -w 5 -q $GATEWAY  >>$LOGFILE 2>>$LOGFILE 
-	           if [ $? -eq 0 ] ; then
-                echo "found conectivity on interface $interface" >>$LOGFILE 2>>$LOGFILE
-                settledaninterface=1
-                break
-            fi
-            #If no connectivity, disable (otherwise, there will be collisions)
-	           /sbin/ifconfig "$interface" down  >>$LOGFILE 2>>$LOGFILE 
-	           /sbin/ifconfig "$interface" 0.0.0.0  >>$LOGFILE 2>>$LOGFILE 
-	       done
-	       
-	       if [ "$settledaninterface" -eq 0 ] ; then
-	           echo "Error: couldn't find any interface with connection to gateway"  >>$LOGFILE 2>>$LOGFILE 
-	           return 12
-	       fi
-        
-	       
-    else #IPMODE == dhcp
-        
-        #If there is not a dhcp established connection yet
-        if !(ps aux | grep dhclient | grep -v grep >/dev/null) ; then
-            
-            #Perform DHCP negotiation
-            dhclient >>$LOGFILE 2>>$LOGFILE
-            if [ "$?" -ne 0 ]  ; then
-	               echo "Dhclient error."  >>$LOGFILE 2>>$LOGFILE 
-	               return 13
-	           fi
-            GATEWAY=$(/sbin/ip route | awk '/default/ { print $3 }')
-        fi
-    fi
-    
-    #Check gateway connectivity
-	   ping -w 5 -q $GATEWAY  >>$LOGFILE 2>>$LOGFILE 
-	   if [ $? -eq 0 ] ; then
-    	   echo "Error: couldn't ping gateway ($GATEWAY) through any interface. Check connectivity"  >>$LOGFILE 2>>$LOGFILE
-        return 14
-    fi
-
-    return 0
-}
-
-
-
-#Sets up the hostname, domain and hosts file parameters
-# IPADDR
-# HOSTNM
-# DOMNAME
-configureHostDomain () {
-    
-    #If parameters are empty, read them from config
-    if [ "$HOSTNM" == "" ]
-	   then
-	       echo "configureHostDomain: Reading params from usb config file..." >>$LOGFILE 2>>$LOGFILE
-	       getVar usb IPADDR
-	       getVar usb HOSTNM
- 	      getVar usb DOMNAME
-    fi
-    
-    checkParameterOrDie IPADDR  "$IPADDR"  "0"
-    checkParameterOrDie HOSTNM  "$HOSTNM"  "0"
-    checkParameterOrDie DOMNAME "$DOMNAME" "0"
-
-    #If no IP param (due to being set through DHCP), guess it
-    if [ "$IPADDR" == "" ] ; then
-        IPADDR=$(ifconfig | grep -Ee "eth[0-9]+" -A 1 \
-                        | grep -oEe "inet addr[^a-zA-Z]+" \
-                        | grep -oEe "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
-    fi
-    
-    echo "ipadd:  $IPADDR" >>$LOGFILE 2>>$LOGFILE
-    echo "host:   $HOSTNM" >>$LOGFILE 2>>$LOGFILE
-    echo "domain: $DOMNAME" >>$LOGFILE 2>>$LOGFILE
-    
-    
-    #Set the static, transient and pretty hostname
-    hostnamectl set-hostname "$HOSTNM.$DOMNAME"
-
-    #Set hostname
-    hostname "$HOSTNM"
-    echo "$HOSTNM" > /etc/hostname
-
-    #Set domain
-    nisdomainname "$DOMNAME"
-
-    #Set host alias and FQDN
-    if (cat /etc/hosts | grep "$IPADDR" 2>>$LOGFILE) ; then
-        #If already there, substitute line
-        sed -i -re "s/^$IPADDR.*$/$IPADDR $HOSTNM$DOMNAME $HOSTNM/g" /etc/hosts
- 	  else
-        #Add new line at the top
-        echo "$IPADDR $HOSTNM$DOMNAME $HOSTNM" >  /tmp/hosts.tmp
-	       cat  /etc/hosts                        >> /tmp/hosts.tmp
-	       mv   /tmp/hosts.tmp /etc/hosts
-	   fi
-    
-    #Add IP to whitelist
-    echo "$IPADDR" >> /etc/whitelist
-    
-    return 0
-}
-
-
 
 
 
@@ -543,7 +418,7 @@ then
     
     
     
-#Shutdowns the system
+#Shuts down the system
 elif [ "$1" == "halt" ]
 then
     halt
@@ -689,93 +564,6 @@ exit 0
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#Move logs to the encrypted persistent drive
-# $1 -> 'new' o 'reset'
-relocateLogs () {
-    
-    #Stop all services that might be logging
-    RESTARTMYSQL=0
-    RESTARTAPACHE=0
-
-    if isRunning mysqld
-	   then
-	       /etc/init.d/mysql stop >>$LOGFILE 2>>$LOGFILE 
-	       RESTARTMYSQL=1
-    fi
-    if isRunning apache2
-	   then
-	       /etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE 
-	       RESTARTAPACHE=1
-    fi
-    
-    /etc/init.d/rsyslog stop >>$LOGFILE 2>>$LOGFILE 
-    
-    #If new, move /var/log to the ciphered partition
-    if [ "$1" == "new"  ]
-	   then
-	       mv /var/log $DATAPATH >>$LOGFILE 2>>$LOGFILE 
-    else
-        #If reset, save boot process logs in a temporary dir in case
-	       #they are needed.
-	       mv /var/log /var/currbootlogs >>$LOGFILE 2>>$LOGFILE 
-    fi
-    #Substitute them with the ones on the ciphered partition
-    ln -s $DATAPATH/log/ /var/log >>$LOGFILE 2>>$LOGFILE 
-    
-    #Restore stopped services
-    /etc/init.d/rsyslog start >>$LOGFILE 2>>$LOGFILE 
-    
-    if [ "$RESTARTMYSQL" -eq "1" ]
-	   then
-	       /etc/init.d/mysql start >>$LOGFILE 2>>$LOGFILE
-    fi
-    if [ "$RESTARTAPACHE" -eq "1" ]
-	   then
-	       /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE 
-    fi
-}
 
 
 

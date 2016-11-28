@@ -681,9 +681,10 @@ do
     
     
     
-    
     #If using SSH backups, configure it
     if [ "$SSHBAKSERVER" != ""  ] ; then
+        
+        $dlg --infobox $"Configuring SSH backup..." 0 0
         
         #Set trust on the backup server
 	       $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"
@@ -698,10 +699,26 @@ do
     
     
 
+    #Configure postfix
+    $dlg --infobox $"Configuring mail server..." 0 0
+    
+    $PVOPS configureServers mailServer # REVISAR DESDE AQUÍ
+    if [ $? -ne 0 ] ; then
+        systemPanic $"Error grave: no se pudo activar el servidor de correo." f
+        continue
+    fi
+    
 
 
 
-
+	    $dlg --infobox $"Generando llaves de la urna..." 0 0
+	    
+	    keyyU=$(openssl genrsa $KEYSIZE 2>/dev/null | openssl rsa -text 2>/dev/null)
+	    
+	    modU=$(echo -n "$keyyU" | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
+	    expU=$(echo -n "$keyyU" | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
+	    
+	    keyyU=$(echo "$keyyU" | sed -n -e "/BEGIN/,/KEY/p")
     
     ## TODO aquí el contenido de configureservers
     
