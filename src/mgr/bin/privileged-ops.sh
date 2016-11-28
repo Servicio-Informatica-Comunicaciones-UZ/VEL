@@ -2535,14 +2535,20 @@ then
     #Reset credentials of current admin (web app password and IP address)
     if [ "$2" == "reset" ]
 	   then
-        newIP= # TODO needed method to turn ip into number
-        [ "$ADMINIP" == "" ] && 
+        #Encode IP into long integer
+        newIP=$(ip2long "$ADMINIP")
+        [ "$newIP" == "" ] && newIP="-1" #If empty or bad format, default
         
-	       echo "update eVotPob set clId=-1,oIP=-1,pwd='$MGRPWDSUM' where us='$oldADMINNAME';" | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
-	       
-    else
-	
-	#Escapamos los campos que pueden contener caracteres problemáticos (o los que reciben entrada directa del usuario)
+	       echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM' where us='$oldADMINNAME';" | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
+        exit 0
+    fi        
+
+
+    #If new admin, SEGUIR
+    
+    
+
+     	#Escapamos los campos que pueden contener caracteres problemáticos (o los que reciben entrada directa del usuario)
 	adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
 	admidnum=$($addslashes "$ADMIDNUM" 2>>$LOGFILE)
 	adminrealname=$($addslashes "$ADMREALNAME" 2>>$LOGFILE)
@@ -2555,16 +2561,20 @@ then
 	#Por si el usuario ya existia, update 
 	echo "update eVotPob set clId=-1,oIP=-1,pwd='$MGRPWDSUM',nom='$adminrealname',correo='$mgremail',rol=3 where us='$adminname';" | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr  #///probar a hacer admin a un usuario ya existente
 
-	
-        #El nuevo admin será el que reciba los avisos, en vez del viejo (sólo puede ser uno, y se asume que el nuevo está supliendo al antiguo)
+
+ if [ "$2" == "replace" ]
+	then
+     
+     # TODO quitar estatus al anterior
+ 
+     #El nuevo admin será el que reciba los avisos, en vez del viejo (sólo puede ser uno, y se asume que el nuevo está supliendo al antiguo)
 	echo "update eVotDat set email='$mgremail';"  | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
 
-
-	sed -i -re "/^root:/ d" /etc/aliases
+sed -i -re "/^root:/ d" /etc/aliases
 	echo -e "root: $MGREMAIL" >> /etc/aliases   2>>$LOGFILE
 	/usr/bin/newaliases    >>$LOGFILE 2>>$LOGFILE
-		
-    fi
+ 
+ fi
 
     exit 0
 fi
