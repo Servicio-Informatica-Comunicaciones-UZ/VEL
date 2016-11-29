@@ -1,9 +1,4 @@
 
-#1 -> 'new' or 'reset'
-doSystemConfiguration (){
-
-
-
 
     
     #Si se está ejecutando una restauración
@@ -61,66 +56,38 @@ doSystemConfiguration (){
     
 
 
+
+
+
+
+
+   
  
 
 
    
 
-  
 
 
+	    
+	    
+    # TODO : turn into PSETUP ops, call on install only
+    
+    # One to generate ballot box key and store it on the db [put a guard to check if database is running and created?]
 
+    # a PVOP to insert sites info (If not configured, what to do?) [must be a pvop since it will be callable as a  mantenance op]
 
-
-
-
-
-
-#1 -> 'new' or 'reset'
-configureServers () {
-
- 
-
-
+    	    $dlg --infobox $"Generando llaves de la urna..." 0 0
+	    
+	    keyyU=$(openssl genrsa $KEYSIZE 2>/dev/null | openssl rsa -text 2>/dev/null)
+	    
+	    modU=$(echo -n "$keyyU" | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
+	    expU=$(echo -n "$keyyU" | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
+	    
+	    keyyU=$(echo "$keyyU" | sed -n -e "/BEGIN/,/KEY/p")
 
 
     
-    ######### Activación del servidor mysql ##########
-    $dlg --infobox $"Configurando servidor de base de datos..." 0 0
- 
-
-    $PVOPS configureServers "dbServer-init"  "$1"
-    
- 
-    ### Construímos el segundo fichero .sql, con los inserts necesarios para config. la aplicación ###
-    if [ "$DORESTORE" -ne 1 ] ; then
-	if [ "$1" == 'new' ] 
-	    then
-	    rm -f /tmp/config.sql
-	    touch /tmp/config.sql
-
-
-     #Si no está, añadir una op de mant que permita cambiar el mailer
-
-
-     # TODO add ADMINIP to the insert
-     # TODO OJO!! casi todo esto ya está en una op de mant. invocar a esta op para no duplicar
-            #Escapamos los campos que pueden contener caracteres problemáticos (o los que reciben entrada directa del usuario)
-	    adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
-	    admidnum=$($addslashes "$ADMIDNUM" 2>>$LOGFILE)
-	    adminrealname=$($addslashes "$ADMREALNAME" 2>>$LOGFILE)
-	    mgremail=$($addslashes "$MGREMAIL" 2>>$LOGFILE)
-	    
-	    
-	    
-            #Inserción del usuario administrador (ahora no puede entrar cuando quiera, sólo cuando se le autorice)
-	    echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo) values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,-1,'$mgremail');" >> /tmp/config.sql
-	    
-	    
-            #Inserción del email del admin
-            #El primero debe ser un insert. El update no traga. --> ya hay un insert, en el script del dump, pero fallaba por no tener permisos de ALTER y se abortaba el resto del script sql.
-	    echo "update eVotDat set email='$mgremail';" >> /tmp/config.sql
-	    
 	    
             #Insertamos las llaves de la urna
             # modU -> mod de la urna (B64)
@@ -139,31 +106,38 @@ configureServers () {
             #Insertamos el token de verificación que nos ha devuelto eSurveySites
 	    echo "update eVotDat set tkD='$SITESTOKEN';" >> /tmp/config.sql 
 
-            #echo "tkD al insertarlo: $SITESTOKEN"   >>$LOGFILE 2>>$LOGFILE
-
             #La timezone del servidor
 	    echo "update eVotDat set TZ='$TIMEZONE';" >> /tmp/config.sql 
 	    
-	fi	
-    fi
-    
+
+
+
+
+
+
+
+
+     
+
+     
 
     
     $PVOPS configureServers "alterPhpScripts"
 
+
+
+
+
+
+    
     
     
     if [ "$DORESTORE" -ne 1 ] ; then
 
 
-	if [ "$1" == 'new' ]
-	    then
-         #Las rutas de los ficheros a leer ya las tiene la op.
-	        $PSETUP populateDb
-	fi
 
         #En cualquier caso, incluso cuando no estamos instalando, Ejecutamos los alters y updates de la BD para actualizarla.
-	$PSETUP updateDb
+	$PSETUP updateDb # TODO ver qué utilidad tiene esto, si total, se instala y ya. hasta que no implemente un sistema de update, no sirve de nada creo
 
 	
         #Ejecutamos la cesión o denegación de privilegios al adminsitrador de la aplicación
@@ -171,6 +145,12 @@ configureServers () {
 
     fi
 
+
+
+
+
+
+    
 
     ######### Activación del servidor web ##########
     $dlg --infobox $"Configurando servidor web..." 0 0

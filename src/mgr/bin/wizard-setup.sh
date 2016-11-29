@@ -663,8 +663,9 @@ do
         [ $? -ne 0 ] && $dlg --msgbox $"Network connectivity error. We'll go on with system load. At the end, please, check." 0 0
     fi
     
-    #Setup hosts file and hostname
-    $PSETUP configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
+    #Setup hosts file and hostname, and also
+    #mail server hostname configuration
+    configureHostDomain
     
     
     
@@ -692,76 +693,105 @@ do
 	       fi
         
         #Enable the backup cron
-	       $PSETUP enableBackup	    
+	       $PVOPS enableBackup	    
     fi
     
     
 
-    #Configure postfix
-    $dlg --infobox $"Configuring mail server..." 0 0
     
-    $PVOPS configureServers mailServer # REVISAR DESDE AQUÍ
-    if [ $? -ne 0 ] ; then
-        systemPanic $"Error grave: no se pudo activar el servidor de correo." f
-        continue
+    
+    
+    
+    #Configure mysql (also, if new, generate users and passwords)
+    $dlg --infobox $"Configuring database server..." 0 0
+    errinfo=""
+    $PSETUP setupDatabase "$mode"
+    ret=$?
+    [ $ret -eq 2 ] && errinfo=$"Error copying database to ciphered drive. Not enough space or destination not found."
+    [ $ret -eq 3 ] && errinfo=$"Error starting database daemon. Please, check."
+    [ $ret -eq 4 ] && errinfo=$"Error while changing default passwords. Please, check."
+    if [ $ret -ne 0 ] ; then
+        dlg --msgbox $"Error configuring database server."" $errinfo" 0 0
+        continue #Failed, go back to the menu
     fi
     
+    
+    # REVISAR DESDE AQUÍ    
+
+     ## TODO aquí el contenido de configureservers
+
+     
+     if [ "$DOINSTALL" -eq 1 ]
+     then
+         #Insert webapp administrator into the database
+         $PVOPS setAdmin new "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD" 
+
+
+         # TODO insert bbx key
+
+         # TODO insert sites key and token # TODO dismantle populatedb op and call individuals
+         
+     fi
+     
+     #Set admin e-mail as the alias for root, so he will receive all
+     #system notifications (already done on install on setAdmin)
+     $PSETUP setupNotificationMails
+    
+    
+
+     # TODO setup php app
+     $PVOPS configureServers "alterPhpScripts"
 
 
 
-	    $dlg --infobox $"Generando llaves de la urna..." 0 0
-	    
-	    keyyU=$(openssl genrsa $KEYSIZE 2>/dev/null | openssl rsa -text 2>/dev/null)
-	    
-	    modU=$(echo -n "$keyyU" | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
-	    expU=$(echo -n "$keyyU" | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
-	    
-	    keyyU=$(echo "$keyyU" | sed -n -e "/BEGIN/,/KEY/p")
-    
-    ## TODO aquí el contenido de configureservers
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    #Setup statistics system
-    if [ "$DOINSTALL" -eq 1 ] ; then
-	       #Build RRDs
-	       $PVOPS stats startLog  # TODO review this op.
-    fi
-    
-    #Setup cron that updates the results and generates the graphics
-    $PVOPS stats installCron # TODO review this op.
-    
-    #Draw the stat graphs
-    $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE  # TODO review this op.
+     # TODO setup Apache server  # TODO make sure, ssl certs (snakeoil at first) are configured before apache and postfix. maybe extract the cert part and domit independentñly? 
+
+     
+
+
+
+     #Configure postfix # TODO make sure it is done before any email is sent
+     $dlg --infobox $"Configuring mail server..." 0 0
+     
+     $PVOPS mailServer relay "$MAILRELAY"
+     $PVOPS mailServer reload
+     if [ $? -ne 0 ] ; then
+         dlg --msgbox $"Error activating mail server." 0 0
+         continue #Failed, go back to the menu
+     fi
+     
+     
+     
+     
+     #Setup statistics system
+     $dlg --infobox $"Setting up statistics system..." 0 0
+     if [ "$DOINSTALL" -eq 1 ] ; then
+	        #Build RRDs
+	        $PVOPS stats startLog  # TODO review this op.
+     fi
+     #Setup cron that updates the results and generates the graphics
+     $PVOPS stats installCron # TODO review this op.
+     
+     #Draw the stat graphs
+     $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE  # TODO review this op.
     
 
-# TODO SEGUIR
+   
+
+
     
-    #Escribimos el alias que permite que
-    #se envien los emails de emergencia del smart y demás
-    #servicios al correo del administrador
-    
-    $PSETUP setupNotificationMails
-    
-    
-    #Realizamos los ajustes finales
-    $PSETUP init4
-    
-    
-    
-    # TODO give (install) or remove privileges (reboot) the admin user, make sure this var is erradicated: SETAPPADMINPRIVILEGES=0 
-    # TODO give extra auth point on  install
-    
-    
-    
-    ######## Retrieve backup to restore #########  # TODO decidir dónde
-    
+     
+     #Final setup steps: initial firewall whitelist, RAID test e-mail
+     $PSETUP init4
+     
+     
+     
+     # TODO give (install) or remove privileges (reboot) the admin user
+             #Ejecutamos la cesión o denegación de privilegios al adminsitrador de la aplicación
+	grantAdminPrivileges  # TODO now, it expects the value here. do it aprpopiately depending on what's expected
+     # TODO give extra auth point on  install
+     
+
     
     
     
@@ -774,24 +804,33 @@ do
     ######## Share key and basic config on usbs #########
     
     # TODO write usbs if in install # TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
-    
-    
-    
-    
-    
-    
-
-    # TODO: now, clauers are written at the end, after everything is configured.
+        # TODO: now, clauers are written at the end, after everything is configured.
         #Avisamos antes de lo que va a ocurrir.
     $dlg --msgbox $"Ahora procederemos a repartir la nueva información del sistema en los dispositivos de la comisión de custodia.\n\nLos dispositivos que se empleen NO DEBEN CONTENER NINGUNA INFORMACIÓN, porque VAN A SER FORMATEADOS." 0 0
     writeClauers   
     
+    
+    
+    ######## Retrieve backup to restore #########  # TODO decidir dónde
+    
+    
+    
+    
+    
+
+
+    
 
 
     #Forzamos un backup al acabar de instalar       #//// probar
-    $PSETUP   forceBackup
+    $PVOPS   forceBackup
     
     $dlg --msgbox $"System is running properly.""\n"$"The administrator has now privileged access to the voting web application. Don't forget to remove privileges before running an election. Otherwise he will have the means to disenfranchise targeted voters." 0 0
+
+
+
+    $PSETUP lockOperations
+
     
     break # TODO invoke here the maintenance script?
     

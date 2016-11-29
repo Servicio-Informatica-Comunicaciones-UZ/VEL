@@ -255,10 +255,14 @@ setPerm () {
 }
 
 
-
-
-
-
+#Will change the aliases database so root e-mails are redirected to
+#the passed e-mail address
+#1 -> e-mail address where notifications must be received
+setNotifcationEmail () {
+    sed -i -re "/^root:/ d" /etc/aliases
+	   echo -e "root: $1" >> /etc/aliases 2>>$LOGFILE
+	   /usr/bin/newaliases    >>$LOGFILE 2>>$LOGFILE
+}
 
 
 

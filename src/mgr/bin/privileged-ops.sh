@@ -331,7 +331,7 @@ if [ "$1" == "vars" ]  # TODO revisar todas las llamadas, tb cambiar por disk, m
  if [ "$2" == "setVar" ] 
      then
      
-     #////implementar limitación  de escritura a ciertas variables cuando running?
+     # TODO implementar limitación  de escritura a ciertas variables cuando running?. DEfinir lista de variables inmutables y comprobar que no sea ninguna de ellas, si lo es, salir
 
      checkParameterOrDie "$4" "$5" 0  # TODO Teóricamente todos los params están en checkparameter. asegurarme.
 
@@ -510,8 +510,34 @@ fi
 
 
 
+#Configure network parameters
+if [ "$1" == "configureNetwork" ] 
+then
+    IPMODE="$2"
+    IPADDR="$3"
+    MASK="$4"
+    GATEWAY="$5"
+    DNS1="$6"
+    DNS2="$7"
+    
+    configureNetwork
+    exit $?
+fi
 
 
+
+
+#Configure 
+if [ "$1" == "configureHostDomain" ] 
+then
+    IPADDR="$2"
+    HOSTNM="$3"
+    DOMNAME="$4"
+    
+    configureHostDomain
+    exit $?
+fi    
+    
 
 
 
@@ -937,6 +963,120 @@ fi
 
 
 
+
+
+
+
+
+
+#Operations regarding the mail service
+if [ "$1" == "mailServer" ] 
+then
+    
+    
+    #Configure the local domain
+    #3 -> Host name
+    #4 -> Domain name 
+    if [ "$2" == "domain" ] 
+    then
+        checkParameterOrDie HOSTNM "${3}"
+        checkParameterOrDie DOMNAME "${4}"
+        
+        #Join the parameters to form the fully qualified domain name
+        FQDN="$HOSTNM.$DOMNAME"
+        
+        #Set and substitute any previous value
+	       sed -i -re "s|^(myhostname = ).*$|\1$FQDN|g" /etc/postfix/main.cf
+        
+        exit 0
+    fi
+    
+    
+    
+    
+    
+    #Configure a mail relay server to route mails through (or if
+    #empty, remove relay)
+    #3 -> Relay server address 
+    if [ "$2" == "relay" ] 
+    then
+        checkParameterOrDie MAILRELAY "${3}"
+        
+        #Remove relay configuration
+        if [ "$MAILRELAY" == "" ] 
+	       then
+	           sed -i -re "s/^(relayhost = ).*$/\1/g" /etc/postfix/main.cf 
+        else
+	           #Set relay host (brackets are for direct delivery, without NS MX lookup
+	           sed -i -re "s|^\s*#?\s*(relayhost = ).*$|\1[$MAILRELAY]|g" /etc/postfix/main.cf
+	       fi
+        exit 0
+    fi
+    
+    
+    
+    
+    
+    # Start or Reload mail server
+    if [ "$2" == "reload" ] 
+    then
+        #Launch mail server
+        /etc/init.d/postfix stop >>$LOGFILE 2>>$LOGFILE 
+        /etc/init.d/postfix start >>$LOGFILE 2>>$LOGFILE
+        exit "$?"            
+    fi
+
+fi
+
+
+
+
+    
+#Enable backup cron
+if [ "$1" == "enableBackup" ]
+then
+    #Write cron to check every minute for a pending backup
+    aux=$(cat /etc/crontab | grep backup.sh)
+    if [ "$aux" == "" ]
+    then
+        echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO review this script
+    fi
+    exit 0
+fi        
+    
+    
+    #Disable backup cron
+if [ "$1" == "disableBackup" ]
+then
+    #Delete backup cron line (if it exists)
+    sed -i -re "/backup.sh/d" /etc/crontab
+    exit 0
+fi        
+    
+    
+#Mark system to force a backup
+if [ "$1" == "forceBackup" ]
+then
+    #Backup cron reads database for next backup date. Set date to now. # TODO make sure this works fine and the pwd is there
+    echo "update eVotDat set backup="$(date +%s) | mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
+    exit 0
+fi    
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #//// verif en mant: si
 
 
@@ -947,168 +1087,7 @@ if [ "$1" == "configureServers" ]
 
 
 
-    
-   if [ "$2" == "mailServer" ] 
-    then
 
-        # TODO  con HOSTNM Y DOMNAME los dos construir el fqdn y usarlo en el mailer
-
-       #////borrar
-       #checkParameterOrDie FQDN "${3}"  # TODO ver este fqdn de dónde lo saco ahora. lopido en el form de mail? $HOSTNM + $DOMNAME
-       #checkParameterOrDie MAILRELAY "${4}"
-
-
-       getVar usb FQDN
-       
-       getVar disk MAILRELAY
-       
-       #Establecemos la configuración del servidor de correo
-       if [ "$FQDN" == "" ] 
-	   then
-	   sed -i -re "s|^myhostname.*$||g" /etc/postfix/main.cf
-	   sed -i -re "s|\#\#\#HOSTNAME\#\#\#,||g" /etc/postfix/main.cf
-       else
-	   sed -i -re "s|\#\#\#HOSTNAME\#\#\#|$FQDN|g" /etc/postfix/main.cf
-       fi
-       
-       #Relay: nuvol.uji.es
-       if [ "$MAILRELAY" == "" ] 
-	   then
-	   sed -i -re "s|^relayhost.*$||g" /etc/postfix/main.cf
-       else
-	   sed -i -re "s|\#\#\#RELAYHOST\#\#\#|$MAILRELAY|g" /etc/postfix/main.cf
-       fi
-       
-
-       #Lanzamos el servidor de correo
-       /etc/init.d/postfix stop >>$LOGFILE 2>>$LOGFILE 
-       /etc/init.d/postfix start >>$LOGFILE 2>>$LOGFILE 
-       exit "$?"
-       
-   fi
-
-
-   if [ "$2" == "mailServerM" ] 
-    then
-              
-       getVar disk MAILRELAY
-       
-       if [ "$MAILRELAY" == "" ] 
-	   then
-	   sed -i -re "/^relayhost.*$/d" /etc/postfix/main.cf 
-       else
-	   definedrelay=$(cat /etc/postfix/main.cf | grep -oEe "^relayhost")
-	   #Si no había, append de la línea al final
-	   if [ "$definedrelay" == "" ]; then
-	       echo -e "\n\nrelayhost = $MAILRELAY\n" >>  /etc/postfix/main.cf  2>>$LOGFILE
-	   else
-	       #Si había, sustituímos el valor
-	       sed -i -re "s|^relayhost.*$|relayhost = $MAILRELAY|g" /etc/postfix/main.cf
-	   fi
-       fi
-    
-
-       #Lanzamos el servidor de correo
-       /etc/init.d/postfix stop >>$LOGFILE 2>>$LOGFILE 
-       /etc/init.d/postfix start >>$LOGFILE 2>>$LOGFILE 
-       exit "$?"
-       
-   fi
-
-
-    
-   if [ "$2" == "dbServer-init" ] 
-    then
-       
-
-       
-
-       if [ "$3" != 'new' -a "$3" != 'reset' ]
-	   then 
-	   echo "dbServer-init: param ERR (exiting 1): 3=$3"   >>$LOGFILE 2>>$LOGFILE
-	   exit 1
-       fi
-
-
-
-    #No se carga al inicio, pero por si acaso.
-    /etc/init.d/mysql stop  >>$LOGFILE 2>>$LOGFILE
-    
-    
-    if [ "$3" == 'new' ]
-	then
-	#Movemos la carpeta de datos de la aplic. y no sólo la de la BD.
-	rm -rf $DATAPATH/mysql 2>/dev/null >/dev/null
-	cp -rp /var/lib/mysql $DATAPATH/
-	res=$?
-	
-	[ "$res" -ne 0 ] &&  systemPanic $"Error copiando la base de datos al directorio cifrado. Destino inaccesible o espacio insuficiente." 
-	
-	chown -R mysql:mysql $DATAPATH/mysql/
-	
-    fi
-
-
-
-    #Cambiar el datadir del mysql a la ruta dentro de la partición cifrada
-    sed -i -re "/datadir/ s|/var/lib/mysql.*|$DATAPATH/mysql|g" /etc/mysql/my.cnf
-    
-    #Cambiar el directorio de acceso privilegiado para mysql en apparmor (ubuntu lo usa en vez del SELinux)
-    sed -i -re "s|/var/lib/mysql/|$DATAPATH/mysql/|g" /etc/apparmor.d/usr.sbin.mysqld
-    
-    #Reload del apparmor 
-    /etc/init.d/apparmor restart >>$LOGFILE 2>>$LOGFILE
-    
-    #Cargar mysql 
-    /etc/init.d/mysql start >>$LOGFILE 2>>$LOGFILE
-    [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
-    
-
-
-
-    if [ "$3" == 'new' ]
-	then
-
-       #Generar la contraseña del usuario de la BD y guardarla en disco
-       
-       DBPWD=$(randomPassword 15)
-       setVar DBPWD "$DBPWD" disk
-       
-       
-       #Cambiar pwd del root por uno aleatorio y largo (solo al crearlo, que luego es persistente)
-       MYSQLROOTPWD=$(randomPassword 20)
-       mysqladmin -u root -p'a' password "$MYSQLROOTPWD" 2>>/tmp/mysqlerr
-       [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
-
-       [ "$MYSQLROOTPWD" == ""  ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
-       [ "$DBPWD" == ""  ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
-       
-       
-       #He quitado el permiso LOCK TABLES, que ya no hace falta, y añadido el ALTER (para las updates del sw sin renstalar). 
-       #Añado el flush privileges, para que recargue las passwords y los PRIVS
-       mysql -u root -p"$MYSQLROOTPWD" mysql 2>>/tmp/mysqlerr  <<-EOF
-		CREATE DATABASE eLection;
-		CREATE USER 'election'@'localhost' IDENTIFIED BY '$DBPWD';
-		GRANT SELECT, INSERT, UPDATE, DELETE, ALTER, CREATE TEMPORARY TABLES, DROP, CREATE ON eLection.* TO election@localhost;
-		FLUSH PRIVILEGES;
-		EOF
-
-	[ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
-
-
-        #Escribimos el password de root en un fichero en la part cifrada, para posibles labores de mantenimiento
-
-       echo -n "$MYSQLROOTPWD" > $DATAPATH/root/DatabaseRootPassword
-       
-       chmod 600 $DATAPATH/root/DatabaseRootPassword >>$LOGFILE 2>>$LOGFILE
-       
-
-    fi
-
-    exit 0
-
-    
-   fi
 
    
    
@@ -2373,7 +2352,7 @@ if [ "$1" == "grantAdminPrivileges" ]
     fi
     
     echo "giving/removing webapp privileges ($2)."  >>$LOGFILE 2>>$LOGFILE
-    mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr  <<EOF
+    mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE  <<EOF
 update eVotDat set mante=$privilege;
 EOF
     
@@ -2491,8 +2470,13 @@ fi
 
 
 
-#Create admin users, substitute admin user or update admin user credentials
-# 2-> Operation: 'new', 'update' or 'replace'
+
+
+
+#Create admin user, substitute admin user or update admin user credentials
+# 2-> Operation: 'new': add a new administrator, (existing user or new) and withdraw
+#                       role to the former one. If existing, username and id must match.
+#             'reset': update the two passwords and the IP for the current admin
 # 3-> Username
 # 4-> Web application password
 # 5-> Full Name
@@ -2500,11 +2484,11 @@ fi
 # 7-> IP address
 # 8-> Mail address
 # 9-> Local password
-if [ "$1" == "resetAdmin" ]
+if [ "$1" == "setAdmin" ]
 then
-    if [ "$2" != "new" -a "$2" != "update" -a "$2" != "replace" ]
+    if [ "$2" != "new" -a "$2" != "reset" ]
     then
-	       echo "resetAdmin: Bad operation parameter $2" >>$LOGFILE 2>>$LOGFILE
+	       echo "setAdmin: Bad operation parameter $2" >>$LOGFILE 2>>$LOGFILE
 	       exit 1
     fi
     
@@ -2522,62 +2506,86 @@ then
     #Get stored value for the admin username
     getVar disk ADMINNAME
     oldADMINNAME="$ADMINNAME"
+    oldAdmName=$($addslashes "$oldADMINNAME" 2>>$LOGFILE)
+
+    #Encode IP into long integer
+    newIP=$(ip2long "$ADMINIP")
+    [ "$newIP" == "" ] && newIP="-1" #If empty or bad format, default
     
     #Hash passwords for storage, for security reasons
 	   MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
     
-    #In any of the operations above, update local manager password (if any)
+    
+    
+    #In any case, update local manager password (if any)
     if [ "$LOCALPWD" != "" ] ; then
         LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
-        setVar disk LOCALPWDSUM "$LOCALPWDSUM"
+        setVar LOCALPWDSUM "$LOCALPWDSUM" disk
     fi
+    
+    #Update other data
+    setVar ADMREALNAME "$ADMREALNAME" disk
+	   setVar MGREMAIL "$MGREMAIL" disk
+    setVar ADMINIP "$ADMINIP" disk
     
     #Reset credentials of current admin (web app password and IP address)
     if [ "$2" == "reset" ]
 	   then
-        #Encode IP into long integer
-        newIP=$(ip2long "$ADMINIP")
-        [ "$newIP" == "" ] && newIP="-1" #If empty or bad format, default
-        
-	       echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM' where us='$oldADMINNAME';" | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
+	       echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM' where us='$oldAdmName';" |
+            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
         exit 0
     fi        
-
-
-    #If new admin, SEGUIR
     
+    ### If adding a new admin (or replacing a former one)
     
+    #Escape input data
+	   adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
+	   admidnum=$($addslashes "$ADMIDNUM" 2>>$LOGFILE)
+	   adminrealname=$($addslashes "$ADMREALNAME" 2>>$LOGFILE)
+	   mgremail=$($addslashes "$MGREMAIL" 2>>$LOGFILE)
+	       
+	   #Insert new admin user (if existing, will fail)
+	   echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo)" \
+         "values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,$newIP,'$mgremail');" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+	   
+	   #Update new admin user (if already existing, insert will have
+	   #failed and this will update some parameters plus role)
+	   echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM',"\
+         "nom='$adminrealname',correo='$mgremail',rol=3 where us='$adminname';" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
 
-     	#Escapamos los campos que pueden contener caracteres problemáticos (o los que reciben entrada directa del usuario)
-	adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
-	admidnum=$($addslashes "$ADMIDNUM" 2>>$LOGFILE)
-	adminrealname=$($addslashes "$ADMREALNAME" 2>>$LOGFILE)
-	mgremail=$($addslashes "$MGREMAIL" 2>>$LOGFILE)
-	
-	
-        #Inserción del usuario administrador (ahora no puede entrar cuando quiera, sólo cuando se le autorice)
-	echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo) values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,-1,'$mgremail');" | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
-	
-	#Por si el usuario ya existia, update 
-	echo "update eVotPob set clId=-1,oIP=-1,pwd='$MGRPWDSUM',nom='$adminrealname',correo='$mgremail',rol=3 where us='$adminname';" | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr  #///probar a hacer admin a un usuario ya existente
-
-
- if [ "$2" == "replace" ]
-	then
-     
-     # TODO quitar estatus al anterior
- 
-     #El nuevo admin será el que reciba los avisos, en vez del viejo (sólo puede ser uno, y se asume que el nuevo está supliendo al antiguo)
-	echo "update eVotDat set email='$mgremail';"  | mysql -f -u election -p"$DBPWD" eLection 2>>/tmp/mysqlerr
-
-sed -i -re "/^root:/ d" /etc/aliases
-	echo -e "root: $MGREMAIL" >> /etc/aliases   2>>$LOGFILE
-	/usr/bin/newaliases    >>$LOGFILE 2>>$LOGFILE
- 
- fi
-
+    
+    #If there was a previous admin name and it is different from the new one
+    if [ "$oldADMINNAME" != "" -a "$oldADMINNAME" != "$ADMINNAME" ] ; then
+        
+        #Reduce role for the former admin
+        echo "update eVotPob set rol=0 where us='$oldAdmName';" |
+            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+        
+        #New admin's e-mail will be the new notification e-mail recipient
+	       echo "update eVotDat set email='$mgremail';"  |
+            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE        
+        
+        #Also, update mail aliases
+        setNotifcationEmail "$MGREMAIL"
+    fi
+    
+    #Store the new admin name and ID
+    setVar ADMINNAME "$ADMINNAME" disk
+    setVar ADMIDNUM "$ADMIDNUM" disk
+    
+    #Add administrator's IP to the whitelist
+    getVar disk ADMINIP
+    echo "$ADMINIP" >> /etc/whitelist
+    
     exit 0
 fi
+
+
+
+
+
 
 
 

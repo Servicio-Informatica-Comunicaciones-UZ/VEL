@@ -23,6 +23,10 @@ dlg="dialog $DLGCNF "
 #Wizard log file
 LOGFILE=/tmp/wizardLog
 
+#Log for the sql operations during install/maintenance (more
+#sensitive, root access only)
+SQLLOGFILE=/root/sqlLog
+
 
 #If this file contains a 1, no privileged operation will execute
 #unless the valid ciphering key can be rebuilt from the fragments

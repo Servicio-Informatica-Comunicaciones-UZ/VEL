@@ -691,7 +691,7 @@ executeSystemAction (){
       sysAdminParams lock
       [ $? -ne 0 ] && return 1 # TODO ver la op de abajo
       
-      $PVOPS resetAdmin "$MGRPWD" "$ADMINNAME" "$ADMREALNAME" "$ADMIDNUM" "$MGREMAIL" "$LOCALPWD" "$ADMINIP" # TODO revisar esta op y ver que hace lo que espero, que es dejar el mismo admin y cambiar sus pwds
+      $PVOPS setAdmin reset "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD" # TODO make sure the ip and two passwords are set here, (and the username) the rest are useless
       
       #Además, da privilegios al administrador
       grantAdminPrivileges grant
@@ -716,9 +716,8 @@ executeSystemAction (){
       sysAdminParams
       [ $? -ne 0 ] && return 1 # TODO ha cancelado la operación. Ver si esto está bien implementado según el flujo (o revisar el flujo, y hacerlo para todas la sops. que todas sean cancelables.)
       
-      $PVOPS resetAdmin "$MGRPWD" "$ADMINNAME" "$ADMREALNAME" "$ADMIDNUM" "$MGREMAIL" "$LOCALPWD" "$ADMINIP"#TODO revisar esta op y asegurarme de que hace lo que espero, que es cambiar el admin por otro. allí deberá mirar el admin actual y quitarle dicho privilegio.
+      $PVOPS setAdmin new "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD" 
 
-      # TODO en algún punto se tendrán qu actualizar las vars en privileged. ya sea aquí fuera o al llamara  resetadmin. decidir dónde.
       
       #Además, da privilegios al administrador
       grantAdminPrivileges grant
@@ -889,7 +888,7 @@ executeSystemAction (){
 
       setVar disk MAILRELAY "$MAILRELAY"
       
-      $PVOPS configureServers mailServerM
+      $PVOPS configureMailRelay  # TODO call only the configure relay here. call the confgiure mail domain on the changeIP params op.
 
       [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de correo."
             
@@ -948,7 +947,7 @@ executeSystemAction (){
 
 
 
-#	$PSETUP enableBackup	    
+#	$PVOPS enableBackup	    
 
 
 # TODO functionality to enable/disable backup and add option to  change bak params  on the menu
@@ -968,8 +967,17 @@ executeSystemAction (){
 
       ######### Permite modificar los parámetros de acceso a internet. ######### 
       "networkparams" )
-   $dlg --msgbox "Still not reviewed." 0 0
-      ;;
+          $dlg --msgbox "Still not reviewed." 0 0
+
+          # TODO Load defaults
+          
+          # TODO get new parameters
+          
+          configureNetwork
+          
+          #Setup hosts file and hostname
+          configureHostDomain
+          ;;
 
 
       ######### Verificación de la integridad de las piezas de la llave. #########

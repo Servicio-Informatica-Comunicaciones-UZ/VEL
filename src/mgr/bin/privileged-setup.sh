@@ -217,15 +217,13 @@ moveToRAM () {
 
 privilegedSetupPhase4 () {
     
-    
-    #Add administrator's IP to the whitelist
+    #Add administrator's IP to the whitelist (also done on setAdmin)
     getVar disk ADMINIP
     echo "$ADMINIP" >> /etc/whitelist
     
-    
     #Load initial whitelist
 	   bash /usr/local/bin/whitelistLCN.sh >>$LOGFILE 2>>$LOGFILE
-    bash /usr/local/bin/updateWhitelist.sh>>$LOGFILE 2>>$LOGFILE
+    bash /usr/local/bin/updateWhitelist.sh >>$LOGFILE 2>>$LOGFILE
     
     
     #Test the RAID arrays, if any, and generate a test message for the administrator
@@ -236,12 +234,6 @@ privilegedSetupPhase4 () {
 	   then
 	       $dlg --msgbox $"RAID arrays detected. You will receive an e-mail with the test result." 0 0
     fi
-    
-    
-    #Activate privileged operations execution lock. Any op invoked
-    #from now on will first check for a valid rebuilt cipherkey
-    echo -n "1" > $LOCKOPSFILE
-    chmod 400 $LOCKOPSFILE
 }
 
 
@@ -387,57 +379,62 @@ recoverSSHBackupFile () {
 if [ "$1" == "init1" ]
 then
     privilegedSetupPhase1
-    
-elif [ "$1" == "moveToRAM" ]
+    exit 0
+fi
+
+
+if [ "$1" == "moveToRAM" ]
 then
     moveToRAM
-    
-elif [ "$1" == "forceTimeAdjust" ]
+    exit 0
+fi
+
+
+if [ "$1" == "forceTimeAdjust" ]
 then
     forceTimeAdjust
-    
-elif [ "$1" == "init4" ]
+    exit 0
+fi
+
+
+if [ "$1" == "init4" ]
 then
     privilegedSetupPhase4
-    
-elif [ "$1" == "init5" ]
+    exit 0
+fi
+
+
+
+#Activate privileged operations execution lock. Any op invoked
+#from now on will first check for a valid rebuilt cipherkey  
+if [ "$1" == "lockOperations" ]
+then   
+    echo -n "1" > $LOCKOPSFILE     # TODO review that thre locking system is solid 
+    chmod 400 $LOCKOPSFILE
+    exit 0
+fi
+
+
+
+if [ "$1" == "init5" ]
 then
     privilegedSetupPhase5
+    exit 0
+fi    
 
 
-elif [ "$1" == "configureNetwork" ] 
-then
-    IPMODE="$2"
-    IPADDR="$3"
-    MASK="$4"
-    GATEWAY="$5"
-    DNS1="$6"
-    DNS2="$7"
-    
-    configureNetwork
-    exit $?
-
-elif [ "$1" == "configureHostDomain" ] 
-then
-    IPADDR="$2"
-    HOSTNM="$3"
-    DOMNAME="$4"
-    
-    configureHostDomain
-    exit $?
-    
-    
     
 #Shuts down the system
-elif [ "$1" == "halt" ]
+if [ "$1" == "halt" ]
 then
     halt
-
+    exit 111
+fi    
 
     
     
 #System logs are relocated from the RAM fs to the ciphered partition on the hard drive
-elif [ "$1" == "relocateLogs" ]
+if [ "$1" == "relocateLogs" ]
 then
     if [ "$2" != "new" -a "$2" != "reset" ]
     then
@@ -445,60 +442,58 @@ then
 	       exit 1
     fi
     relocateLogs "$2"
-
+    exit 0
+fi    
 
 
 
     
-#Set admin e-mail as the recipient for all system notification e-mails  # TODO Add this to the update admin maint op
-elif [ "$1" == "setupNotificationMails" ]
+#Set admin e-mail as the recipient for all system notification e-mails
+if [ "$1" == "setupNotificationMails" ]
 then
     getVar disk MGREMAIL
-    #Check for a previous entry, and overwrite
-    found=$(cat /etc/aliases | grep -Ee "^\s*root:")
-    if [ "$found" != "" ] ; then
-        sed -i -re "s/^(\s*root: ).*$/\1$MGREMAIL/g" /etc/aliases
-    else
-        echo -e "\nroot: $MGREMAIL" >> /etc/aliases 2>>$LOGFILE
-    fi
-    #Update mail aliases BD.
-    /usr/bin/newaliases >>$LOGFILE 2>>$LOGFILE
-
+    
+    setNotifcationEmail "$MGREMAIL"
+    
+    exit 0
+fi    
 
 
     
     
 #loads a keyboard keymap
-elif [ "$1" == "loadkeys" ]
+if [ "$1" == "loadkeys" ]
 then
     loadkeys "$2"  >>$LOGFILE 2>>$LOGFILE
-
+    exit 0
+fi    
 
 
     
 #Configure pm-utils to be able to suspend the computer
-elif [ "$1" == "pmutils" ] 
+if [ "$1" == "pmutils" ] 
 then
     #Reinstall and reconfigure package # TODO probably a reconfigure would be-enough
     dpkg -i /usr/local/bin/pm-utils*  >>$LOGFILE  2>>$LOGFILE
-
+    exit 0
+fi    
 
 
 
 
 
 #If there are RAIDS, check them before doing anything else
-elif [ "$1" == "checkRAIDs" ]
+if [ "$1" == "checkRAIDs" ]
 then
     checkRAIDs
     exit $?
-
+fi    
     
 
     
 
 #Setup timezone and store variable
-elif [ "$1" == "setupTimezone" ]
+if [ "$1" == "setupTimezone" ]
 then
     #Check passed timezone
     checkParameterOrDie TIMEZONE "$2"
@@ -506,17 +501,21 @@ then
     echo "$TIMEZONE" > /etc/timezone
     rm -f /etc/localtime
     ln -s "/usr/share/zoneinfo/right/$TIMEZONE" /etc/localtime
-    
+    exit 0
+fi        
     
     
     
 #Recover the system from a backup file retrieved through SSH  #  TODO test
-elif [ "$1" == "recoverSSHBackup_phase1" ]
+if [ "$1" == "recoverSSHBackup_phase1" ]
 then
     recoverSSHBackupFileOp # TODO backup recovery process: get parameters from user when recovering, forget clauer conf move ssh bak paramsfrom clauer conf to disk conf and allow to modify them during operation theough a menu option
-    
+    exit 0
+fi    
 
-elif [ "$1" == "recoverSSHBackup_phase2" ]
+
+
+if [ "$1" == "recoverSSHBackup_phase2" ]
 then
     
     #restore database dump
@@ -525,48 +524,99 @@ then
     
     #Delete backup directory # TODO. this may change
     rm -rf "$ROOTTMP/backupRecovery/"
+    exit 0
+fi    
 
 
 
 
 
 
-    
-    #Enable backup cron
-elif [ "$1" == "enableBackup" ]
+
+
+
+
+
+
+
+#Prepares the database to be loaded from the ciphered partition ( on
+#install it will generate passwords and move the database to the
+#ciphered partition)
+#2 ->  'new' if this is an installation 
+#    'reset' if just reloading
+if [ "$1" == "setupDatabase" ] 
 then
-    #Write cron to check every minute for a pending backup
-    aux=$(cat /etc/crontab | grep backup.sh)
-    if [ "$aux" == "" ]
-    then
-        echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO review this script
+    if [ "$2" != 'new' -a "$2" != 'reset' ] ; then 
+	       echo "setupDatabase: param error: $2"   >>$LOGFILE 2>>$LOGFILE
+	       exit 1
     fi
     
     
+    #Just in case it is running
+    /etc/init.d/mysql stop  >>$LOGFILE 2>>$LOGFILE
+
     
-    #Disable backup cron
-elif [ "$1" == "disableBackup" ]
-then
-    #Delete backup cron line (if it exists)
-    sed -i -re "/backup.sh/d" /etc/crontab
+    if [ "$2" == 'new' ]
+	   then
+	       #If installing, move the whole mysql directory to the ciphered
+	       #persistence drive
+	       rm -rf $DATAPATH/mysql 2>/dev/null >/dev/null
+	       cp -rp /var/lib/mysql $DATAPATH/
+	       [ $? -ne 0 ] &&  exit 2 # not enough free space 
+        
+        #If copy is successful, change permissions
+	       chown -R mysql:mysql $DATAPATH/mysql/
+    fi
     
     
+    #Change mysql config to point to the new data dir # TODO if using SELinux, this may require some additional configuration
+    sed -i -re "/datadir/ s|/var/lib/mysql.*|$DATAPATH/mysql|g" /etc/mysql/my.cnf
     
-#Mark system to force a backup
-elif [ "$1" == "forceBackup" ]
-then
-    #Backup cron reads database for next backup date. Set date to now. # TODO make sure this works fine and the pwd is there
-    echo "update eVotDat set backup="$(date +%s) | mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
-    
-    
+    #Start mysql 
+    /etc/init.d/mysql start >>$LOGFILE 2>>$LOGFILE
+    [ $? -ne 0 ] &&  exit 3
     
     
-else
-    echo "Bad privileged setup operation: $1" >>$LOGFILE  2>>$LOGFILE
+    if [ "$2" == 'new' ]
+	   then
+        #Generate and store non-privileged database password
+        DBPWD=$(randomPassword 15)
+        [ "$DBPWD" == ""  ] &&  exit 4
+        setVar DBPWD "$DBPWD" disk
+        
+        
+        #Generate and store root database password
+        MYSQLROOTPWD=$(randomPassword 20)
+        [ "$MYSQLROOTPWD" == ""  ] &&  exit 4
+        echo -n "$MYSQLROOTPWD" > $DATAPATH/root/DatabaseRootPassword
+        chmod 600 $DATAPATH/root/DatabaseRootPassword >>$LOGFILE 2>>$LOGFILE
+        
+        
+        #Change database default root password
+        mysqladmin -u root -p'defaultpassword' password "$MYSQLROOTPWD" 2>>$SQLLOGFILE
+        [ $? -ne 0 ] &&  exit 4
+        
+        #Create user, set privileges and password and refresh passwords
+        mysql -u root -p"$MYSQLROOTPWD" mysql 2>>$SQLLOGFILE  <<-EOF
+          CREATE DATABASE eLection;
+          CREATE USER 'election'@'localhost' 
+            IDENTIFIED BY '$DBPWD';
+          GRANT SELECT, INSERT, UPDATE, DELETE, ALTER, CREATE TEMPORARY TABLES, DROP, CREATE 
+            ON eLection.* TO election@localhost;
+          FLUSH PRIVILEGES;
+EOF
+        [ $? -ne 0 ] &&  exit 4
+    fi
+    
+    exit 0
 fi
 
 
-exit 0
+
+
+
+    
+    
 
 
 
@@ -592,8 +642,8 @@ if [ "$1" == "populateDb" ]
     getVar disk DBPWD
 
     #Ejecutamos las sentencias sql genéricas y las específicas (el -f obliga a cont. aunque haya un error, que no nos afectan)
-    mysql -f -u election -p"$DBPWD" eLection  </usr/local/bin/buildDB.sql 2>>/tmp/mysqlerr
-    mysql -f -u election -p"$DBPWD" eLection  </tmp/config.sql 2>>/tmp/mysqlerr
+    mysql -f -u election -p"$DBPWD" eLection  </usr/local/bin/buildDB.sql 2>>$SQLLOGFILE
+    mysql -f -u election -p"$DBPWD" eLection  </tmp/config.sql 2>>$SQLLOGFILE
     [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
     
 
@@ -618,7 +668,7 @@ if [ "$1" == "updateDb" ]
     #grep /usr/local/bin/buildDB.sql -iEe "\s*alter "  2>>$LOGFILE       > /tmp/dbUpdate.sql
 
     perl -000 -lne 'print $1 while /^\s*((UPDATE|ALTER).+?;)/sgi' /usr/local/bin/buildDB.sql  2>>$LOGFILE  > /tmp/dbUpdate.sql
-    mysql -f -u root -p"$MYSQLROOTPWD" eLection          2>>/tmp/mysqlerr  < /tmp/dbUpdate.sql #////probar
+    mysql -f -u root -p"$MYSQLROOTPWD" eLection          2>>$SQLLOGFILE  < /tmp/dbUpdate.sql #////probar
 
 
     exit 0
@@ -626,3 +676,11 @@ fi
 
 
 # //// en la func de montar la part cifrada, establecer los permisos para todos los directorios y ficheros. Así me aseguro de que estén bien.
+
+
+
+
+echo "Bad privileged setup operation: $1" >>$LOGFILE  2>>$LOGFILE
+
+
+exit 42

@@ -8,13 +8,6 @@
 #Actual version number of this voting system
 VERSION=$(cat /etc/vtUJIversion)
 
-#Block id used in the secure store for the key fragment
-KEYBID='eSurvey_eLection_keyshare'
-
-#Block id used in the secure store for the configuration
-CONFBID='eSurvey_eLection_config'
-
-
 
 
 #############
@@ -511,11 +504,11 @@ networkParams () {
 # DNS1
 # DNS2
 configureNetwork () {
-    echo "Configuring network: $PSETUP configureNetwork $IPMODE $IPADDR $MASK $GATEWAY $DNS1 $DNS2" >>$LOGFILE 2>>$LOGFILE
+    echo "Configuring network: $PVOPS configureNetwork $IPMODE $IPADDR $MASK $GATEWAY $DNS1 $DNS2" >>$LOGFILE 2>>$LOGFILE
     $dlg --infobox $"Configuring network connection..." 0 0
     
     #On reset, paremetrs will be empty, but will be read from the config fiile
-    $PSETUP configureNetwork "$IPMODE" "$IPADDR" "$MASK" "$GATEWAY" "$DNS1" "$DNS2"
+    $PVOPS configureNetwork "$IPMODE" "$IPADDR" "$MASK" "$GATEWAY" "$DNS1" "$DNS2"
     local ret="$?"
     
     if [ "$ret" == "11"  ]; then
@@ -540,6 +533,21 @@ configureNetwork () {
     fi
     return 0
 }
+
+
+#Does all the needed configurations regarding the hostname and domain
+#name, also for the mail server
+#Will access the following global variables:
+# IPADDR
+# HOSTNM
+# DOMNAME
+configureHostDomain () {
+    
+    $PVOPS configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
+    
+    $PVOPS mailServer domain "$HOSTNM" "$DOMNAME"
+}
+
 
 
 

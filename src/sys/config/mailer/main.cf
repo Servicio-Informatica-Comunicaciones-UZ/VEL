@@ -13,7 +13,10 @@ biff = no
 append_dot_mydomain = no
 
 # Uncomment the next line to generate "delayed mail" warnings
-#delay_warning_time = 4h
+delay_warning_time = 1h
+
+# [Postfix 3.0+] If a delayed mail warning was generated, confirm when delay is gone
+#confirm_delay_cleared = yes
 
 readme_directory = no
 
@@ -33,20 +36,23 @@ smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 message_size_limit = 1000000000
 mailbox_size_limit = 1000000000
 
-myhostname = ###HOSTNAME###
+# ***Set this as a default vaule. Change on setup
+myhostname = localhost
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 myorigin = $myhostname
-mydestination = ###HOSTNAME###, localhost, localhost.localdomain, localhost
-relayhost = ###RELAYHOST### 
+mydestination = $myhostname, localhost.localdomain, localhost
+# ***By default, direct delivery. Change on setup if needed (enclose in [] to avoid MX lookup)
+relayhost = 
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
 #mailbox_command = procmail -a "$EXTENSION"
 #mailbox_size_limit = 0
 recipient_delimiter = +
 
-#Interfaces desde las que recibe correo   #all  
+#Interfaces where this service will get mail from (default: all)
+#We set it to only local mail.
 inet_interfaces = loopback-only 
 
-#Desactivamos la entrega local #la reactivamos, para recibir y reenviar notificaciones de los monitores y los servicios al admin de la máquina.
+#Disable local delivery #We do need it.
 #local_transport = error:local delivery is disabled
 
