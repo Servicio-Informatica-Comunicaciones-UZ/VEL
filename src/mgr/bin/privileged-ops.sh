@@ -2590,6 +2590,55 @@ fi
 
 
 
+#Store the certificate and auth token to communicate with the
+#anonymity network
+#2 -> authentication token
+#3 -> private key (PEM)
+#4 -> self-signed certificate (B64), later to be signed by the anonyimity central authority
+#5 -> public exponent (B64)
+#6 -> modulus (B64)
+if [ "$1" == "storeLcnCreds" ]
+then
+    checkParameterOrDie SITESTOKEN "${2}"
+    checkParameterOrDie SITESPRIVK "${3}"
+    checkParameterOrDie SITESCERT "${4}"
+    checkParameterOrDie SITESEXP "${5}"
+    checkParameterOrDie SITESMOD "${6}"
+
+    
+    getVar disk DBPWD
+    
+    
+    #Insert keys and the self-signed certificate sent to eSurveySites.
+    # keyyS -> service private ley (PEM)
+    # certS -> self-signed service certificate (B64)
+    # expS  -> public exponent of the certificate (B64)
+    # modS  -> modulus of the certificate (B64)
+	   echo "update eVotDat set keyyS='$SITESPRIVK', certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+	   
+    #Insert authentication token used to communicate with eSurveySites
+	   echo "update eVotDat set tkD='$SITESTOKEN';" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if [ "$1" == "launchTerminal" ] 

@@ -615,14 +615,47 @@ fi
 
 
 
+
+
+# Generates ballot box RSA keys and stores them on the database
+if [ "$1" == "generateBallotBoxKeys" ]
+then
+    #Get database password
+    getVar disk DBPWD
+    getVar disk KEYSIZE
     
+    #Generate RSA keys
+    keyyU=$(openssl genrsa $KEYSIZE 2>>$SQLLOGFILE | openssl rsa -text 2>>$SQLLOGFILE)
+
+    #Extract mod and exp
+	   modU=$(echo -n "$keyyU" | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
+	   expU=$(echo -n "$keyyU" | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
+	   
+	   keyyU=$(echo "$keyyU" | sed -n -e "/BEGIN/,/KEY/p")
     
+	   
+    #Insert ballot box key into database
+    # modU -> bb module (B64)
+    # expU -> bb public exponent (B64)
+    # keyyU -> bb private key. (PEM)
+	   echo "update eVotDat set modU='$modU', expU='$expU', keyyU='$keyyU';"  |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+    
+	   return 0
+fi
 
 
 
-
-
-
+#Sets other web application configurations
+if [ "$1" == "setWebAppDbConfig" ]
+then
+    getVar disk DBPWD
+    getVar disk TIMEZONE
+    
+    #Set the timezone on the web app
+	   echo "update eVotDat set TZ='$TIMEZONE';" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+fi
 
 
 

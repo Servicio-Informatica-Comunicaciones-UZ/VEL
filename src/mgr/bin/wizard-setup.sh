@@ -165,6 +165,7 @@ setDiskVariables () {
 	   setVar disk SITESNAMEPURP "$SITESNAMEPURP"
 	   setVar disk SITESEMAIL    "$SITESEMAIL"
 	   setVar disk SITESCOUNTRY  "$SITESCOUNTRY"
+    setVar disk SITESTOKEN    "$SITESTOKEN"
     
     #These are saved only to be loaded as defaults on the maintenance operation form
     setVar disk COMPANY "$COMPANY"
@@ -221,6 +222,7 @@ getDiskVariables () {
     
     getVar disk SITESORGSERV
 	   getVar disk SITESNAMEPURP
+    getVar disk SITESTOKEN
 }
 
 
@@ -657,7 +659,7 @@ do
     
     
     #Configure network [only on reload]
-    if [ "$DOINSTALL" -eq 0 ]
+    if [ "$DOSTART" -eq 1 ]
     then
         configureNetwork
         [ $? -ne 0 ] && $dlg --msgbox $"Network connectivity error. We'll go on with system load. At the end, please, check." 0 0
@@ -697,8 +699,6 @@ do
     fi
     
     
-
-    
     
     
     
@@ -718,18 +718,29 @@ do
     
     # REVISAR DESDE AQUÍ    
 
-     ## TODO aquí el contenido de configureservers
-
-     
-     if [ "$DOINSTALL" -eq 1 ]
-     then
-         #Insert webapp administrator into the database
-         $PVOPS setAdmin new "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD" 
-
-
-         # TODO insert bbx key
-
-         # TODO insert sites key and token # TODO dismantle populatedb op and call individuals
+    
+    
+    ### Set web app database configuration
+    if [ "$DOINSTALL" -eq 1 ]
+    then
+        
+        #Generate ballot box rsa keypair and insert it into DB
+        $dlg --infobox $"Generate Ballot Box keys..." 0 0
+        $PSETUP generateBallotBoxKeys
+        
+        #Miscellaneous database options
+        $PSETUP setWebAppDbConfig
+        
+        #If anonymity network registration process was performed
+        if [ "$SITESTOKEN" != "" ] ; then
+            $PVOPS storeLcnCreds "$SITESTOKEN" "$SITESPRIVK" "$SITESCERT" "$SITESEXP" "$SITESMOD"
+        fi
+        
+        #Insert webapp administrator into the database
+        $PVOPS setAdmin new "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD" 
+        
+        
+        # SEGUIR TODO dismantle populatedb op and call individuals
          
      fi
      

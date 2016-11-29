@@ -224,6 +224,11 @@ parseInput () {
 	           [ $? -ne 0 ] && ret=1
 	           ;;
         
+ 	      "pem" ) #PEM string
+	           echo "$2" | grep -oEe "^[- 0-9a-zA-Z/+]+=?=?$" 2>&1 >/dev/null
+	           [ $? -ne 0 ] && ret=1
+	           ;;
+               
 	       "cc" ) #Two letter country code (no use in checking the whole set)
 	           echo "$2" | grep -oEe "^[a-zA-Z][a-zA-Z]$" 2>&1 >/dev/null
 	           [ $? -ne 0 ] && ret=1
@@ -391,7 +396,7 @@ checkParameter () {
 	           ret=$?
 	           ;;
         
-	       "ADMREALNAME" )
+	       "ADMREALNAME" | "SITESTOKEN")
             parseInput freetext "$2"
 	           ret=$?
 	           ;;
@@ -420,6 +425,16 @@ checkParameter () {
 
         "TIMEZONE" )
             parseInput timezone "$2"
+	           ret=$?
+	           ;;
+
+        "SITESCERT" | "SITESPRIVK" )
+            parseInput pem "$2"
+	           ret=$?
+	           ;;
+        
+        "SITESEXP" | "SITESMOD" )
+            parseInput b64 "$2"
 	           ret=$?
 	           ;;
         

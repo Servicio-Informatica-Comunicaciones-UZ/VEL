@@ -59,76 +59,6 @@
 
 
 
-
-
-   
- 
-
-
-   
-
-
-
-	    
-	    
-    # TODO : turn into PSETUP ops, call on install only
-    
-    # One to generate ballot box key and store it on the db [put a guard to check if database is running and created?]
-
-    # a PVOP to insert sites info (If not configured, what to do?) [must be a pvop since it will be callable as a  mantenance op]
-
-    	    $dlg --infobox $"Generando llaves de la urna..." 0 0
-	    
-	    keyyU=$(openssl genrsa $KEYSIZE 2>/dev/null | openssl rsa -text 2>/dev/null)
-	    
-	    modU=$(echo -n "$keyyU" | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
-	    expU=$(echo -n "$keyyU" | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
-	    
-	    keyyU=$(echo "$keyyU" | sed -n -e "/BEGIN/,/KEY/p")
-
-
-    
-	    
-            #Insertamos las llaves de la urna
-            # modU -> mod de la urna (B64)
-            # expU -> exp público de la urna (B64)
-            # keyyU -> llave privada de la urna. (PEM)
-	    echo "update eVotDat set modU='$modU', expU='$expU', keyyU='$keyyU';" >> /tmp/config.sql 
-	    
-	    
-            #Insertamos las llaves y el certificado autofirmado enviado a eSurveySites.
-            # keyyS -> llave privada del servidor de firma (PEM)
-            # certS -> certificado autofirmado del servidor de firma (B64)
-            # expS  -> exponente público del cert de firma (B64)
-            # modS  -> módulo del cert de firma (B64)
-	    echo "update eVotDat set keyyS='$SITESPRIVK', certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';" >> /tmp/config.sql 
-	    
-            #Insertamos el token de verificación que nos ha devuelto eSurveySites
-	    echo "update eVotDat set tkD='$SITESTOKEN';" >> /tmp/config.sql 
-
-            #La timezone del servidor
-	    echo "update eVotDat set TZ='$TIMEZONE';" >> /tmp/config.sql 
-	    
-
-
-
-
-
-
-
-
-     
-
-     
-
-    
-    $PVOPS configureServers "alterPhpScripts"
-
-
-
-
-
-
     
     
     
@@ -140,8 +70,7 @@
 	$PSETUP updateDb # TODO ver qué utilidad tiene esto, si total, se instala y ya. hasta que no implemente un sistema de update, no sirve de nada creo
 
 	
-        #Ejecutamos la cesión o denegación de privilegios al adminsitrador de la aplicación
-	grantAdminPrivileges  # TODO now, it expects the value here. do it aprpopiately depending on what's expected
+
 
     fi
 
