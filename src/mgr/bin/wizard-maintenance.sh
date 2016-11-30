@@ -13,17 +13,17 @@
 
 
 
-# TODO en algún sitio se invoca esto?
+# TODO en algún sitio se invoca esto? --> creo que era en el innerkey, pero lo voy a extinguir. si no hace falta, quitar
 #    $PVOPS  stopServers
 
 
 
-#Fatal error function. It is redefined on each script with the
-#expected behaviour, for security reasons.
+#Fatal error function. Will reset the maintenance application # TODO Call this everywhere there's an error that needs to go back to the loop
 #$1 -> error message
-systemPanic () { # TODO TRY TO EXTINGUISH
+resetLoop () {
     
     #Show error message to the user
+    echo "$1" >>$LOGFILE 2>>$LOGFILE
     $dlg --msgbox "$1" 0 0
     
     #Return to the maintenance idle loop
@@ -131,6 +131,8 @@ getFileToTmp() {
 #1-> chain and crt destinaton, and csr and key location
 installSSLCert () {
 
+    ## TODO restart el apache y el postfix
+
     #Pedimos el fichero con el certificado ssl
     getFileToTmp $"Inserte un dispositivo USB del que leer el certificado de servidor y pulse INTRO." $"Seleccione el certificado de servidor"
     ret=$?
@@ -139,34 +141,34 @@ installSSLCert () {
     #Verificamos y, si correcto, copiamos el cert a una ubicación temporal (para evitar inconsistencias si falla la carga de la cha
     $PVOPS configureServers "configureWebserver" "checkCertificate" 'serverCert'
     case "$?" in 
-	"14" )
-        $dlg --msgbox $"Error: el fichero esta vacio." 0 0
-        return 1;
-        ;;
-	"15" )
-	$dlg --msgbox $"Error de lectura." 0 0
-        return 1;
-        ;;
-	"16" )
-	$dlg --msgbox $"Error: el fichero no contiene certificados PEM." 0 0
-        return 1;
-        ;;
-	"17" )
-	$dlg --msgbox $"Error procesando el fichero de certificado." 0 0 
-        return 1;
-        ;;
-	"18" )
-	$dlg --msgbox $"El fichero sólo debe contener el certificado de servidor." 0 0 
-        return 1;
-        ;;
-	"19" )
-        $dlg --msgbox $"Error: certificado no válido." 0 0
-        return 1;
-        ;;
-	"20" )
-        $dlg --msgbox $"Error: el certificado no corresponde con la llave." 0 0  
-        return 1;
-        ;;
+	       "14" )
+            $dlg --msgbox $"Error: el fichero esta vacio." 0 0
+            return 1;
+            ;;
+	       "15" )
+	           $dlg --msgbox $"Error de lectura." 0 0
+            return 1;
+            ;;
+	       "16" )
+	           $dlg --msgbox $"Error: el fichero no contiene certificados PEM." 0 0
+            return 1;
+            ;;
+	       "17" )
+	           $dlg --msgbox $"Error procesando el fichero de certificado." 0 0 
+            return 1;
+            ;;
+	       "18" )
+	           $dlg --msgbox $"El fichero sólo debe contener el certificado de servidor." 0 0 
+            return 1;
+            ;;
+	       "19" )
+            $dlg --msgbox $"Error: certificado no válido." 0 0
+            return 1;
+            ;;
+	       "20" )
+            $dlg --msgbox $"Error: el certificado no corresponde con la llave." 0 0  
+            return 1;
+            ;;
     esac
     
    
@@ -890,7 +892,7 @@ executeSystemAction (){
       
       $PVOPS configureMailRelay  # TODO call only the configure relay here. call the confgiure mail domain on the changeIP params op.
 
-      [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de correo."
+      [ $? -ne 0 ] &&  resetLoop $"Error grave: no se pudo activar el servidor de correo."
             
       ;;
 
@@ -1001,9 +1003,8 @@ executeSystemAction (){
 
 
       * )          
-        echo "systemPanic: bad selection."
-	shutdownServer "h"
-      ;;
+        resetLoop "Maintenance operation selector: bad selection."
+        ;;
       
     esac
 

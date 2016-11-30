@@ -715,7 +715,7 @@ sysAdminParams () {
 # $2 -> variable
 # $3 -> value
 setVar () {    
-    $PVOPS vars setVar "$1" "$2" "$3"
+    $PVOPS setVar "$1" "$2" "$3"
 }
 
 
@@ -729,7 +729,7 @@ setVar () {
 #STDOUT: the value of the read variable, empty string if not found
 #Returns: 0 if it could find the variable, 1 otherwise.
 getVar () {
-    $PVOPS vars getVar $1 $2
+    $PVOPS getVar $1 $2
     return $?
 }
 
@@ -1737,68 +1737,8 @@ writeClauers () {
 # de mantenimiento sin reiniciar el equipo o para recuperar los datos del backup
 
 # 1 -> el modo de readClauer (k, c, o b (ambos))  # Quizá pasar al flujo directo, ver dónde se usa
-getClauersRebuildKey () {
+getClauersRebuildKey () {  # Rename this and all the refs
     
-    
-    ret=0
-    firstcl=1
-    #mientras queden dispositivos
-    while [ $ret -ne 1 ]
-      do
-      
-      readNextUSB  "$1"  
-      status=$?
-      
-      [ "$firstcl" -eq 1 ] && firstcl=0
-      
-      if [ "$status" -eq 9 ]
-	  then
-	  $dlg --yes-label $"Reanudar" --no-label $"Finalizar"  --yesno  $"Ha cancelado la inserción de un Clauer.\n¿Desea finalizar la inserción de dispositivos?" 0 0  
-	  
-	  #Si desea finalizar, salimos del bucle
-	  [ $? -eq 1 ] && break;
-	  
-      fi
-      
-      #Error
-      if [ "$status" -ne 0  ]
-	  then
-	  $dlg --msgbox $"Error de lectura. Pruebe con otro dispositivo" 0 0
-	  ret=0
-	  continue
-      fi
-      
+:
 
-      #Si todo ha ido bien y ha leido config, compararlas
-      if [ "$1" == "c" -o "$1" == "b" ] ; then
-	  $PVOPS storops compareConfigs
-      fi
-      
-      #Preguntar si quedan más dispositivos
-      $dlg   --yes-label $"Sí" --no-label $"No" --yesno  $"¿Quedan más Clauers por leer?" 0 0  
-      ret=$?
-      
-    done
-	
-
-
-    
-    $dlg   --infobox $"Reconstruyendo la llave de cifrado..." 0 0
-        
-rebuildKey 
-	ret=$?
-
-	#Si no se logra con ninguna combinación, pánico y adiós.
-        if [ "$ret" -ne 0 ] 
-	    then
-	    $dlg --msgbox  $"No se ha podido reconstruir la llave." 0 0 
-	    return 1
-	fi
-	
-    fi
-
-    $dlg --msgbox $"Se ha logrado reconstruir la llave." 0 0 
-
-    return 0
 }
-

@@ -24,24 +24,38 @@ ROOTSSLTMP=$ROOTTMP"/ssltmp"
 #############
 
 
-# TODO try to extinguish. Should be a simple exit and movce all of the interface to the wizard. Split the operations.
-#Fatal error function. It is redefined on each script with the
-#expected behaviour, for security reasons.
-#$1 -> error message
-systemPanic () {
 
-    #Show error message to the user # TODO See if this dialog can be deleted. We would need an error message passback system to let the invoker script handle this. Leave for later
-    $dlg --msgbox "$1" 0 0  # TODO should pass the message and let the panic be held 
-    
-    # TODO check if any privvars need to be destroyed after an operation, and add them here as well (as a failed peration may leave an unconsistent state)
-    
-    #Exit immediately the privileged operations script and return
-    #control back to the user script
-    exit 99
+
+
+#Stop all system services (not handled by the init process)
+stopServers () {
+    /etc/init.d/apache2 stop  >>$LOGFILE 2>>$LOGFILE
+    /etc/init.d/postfix stop  >>$LOGFILE 2>>$LOGFILE
+    /etc/init.d/mysql   stop  >>$LOGFILE 2>>$LOGFILE  
 }
 
 
-# TODO remove all dialogs from privileged scripts. At least from the ops and common, setup will be fine
+
+
+
+#Get size of a certain filesystem
+#1 -> name of the FS (see list below)
+#STDOUT: size of the filesystem (in MB)
+getFilesystemSize () {
+    
+    local size=""
+    
+    if [ "$1" == "aufsFreeSize" ] ; then
+        size=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 4)
+        
+    elif [ "$1" == "cdfsSize" ] ; then
+        size=$(du -s /lib/live/mount/rootfs/ | cut -f 1)
+    fi
+    
+    echo -n $size
+    return 0
+}
+
 
 
 
@@ -58,7 +72,6 @@ resetSlot () {
     
     return 0
 }
-    
 
 
 
@@ -113,7 +126,9 @@ setVar () {
 }
 
 
-		
+
+
+
 # $1 -> Where to read the var from 'disk' disk;
 #                                  'mem' or nothing if we want it from volatile memory;
 #                                  'usb' if we want it from the usb config file;
@@ -160,7 +175,6 @@ getVar () {
     #</DEBUG>
     return 0 
 }
-
 
 
 
@@ -219,9 +233,6 @@ parseConfigFile () {
 
 
 
-
-
-
 #Recursively set a different mask for files and directories
 #$1 -> Base route
 #$2 -> Octal perms for files
@@ -255,6 +266,9 @@ setPerm () {
 }
 
 
+
+
+
 #Will change the aliases database so root e-mails are redirected to
 #the passed e-mail address
 #1 -> e-mail address where notifications must be received
@@ -263,7 +277,6 @@ setNotifcationEmail () {
 	   echo -e "root: $1" >> /etc/aliases 2>>$LOGFILE
 	   /usr/bin/newaliases    >>$LOGFILE 2>>$LOGFILE
 }
-
 
 
 
@@ -278,11 +291,6 @@ forceTimeAdjust () {
     ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
     hwclock -w >>$LOGFILE 2>>$LOGFILE
 }
-
-
-
-
-
 
 
 
@@ -325,6 +333,9 @@ listUSBs  () {
 }
 
 
+
+
+
 #Lists all serial and parallel devices that are not usb
 listHDDs () {   
     local drives=""
@@ -352,6 +363,9 @@ listHDDs () {
 }
 
 
+
+
+
 #If any RAID array, do an online check for health
 checkRAIDs () {
     
@@ -371,133 +385,6 @@ checkRAIDs () {
     fi
     
     return 0
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# SEGUIR, las de abajo quedan por revisar
-
-
-#1 -> Path to the file containing the cert(s) to be checked
-#2 -> mode: 'serverCert' verify a single ssl server cert (by itself and towards the priv key)
-#           'certChain' verify a number of certificates (individually, not whether they form a valid cert chain)
-#3 -> path to the private key (in serverCert mode)
-checkCertificate () {
-
-    [ "$1" == "" ] && echo "checkCertificate: no param 1" >>$LOGFILE  2>>$LOGFILE  && return 11
-    [ "$2" == "" ] && echo "checkCertificate: no param 2" >>$LOGFILE  2>>$LOGFILE  && return 12
-    [ "$2" == "serverCert" -a "$3" == "" ] && echo "checkCertificate: no param 3 at mode serverCert" >>$LOGFILE  2>>$LOGFILE  && return 13
-
-    #Validate non-empty file
-    if [ -s "$1" ] 
-	   then
-	       :
-    else
-	       echo "Error: empty file." >>$LOGFILE  2>>$LOGFILE 
-	       return 14
-    fi
-    
-    #Separate certs in different files for testing
-    /usr/local/bin/separateCerts.py  "$1"
-    ret=$?
-	   
-    if [ "$ret" -eq 3 ] 
-	   then
-	       echo "Read error." >>$LOGFILE  2>>$LOGFILE 
-	       return 15
-    fi
-    if [ "$ret" -eq 5 ]  
-	   then
-	       echo "Error: file contains no PEM certificates." >>$LOGFILE  2>>$LOGFILE 
-	       return 16
-    fi
-    if [ "$ret" -ne 0 ]  
-	   then
-	       echo "Error processing cert file." >>$LOGFILE  2>>$LOGFILE 
-	       return 17
-    fi
-    
-    certlist=$(ls "$1".[0-9]*)
-    certlistlen=$(echo $certlist | wc -w)
-    
-    #If processing a server cert file, it must be alone
-    if [ "$2" == "serverCert" -a  "$certlistlen" -ne 1 ]
-	   then
-	       echo "File should contain server cert only." >>$LOGFILE  2>>$LOGFILE 
-	       return 18
-    fi
-    
-    #For each cert
-    for c in $certlist
-    do      
-        #Check it is a x509 cert
-        openssl x509 -text < $c  >>$LOGFILE  2>>$LOGFILE
-        ret=$?
-        if [ "$ret" -ne 0  ] 
-	       then 
-	           echo "Error: certificate not valid." >>$LOGFILE  2>>$LOGFILE
-	           return 19
-        fi
-        
-        #If processing a server cert file, it must match with the private key
-        if  [ "$2" == "serverCert" ] ; then
-            #Compare modulus on the cert and on the priv key
-	           aa=$(openssl x509 -noout -modulus -in $c | openssl sha1)
-	           bb=$(openssl rsa  -noout -modulus -in $3 | openssl sha1)
-            
-	           #If not matching, the cert doesn't belong to the priv key
-	           if [ "$aa" != "$bb" ]
-	           then
-	               echo "Error: no cert-key match." >>$LOGFILE  2>>$LOGFILE
-	               return 20
-	           fi
-        fi
-        
-    done
-    
-    return 0
-}
-
-
-
-
-#Check purpose of a certificate (and trust if chain is supplied)
-# $1 -> Certificate to verify
-# $2 -> (optional) CA chain (to see if matching towards it)
-# RET: 0: ok  1: error
-verifyCert () {
-    
-    [ "$1" == "" ] && return 1
-    
-    if [ "$2" != "" ]
-	   then
-	       chain=" -untrusted $2 "
-    fi
-    
-    iserror=$(openssl verify -purpose sslserver -CApath /etc/ssl/certs/ $chain  "$1" 2>&1  | grep -ie "error")
-    
-    echo $iserror  >>$LOGFILE 2>>$LOGFILE
-    
-    #If no error string, validated
-    [ "$iserror" != ""  ] && return 1
-    
-    return 0
-    
 }
 
 
@@ -690,7 +577,6 @@ umountCryptoPart () {
 
 
 
-
 #Sets up the network configuration. Expects global variables with configuration:
 # IPMODE
 # IPADDR
@@ -808,6 +694,8 @@ configureNetwork () {
 
 
 
+
+
 #Sets up the hostname, domain and hosts file parameters
 # IPADDR
 # HOSTNM
@@ -866,3 +754,131 @@ configureHostDomain () {
     return 0
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# SEGUIR, las de abajo quedan por revisar
+
+
+#1 -> Path to the file containing the cert(s) to be checked
+#2 -> mode: 'serverCert' verify a single ssl server cert (by itself and towards the priv key)
+#           'certChain' verify a number of certificates (individually, not whether they form a valid cert chain)
+#3 -> path to the private key (in serverCert mode)
+checkCertificate () {
+
+    [ "$1" == "" ] && echo "checkCertificate: no param 1" >>$LOGFILE  2>>$LOGFILE  && return 11
+    [ "$2" == "" ] && echo "checkCertificate: no param 2" >>$LOGFILE  2>>$LOGFILE  && return 12
+    [ "$2" == "serverCert" -a "$3" == "" ] && echo "checkCertificate: no param 3 at mode serverCert" >>$LOGFILE  2>>$LOGFILE  && return 13
+
+    #Validate non-empty file
+    if [ -s "$1" ] 
+	   then
+	       :
+    else
+	       echo "Error: empty file." >>$LOGFILE  2>>$LOGFILE 
+	       return 14
+    fi
+    
+    #Separate certs in different files for testing
+    /usr/local/bin/separateCerts.py  "$1"
+    ret=$?
+	   
+    if [ "$ret" -eq 3 ] 
+	   then
+	       echo "Read error." >>$LOGFILE  2>>$LOGFILE 
+	       return 15
+    fi
+    if [ "$ret" -eq 5 ]  
+	   then
+	       echo "Error: file contains no PEM certificates." >>$LOGFILE  2>>$LOGFILE 
+	       return 16
+    fi
+    if [ "$ret" -ne 0 ]  
+	   then
+	       echo "Error processing cert file." >>$LOGFILE  2>>$LOGFILE 
+	       return 17
+    fi
+    
+    certlist=$(ls "$1".[0-9]*)
+    certlistlen=$(echo $certlist | wc -w)
+    
+    #If processing a server cert file, it must be alone
+    if [ "$2" == "serverCert" -a  "$certlistlen" -ne 1 ]
+	   then
+	       echo "File should contain server cert only." >>$LOGFILE  2>>$LOGFILE 
+	       return 18
+    fi
+    
+    #For each cert
+    for c in $certlist
+    do      
+        #Check it is a x509 cert
+        openssl x509 -text < $c  >>$LOGFILE  2>>$LOGFILE
+        ret=$?
+        if [ "$ret" -ne 0  ] 
+	       then 
+	           echo "Error: certificate not valid." >>$LOGFILE  2>>$LOGFILE
+	           return 19
+        fi
+        
+        #If processing a server cert file, it must match with the private key
+        if  [ "$2" == "serverCert" ] ; then
+            #Compare modulus on the cert and on the priv key
+	           aa=$(openssl x509 -noout -modulus -in $c | openssl sha1)
+	           bb=$(openssl rsa  -noout -modulus -in $3 | openssl sha1)
+            
+	           #If not matching, the cert doesn't belong to the priv key
+	           if [ "$aa" != "$bb" ]
+	           then
+	               echo "Error: no cert-key match." >>$LOGFILE  2>>$LOGFILE
+	               return 20
+	           fi
+        fi
+        
+    done
+    
+    return 0
+}
+
+
+
+
+#Check purpose of a certificate (and trust if chain is supplied)
+# $1 -> Certificate to verify
+# $2 -> (optional) CA chain (to see if matching towards it)
+# RET: 0: ok  1: error
+verifyCert () {
+    
+    [ "$1" == "" ] && return 1
+    
+    if [ "$2" != "" ]
+	   then
+	       chain=" -untrusted $2 "
+    fi
+    
+    iserror=$(openssl verify -purpose sslserver -CApath /etc/ssl/certs/ $chain  "$1" 2>&1  | grep -ie "error")
+    
+    echo $iserror  >>$LOGFILE 2>>$LOGFILE
+    
+    #If no error string, validated
+    [ "$iserror" != ""  ] && return 1
+    
+    return 0
+    
+}

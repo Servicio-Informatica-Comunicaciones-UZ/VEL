@@ -1,101 +1,23 @@
 #!/bin/bash
 
 
-. /usr/local/bin/common.sh 
+#This script contains all the actions that need to be executed by root
+#during setup or during operation. They are invoked through
+#calls. During setup they need no authorisation, but after that, they
+#need to find a rebuilt key in order to be executed.
 
-. /usr/local/bin/privileged-common.sh
 
+
+#### INCLUDES ####
+
+#System firewall functions
 . /usr/local/bin/firewall.sh
 
-# TODO extinguir WWWMODE. Siempre ssl (aunque sea snakeoil)
+#Common functions for privileged and unprivileged scripts.
+. /usr/local/bin/common.sh
 
-
-
-
-# //// Revisar todas las ops y ver cuáles deben estar bloqueadas en mant (ej, clops init)
-
-#//// Todas las ops y las de psetup, acabarlas con un exit 0, revisar el resto de exits y returns y ser coherente con los retornos de error.
-
-
-
-
-#//// Hay ops que no requieren reconstruir la clave.  --> Hay algunas que son sólo para el setup separarlas y al acabar el setup ya no se podrán ejecutar (revisar qué ops sólo se ejecutan en el setup). Las otras, ponerlas antes d ela verificación de clave.
-
-
-
-#Comprueba si la llave en el slot coincide con la de cifrado de la part.
-# 1-> Slot en el que buscar
-# Ret: 0: Llave correcta !0 -> Error 1(no se pudo reconstruir) 2(llave vacia) 3 (llave incorrecta)
-checkClearance () {
-    
-    local base=$(cat $ROOTTMP/dataBackupPassword 2>>$LOGFILE)
-    
-    if [ -s $ROOTTMP/slot$1/key ]
-	then
-	:
-    else
-	return 1
-    fi
-    
-    local chal=$(cat $ROOTTMP/slot$1/key 2>>$LOGFILE)
-
-    if [ "$chal" == ""  ]
-    	then
-	return 2
-    fi
-    
-    if [ "$chal" != "$base"  ]
-	then
-	return 3
-    fi
-    
-    return 0
-}
-
-
-
-
-
-
-############## Verificación de llave ##############
-#Pasado este punto, todas las operaciones verificarán si pueden reconstruir la llave antes de autorizar a ser ejecutadas.
-
-
-if [ -f "$LOCKOPSFILE" ]
-    then
-    :
-else
-    echo "ERROR: El fichero $LOCKOPSFILE no exise, y debe existir siempre, y solo puede contener 0 o 1"   >>$LOGFILE 2>>$LOGFILE
-    exit 1
-fi
-
-
-lockvalue=$(cat "$LOCKOPSFILE")
-
-if [ "$lockvalue" -eq 0 ] 2>>$LOGFILE
-    then
-    echo "privilegedOps: Esta op se ejecuta sin pedir permiso"   >>$LOGFILE 2>>$LOGFILE
-else
-
-
-
-#//// Aquí implementar verificación de clauer. (llamar a checkClearance. cuando ejecute una innerkey reset es posible que deba comprobar ambos slots. implementar entonces si eso)  Si no existe un fichero que contenga la llave reconstruida (verificar llave frente a la part? puede ser muy costoso. en la func que la reconstruye, probarla, y si falla borrar el fichero).
-
-:
-
-
-fi
-
-
-#//// hay ops que nunca necesian verificación. listarlas y saltarse la comprobación.
-#//// antes de la verificación (y obviamente de ver si se necesita verif o no)listar todos los códigos de operación existentes en este fichero y filtrar los que NO se pueden llamar si no estamos en setup, aparte de si necesitan verificación o no
-
-
-
-
-
-
-
+#Common functions for privileged scripts
+. /usr/local/bin/privileged-common.sh
 
 
 
@@ -306,6 +228,41 @@ listHDDPartitions () {
 
 
 
+# TODO review clearance system. now we have also the password only ops
+#Comprueba si la llave en el slot coincide con la de cifrado de la part.
+# 1-> Slot en el que buscar
+# Ret: 0: Llave correcta !0 -> Error 1(no se pudo reconstruir) 2(llave vacia) 3 (llave incorrecta)
+checkClearance () {
+    
+    local base=$(cat $ROOTTMP/dataBackupPassword 2>>$LOGFILE)
+    
+    if [ -s $ROOTTMP/slot$1/key ]
+	then
+	:
+    else
+	return 1
+    fi
+    
+    local chal=$(cat $ROOTTMP/slot$1/key 2>>$LOGFILE)
+
+    if [ "$chal" == ""  ]
+    	then
+	return 2
+    fi
+    
+    if [ "$chal" != "$base"  ]
+	then
+	return 3
+    fi
+    
+    return 0
+}
+
+
+#Make an entry on the operations log
+opLog () {
+    echo "["$(date --rfc-3339=ns)"] $1." >>$OPLOG 2>>$OPLOG
+}
 
 
 
@@ -316,59 +273,38 @@ listHDDPartitions () {
 
 
 
+######################
+##   Main program   ##
+######################
 
-
-####################### Gestión de variables ############################
-
-
-if [ "$1" == "vars" ]  # TODO revisar todas las llamadas, tb cambiar por disk, mem, usb y slot
-    then
-
- #Para que el wizard le pase los valores de las variables definidas por el usuario en la inst.
- # 3-> destino c (clauer) d (disco) r (memoria) s (slot activo)
- # 4-> var name
- # 5-> var value
- if [ "$2" == "setVar" ] 
-     then
-     
-     # TODO implementar limitación  de escritura a ciertas variables cuando running?. DEfinir lista de variables inmutables y comprobar que no sea ninguna de ellas, si lo es, salir
-
-     checkParameterOrDie "$4" "$5" 0  # TODO Teóricamente todos los params están en checkparameter. asegurarme.
-
-     setVar "$4" "$5" "$3"
-
-     exit 0
- fi
+opLog "Called operation $1"
 
 
 
- #Para que el wizard reciba los valores de ciertas variables durante el reset.
- # 3-> origen c (clauer) d (disco) r (memoria) s (slot activo)
- # 4-> var name
- if [ "$2" == "getVar" ]
-     then
 
-     if [ "$3" != "c" -a "$3" != "d" -a "$3" != "r" -a "$3" != "s" ]
-	 then
-	 echo "getVar: bad data source: $3" >>$LOGFILE 2>>$LOGFILE
-	 exit 1
-     fi
+##### Check if operations are locked or not #####
 
-# TODO quitar esta restricción. O si hace falta leer alguna var sin autorización de la comisión, marcar sólo las excepciones
-# Asegurarme de que $SITESCOUNTRY $SITESORGSERV $SITESEMAIL están en algún fichero de variables      
-     if [ "$4" != "WWWMODE" -a "$4" != "SSHBAKPORT" -a "$4" != "SSHBAKSERVER" -a "$4" != "DOMNAME"   -a "$4" != "copyOnRAM"  -a "$4" != "SHARES" -a "$4" != "SITESCOUNTRY" -a "$4" != "SITESORGSERV" -a "$4" != "SITESEMAIL" -a "$4" != "ADMINNAME" ]  # TODO: sacar esta comprobación a una func.
-	 then
-	 echo "getVar: no permission to read var $4" >>$LOGFILE 2>>$LOGFILE
-	 exit 1
-     fi
+#If lock file does not exist, disallow
+if [ ! -f "$LOCKOPSFILE" ] ; then
+    echo "ERROR: $LOCKOPSFILE file does not exist."   >>$LOGFILE 2>>$LOGFILE
+    exit 1
+fi
 
-     getVar "$3" "$4" aux
+lockvalue=$(cat "$LOCKOPSFILE")
+if [ "$lockvalue" -eq 0 ] 2>>$LOGFILE ; then
+    opLog "Executing operation $1 without verification."
+else
+    
+    #TODO Aquí implementar verificación de clauer. (llamar a checkClearance. cuando ejecute una innerkey reset es posible que deba comprobar ambos slots. implementar entonces si eso)  Si no existe un fichero que contenga la llave reconstruida (verificar llave frente a la part? puede ser muy costoso. en la func que la reconstruye, probarla, y si falla borrar el fichero).
 
-     echo -n $aux
+    # TODO implementar tb la verificación de ops por passwd local del admin
 
-     exit 0
- fi
+    #TODO hay ops que nunca necesian verificación. listarlas y saltarse la comprobación.
 
+    # TODO si hay ops que sólo se llaman durante el setup, mover al privileged-setup
+
+    # TODO *************** Es emjor hacer esto o llamamos a la verificación concreta antes de cada op? en ese caso, la validación del lock pasaría a la función que comprueba el clearance
+    echo "["$(date --rfc-3339=ns)"] Checking clearance for operation $1." >>$LOGFILE 2>>$LOGFILE
 fi
 
 
@@ -386,7 +322,48 @@ fi
 
 
 
-######################## Operations #######################
+
+
+
+
+
+
+#Set the value of the variable on the specified variable storage.
+# $2 -> Destination: 'disk' persistent disk;
+#                    'mem'  (default) or nothing if we want it in ram;
+#                    'usb'  if we want it on the usb config file;
+#                    'slot' in the active slot configuration
+# $3 -> variable
+# $4 -> value
+if [ "$1" == "setVar" ] 
+then
+    # TODO Define a list of variables that won't be writable once system is locked (despite having clearance to execute the operation)
+    
+    checkParameterOrDie "$3" "$4" 0  # TODO make sure that in all calls to this op, the var is in checkParameter.
+    setVar "$3" "$4" "$2"
+    exit 0
+fi
+
+
+
+
+
+#Get the value of the variable on the specified variable storage.
+# $2 -> Destination: 'disk' persistent disk;
+#                    'mem'  (default) or nothing if we want it in ram;
+#                    'usb'  if we want it on the usb config file;
+#                    'slot' in the active slot configuration
+# $3 -> variable
+if [ "$1" == "getVar" ]
+then
+    # TODO Define a list of variables that won't be writable once system is locked (despite having clearance to execute the operation)
+    
+    getVar "$2" "$3" aux
+    echo -n $aux
+    exit 0
+fi
+
+
 
 
 
@@ -395,7 +372,18 @@ if [ "$1" == "rootShell" ]
 then
     export TERM=linux        
     exec /bin/bash
-    exit 1
+    exit 1 #Should not reach
+fi
+
+
+
+
+#Get size of a certain filesystem
+#2 -> name of the FS
+#STDOUT: size of the filesystem (in MB)
+if [ "$1" == "getFilesystemSize" ] 
+then
+    getFilesystemSize "$2"
 fi
 
 
@@ -432,6 +420,9 @@ then
 fi
 
 
+
+
+
 #Lists hard drive partitions.
 #2 -> 'all': (default) Show all partitions
 #     'wfs': Show only partitions with a filesystem that can be mounted and written
@@ -444,18 +435,6 @@ then
     listHDDPartitions "$2" "$3"
     exit $?
 fi
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -510,6 +489,8 @@ fi
 
 
 
+
+
 #Configure network parameters
 if [ "$1" == "configureNetwork" ] 
 then
@@ -527,7 +508,8 @@ fi
 
 
 
-#Configure 
+
+#Configure everything related to the hostname and domain name
 if [ "$1" == "configureHostDomain" ] 
 then
     IPADDR="$2"
@@ -536,115 +518,61 @@ then
     
     configureHostDomain
     exit $?
-fi    
-    
+fi
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#//// verif en mant: no
-
+#Halt or reboot system
 if [ "$1" == "shutdownServer" ] 
-    then
-
-# 2-> h --> halt r --> reboot default--> halt
-shutdownServer(){
+then
     
-    
-    echo "System $HOSTNM is going down on $(date)" | mail -s "System $HOSTNM shutdown" root
+    #Try to send an email notification
+    getVar disk HOSTNM
+    echo "System $HOSTNM is going down at $(date)" | mail -s "System $HOSTNM shutdown" root
     sleep 3
     
+    #Stop services to unlock the data drive
+    stopServers
     
-    #Apagar el mysql y el apache (porque bloquean el acceso a la partición)
-    /etc/init.d/apache2 stop  >>$LOGFILE 2>>$LOGFILE
-    /etc/init.d/postfix stop  >>$LOGFILE 2>>$LOGFILE
-    /etc/init.d/mysql   stop  >>$LOGFILE 2>>$LOGFILE  
-
-    
+    #Umount drive
     getVar usb DRIVEMODE
     getVar mem CRYPTDEV
     umountCryptoPart "$DRIVEMODE" "$MOUNTPATH" "$MAPNAME" "$DATAPATH" "$CRYPTDEV"
-
+    
+    #Clear temp directory
     rm -rf /tmp/*
     clear
     
-    if [ "$2" == "h" ] 
-	then
-	halt
-	return 0
-    fi
-
-    if [ "$2" == "r" ] 
-	then
-	reboot
-	return 0
+    if [ "$2" == "h" ] ; then
+	       halt
+	       return 1 #Should not reach
+        
+    elif [ "$2" == "r" ] ; then
+	       reboot
+	       return 1 #Should not reach
     fi
     
-    halt
-}
-
-shutdownServer "" "$2"
-
-exit $?
-
+    halt  #Should not reach
+    exit 42  #Should not reach
 fi
 
 
-#//// verif en mant: ?
 
 
+
+#Stop all services
 if [ "$1" == "stopServers" ] 
-    then
-    /etc/init.d/apache2 stop  >>$LOGFILE 2>>$LOGFILE
-    /etc/init.d/mysql   stop  >>$LOGFILE 2>>$LOGFILE  
-    /etc/init.d/postfix stop  >>$LOGFILE 2>>$LOGFILE 
-
+then
+    stopServers 
     exit 0
-
 fi
 
 
 
-# TODO  Hacer que los keyscan y el almacenamiento de claves sea op de root sin verif. asegurarme de que sólo es el root quien ejecuta los backups. --> PARA PODER ACEPTAR ESTO, NO DEBE RECIBIR PARAMS VARIABLES. HACER ESTA OP GENERALISTA CON VERIF Y HACER OTRA QUE ACCEDA A LOS VALORES DE SSHBAK A LAS VARIABLES. cambiar las invocaciones por las de la sin params (y si no, hacer esta sin params y basta. ver tb el fichero backup.sh ).
+
 
 #Scans a ssh server key and trusts it
 #2 -> SSH server address
@@ -658,27 +586,6 @@ then
     echo "Keyscan returned: $ret" >>$LOGFILE 2>>$LOGFILE
     exit $ret
 fi
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
 
 
 
@@ -743,9 +650,8 @@ fi
 
 
 
-
-#Umounts persistent data unit
-#All parameters are either on the usb, memory or are constants  # TODO I think this op was meant for the inner key change, since we are dropping it, I believe it is not needed anymore (function is called only on the shutdown). At the end, review and if not used, delete
+#Umounts persistent data unit. All parameters are either on the usb,
+#memory or are constants
 if [ "$1" == "umountCryptoPart" ] 
 then
     
@@ -758,212 +664,7 @@ then
     setVar CRYPTDEV "" mem
     
     exit 0
-fi
-
-
-
-
-
-
-
-
-
-
-
-if [ "$1" == "formatearClauer"  -o "$1" == "formatearUSB" ] 
-    then
-
-#1-> el dev
-createPartitionTable () {
-
-    dev="$1"
-    echo "Dev a formatear: $dev" >>$LOGFILE 2>>$LOGFILE
-    
-
-    if [ "$dev" == "" ]
-	then
-	echo $"No existe el dispositivo" >>$LOGFILE 2>>$LOGFILE
-	return 11
-    fi
-
-
-    #Nos cargamos la tabla de particiones
-    dd if=/dev/zero of=$dev count=10 1>/dev/null 2>/dev/null
-
-    #El algoritmo que calcula la geometría perfecta es erróneo. Fijando los cilindros al máximo (1024), 
-    #itera por todas las combinaciones posibles de número de cabezal (1-255) y sector (1-63) y busca 
-    #que coincida con el num de bytes real del dev. El problema es que no va almacenando el mejor 
-    #resultado parcial y, si no coincide, no saca el óptimo.
-    
-    #Bloques del dev (el kernel lo devuelve en bloques de 1024 bytes)
-    bloques=$[$($fdisk -s $dev 2>>$LOGFILE)]
-    if [ $bloques -eq 0 ]
-	then
-	echo $"Error durante el particionado: Dispositivo inválido." >>$LOGFILE 2>>$LOGFILE
-	return 12
-    fi
-
-    total=$((bloques *1024 )) #tam del disp en bytes 
-    #echo "Tam real en bytes del dev: $total"
-    tamB=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep ", [0-9]* bytes" | sed "s/.*, \([0-9]*\) bytes/\1/g" 2>>$LOGFILE)] #tamaño real en bytes del disco. Como es una flash y la geometría CHS es inventada, puede darse el caso de que C*H*S*Blocksize sea distinto a este. El algoritmo intenta optimizar esto.
-    #echo "tamB: $tamB"
-
-    if [ $tamB -eq 0 ]
-	then
-	echo "Error durante el particionado: Dispositivo inválido (2)." >>$LOGFILE 2>>$LOGFILE
-	return 12
-    fi
-
-
-    tam=$(($tamB/1000/1000))
-    #echo "tam: $tam"
-
-
-    #tam de sector del dev (teóricamente autodetectado por el kernel)
-    BytesPorSector=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep "\* [0-9]* = [0-9]* bytes" | sed "s/.*\* \([0-9]*\) = [0-9]* bytes/\1/")]
-    #echo "BytesPorSector: $BytesPorSector"
-
-   if [ $BytesPorSector -eq 0 ]
-	then
-	echo "Error durante el particionado: Dispositivo inválido (3)." >>$LOGFILE 2>>$LOGFILE
-	return 12
-    fi
-
-
-    sectors=1
-    headers=1
-    cylinders=1024
-    found=0
-    tt=0
-    to=0
-    
-    while (( $found==0  && $sectors<=64 )); do
-	headers=1
-        #echo "$BytesPorSector*$headers*$sectors*$cylinders";
-	while (($found==0 && $headers<=256)); do 
-	    tt=$(($BytesPorSector*$headers*$sectors*$cylinders));
-	    if (( $tt>$to && $tt<=$tamB )); then 
-		to=$tt;
-		ho=$headers;
-		so=$sectors;
-		if (( $tt == $tamB )); then
-		    found=1
-		fi
-	    fi
-	    headers=$((headers + 1));
-	done
-	sectors=$((sectors + 1));
-    done
-    
-    H=$ho
-    S=$so
-    #echo "C: $cylinders"
-    #echo "H: $H"
-    #echo "S: $S"
-    
-    BytesPorCilindro=$((H*S*$BytesPorSector))
-    #echo "BytesPorCilindro: $BytesPorCilindro"
-    CilindroFinalDatos=$(( $(($total - $cryptosize*1000*1024))/ $BytesPorCilindro ))
-    #echo "CilindroFinalDatos: $CilindroFinalDatos"
-    
-    
-    sync
-    # TODO revisar esta func. Ya no son clauers, ya no hace falta dos aprts. Ve ris merge con la que particiona la unidad de datos
-    
-    cmd="n\np\n1\n\n""$CilindroFinalDatos""\nn\np\n4\n\n\nt\n1\nc\nt\n4\n69\nw\n";
-    echo -ne "$cmd" | $fdisk $dev -C $cylinders -H $H -S $S 1>/dev/null 2>>$LOGFILE
-    
-    sync 
-    umount  ${dev}1 2>/dev/null
-    
-    sleep 1
- 
-
-    x=$(mkfs.vfat -S ${BytesPorSector} ${dev}1 2>&1 )
-
-    if [ $? -ne 0 ]
-	then
-	echo $"Error durante el particionado" >>$LOGFILE 2>>$LOGFILE
-	return 13
-    fi
-    
-    sync
-    sleep 1
-    
-    
-    return
-}
-
-
-#1 -> dev
-#2 -> pwd
-createCryptoPart () {
-
-    sync
-    sleep 1
-    
-    x=$(clmakefs -d "$1"4  -p "$2" 2>&1 ) 
-
-    if [ $? -ne 0 ] 
-	then
-	echo $"Error durante el formateo"  >>$LOGFILE 2>>$LOGFILE
-	return 14
-    fi
-    
-    #echo "Salida de clmakefs: $x" 
-    
-    sync
-    
-    #echo "Part datos: $total - $cryptosize*1000*1024"
-    totaldatos=$(( $total - $cryptosize*1000*1024 ))
-    #echo "Part datos: $totaldatos"
-
-    return
-}
-
-
-checkParameterOrDie DEV "${2}" "0"
-
-
-if [ "$1" == "formatearUSB" ]
-    then
-    
-    checkParameterOrDie DEVPWD "${3}" "0"
-    
-fi
-
-
-createPartitionTable "$2"
-ret=$?
-
-if [ "$1" == "formatearUSB" ]
-    then
-    exit $ret;
-fi
-
-
-if [ "$ret" -eq 0 ]
-    then
-    
-    #$dlg   --infobox $"Formateando Clauer..." 0 0
-    echo $"Formateando Clauer..."  >>$LOGFILE 2>>$LOGFILE
-    createCryptoPart "$2" "$3"
-    ret=$?
-else
-	echo "Error durante el formateo (2)"  >>$LOGFILE 2>>$LOGFILE
-	exit 14
-fi
-
-exit $ret;
-
-fi
-
-
-
-
-
-
-
+fi # TODO I think this op was meant for the inner key change, since we are dropping it, I believe it is not needed anymore (function is called only on the shutdown). At the end, review and if not used, delete
 
 
 
@@ -972,7 +673,6 @@ fi
 #Operations regarding the mail service
 if [ "$1" == "mailServer" ] 
 then
-    
     
     #Configure the local domain
     #3 -> Host name
@@ -990,8 +690,6 @@ then
         
         exit 0
     fi
-    
-    
     
     
     
@@ -1015,8 +713,6 @@ then
     
     
     
-    
-    
     # Start or Reload mail server
     if [ "$2" == "reload" ] 
     then
@@ -1025,14 +721,13 @@ then
         /etc/init.d/postfix start >>$LOGFILE 2>>$LOGFILE
         exit "$?"            
     fi
-
 fi
 
 
 
 
     
-#Enable backup cron
+#Enable backup cron and database mark
 if [ "$1" == "enableBackup" ]
 then
     #Write cron to check every minute for a pending backup
@@ -1041,19 +736,43 @@ then
     then
         echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO review this script
     fi
+    
+    #Set base backup value on the database
+    getVar disk DBPWD
+	   echo "update  eVotDat set backup=0;" | mysql -u election -p"$DBPWD" eLection
+	   if [ $? -ne 0 ] ; then
+        echo "enable backup failed: database server not running." >>$LOGFILE
+        exit 1
+    fi
+    
     exit 0
 fi        
-    
-    
-    #Disable backup cron
+
+
+
+
+
+#Disable backup cron and database mark
 if [ "$1" == "disableBackup" ]
 then
     #Delete backup cron line (if it exists)
     sed -i -re "/backup.sh/d" /etc/crontab
+    
+    #Indicate to the webapp that backups are not being used
+    getVar disk DBPWD
+	   echo "update  eVotDat set backup=-1;"| mysql -u election -p"$DBPWD" eLection
+	   if [ $? -ne 0 ] ; then
+        echo "disable backup failed: database server not running." >>$LOGFILE
+        exit 1
+    fi
+    
     exit 0
-fi        
-    
-    
+fi
+
+
+
+
+
 #Mark system to force a backup
 if [ "$1" == "forceBackup" ]
 then
@@ -1066,11 +785,226 @@ fi
 
 
 
+#Generate a large cipher key and divide it in shares using Shamir's
+#algorithm
+#2 -> Number of total shares
+#3 -> Minimum amount of them needed to rebuild
+if [ "$1" == "genNfragKey" ] 
+then
+    
+    #Chedck input parameters
+    checkParameterOrDie SHARES "$2"
+    checkParameterOrDie THRESHOLD "$3"
+    if [ "$SHARES" -lt 2 -o "$SHARES" -lt "$THRESHOLD" ] ; then
+        echo "Bad number of shares ($SHARES) or threshold ($THRESHOLD)"  >>$LOGFILE 2>>$LOGFILE
+        exit 1
+    fi
+    
+    #Get reference to the currently active slot, there we will fragment the key
+    getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+    #Generate a large (91 char) true random password (entropy source: randomsound)
+	   PARTPWD=$(randomPassword)
+	   
+    #We used to clean the slot, but not anymore, as it might already
+    #contain a ready to use configuration file.
+	
+    #Fragment the password
+	   echo -n "$PARTPWD" >$slotPath/key
+	   $OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key >>$LOGFILE 2>>$LOGFILE 
+	   ret=$?
+	   echo "$OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key" >>$LOGFILE 2>>$LOGFILE
+	   
+    exit $ret
+fi
 
 
 
 
 
+#Grant or remove privileged admin access to webapp
+#2-> 'grant' or 'remove'
+if [ "$1" == "grantAdminPrivileges" ] 
+    then
+    
+    getVar disk DBPWD
+
+    privilege=0 
+    if [ "$2" == "grant" ] ; then
+        # TODO el grant Con verificación de llave
+        privilege=1
+    fi
+    
+    echo "giving/removing webapp privileges ($2)."  >>$LOGFILE 2>>$LOGFILE
+    mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE  <<EOF
+update eVotDat set mante=$privilege;
+EOF
+    
+    exit 0
+fi
+
+
+
+
+
+#Create admin user, substitute admin user or update admin user credentials
+# 2-> Operation: 'new': add a new administrator, (existing user or new) and withdraw
+#                       role to the former one. If existing, username and id must match.
+#             'reset': update the two passwords and the IP for the current admin
+# 3-> Username
+# 4-> Web application password
+# 5-> Full Name
+# 6-> Personal ID number
+# 7-> IP address
+# 8-> Mail address
+# 9-> Local password
+if [ "$1" == "setAdmin" ]
+then
+    if [ "$2" != "new" -a "$2" != "reset" ]
+    then
+	       echo "setAdmin: Bad operation parameter $2" >>$LOGFILE 2>>$LOGFILE
+	       exit 1
+    fi
+    
+    checkParameterOrDie ADMINNAME   "${3}"
+    checkParameterOrDie MGRPWD      "${4}"
+    checkParameterOrDie ADMREALNAME "${5}"
+    checkParameterOrDie ADMIDNUM    "${6}"
+    checkParameterOrDie ADMINIP     "${7}"
+    checkParameterOrDie MGREMAIL    "${8}"
+    checkParameterOrDie LOCALPWD    "${9}"
+    
+    #Get database password
+    getVar disk DBPWD
+    
+    #Get stored value for the admin username
+    getVar disk ADMINNAME
+    oldADMINNAME="$ADMINNAME"
+    oldAdmName=$($addslashes "$oldADMINNAME" 2>>$LOGFILE)
+
+    #Encode IP into long integer
+    newIP=$(ip2long "$ADMINIP")
+    [ "$newIP" == "" ] && newIP="-1" #If empty or bad format, default
+    
+    #Hash passwords for storage, for security reasons
+	   MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
+    
+    
+    
+    #In any case, update local manager password (if any)
+    if [ "$LOCALPWD" != "" ] ; then
+        LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
+        setVar LOCALPWDSUM "$LOCALPWDSUM" disk
+    fi
+    
+    #Update other data
+    setVar ADMREALNAME "$ADMREALNAME" disk
+	   setVar MGREMAIL "$MGREMAIL" disk
+    setVar ADMINIP "$ADMINIP" disk
+    
+    #Reset credentials of current admin (web app password and IP address)
+    if [ "$2" == "reset" ]
+	   then
+	       echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM' where us='$oldAdmName';" |
+            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+        exit 0
+    fi        
+    
+    ### If adding a new admin (or replacing a former one)
+    
+    #Escape input data
+	   adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
+	   admidnum=$($addslashes "$ADMIDNUM" 2>>$LOGFILE)
+	   adminrealname=$($addslashes "$ADMREALNAME" 2>>$LOGFILE)
+	   mgremail=$($addslashes "$MGREMAIL" 2>>$LOGFILE)
+	       
+	   #Insert new admin user (if existing, will fail)
+	   echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo)" \
+         "values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,$newIP,'$mgremail');" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+	   
+	   #Update new admin user (if already existing, insert will have
+	   #failed and this will update some parameters plus role)
+	   echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM',"\
+         "nom='$adminrealname',correo='$mgremail',rol=3 where us='$adminname';" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+
+    
+    #If there was a previous admin name and it is different from the new one
+    if [ "$oldADMINNAME" != "" -a "$oldADMINNAME" != "$ADMINNAME" ] ; then
+        
+        #Reduce role for the former admin
+        echo "update eVotPob set rol=0 where us='$oldAdmName';" |
+            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+        
+        #New admin's e-mail will be the new notification e-mail recipient
+	       echo "update eVotDat set email='$mgremail';"  |
+            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE        
+        
+        #Also, update mail aliases
+        setNotifcationEmail "$MGREMAIL"
+    fi
+    
+    #Store the new admin name and ID
+    setVar ADMINNAME "$ADMINNAME" disk
+    setVar ADMIDNUM "$ADMIDNUM" disk
+    
+    #Add administrator's IP to the whitelist
+    getVar disk ADMINIP
+    echo "$ADMINIP" >> /etc/whitelist
+    
+    exit 0
+fi
+
+
+
+
+
+
+
+
+
+#Store the certificate and auth token to communicate with the
+#anonymity network
+#2 -> authentication token
+#3 -> private key (PEM)
+#4 -> self-signed certificate (B64), later to be signed by the anonyimity central authority
+#5 -> public exponent (B64)
+#6 -> modulus (B64)
+if [ "$1" == "storeLcnCreds" ]
+then
+    checkParameterOrDie SITESTOKEN "${2}"
+    checkParameterOrDie SITESPRIVK "${3}"
+    checkParameterOrDie SITESCERT "${4}"
+    checkParameterOrDie SITESEXP "${5}"
+    checkParameterOrDie SITESMOD "${6}"
+    
+    
+    getVar disk DBPWD
+    
+    
+    #Insert keys and the self-signed certificate sent to eSurveySites.
+    # keyyS -> service private ley (PEM)
+    # certS -> self-signed service certificate (B64)
+    # expS  -> public exponent of the certificate (B64)
+    # modS  -> modulus of the certificate (B64)
+	   echo "update eVotDat set keyyS='$SITESPRIVK', certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+	   
+    #Insert authentication token used to communicate with eSurveySites
+	   echo "update eVotDat set tkD='$SITESTOKEN';" |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+fi
+
+
+
+
+
+
+
+
+##### SEGUIR: faltan por revisar
 
 
 
@@ -1143,12 +1077,12 @@ if [ "$1" == "configureServers" ]
     exit 0
        
    fi
-
-
-
-
-
-
+   
+   
+   
+   
+   
+   
 
   if [ "$2" == "configureWebserver" ] 
        then
@@ -1568,7 +1502,7 @@ if [ "$1" == "fetchCSR" ]
     then
 
 
-#*-*- seguir revisando y sacando de aquí los $dlg
+#TODO revisar y sacar de aquí los dialog
 
 
 # $1 --> el fichero que contiene la CSR
@@ -1677,6 +1611,7 @@ fetchCSR () {
 
       exit 0
 fi
+
 
 
 
@@ -1956,24 +1891,10 @@ then
         exit $failed
     fi
     
-
-
-
-
-
-
-
-#SEGUIR revisando desde aquí
-
-
-
-
-
-    #//// Esta op no estará disponible en standby (la config solo se lee en new y reset). Ver qué ops no debo permitir ejecutar y marcarlas..
-
-
     
-    #Compare last read config with the one considered the correct one  # TODO move to setup instead of ops? readnextusb 'b' or 'c' is only called on startup/format 
+    
+    
+    #Compare last read config with the one considered the correct one # TODO lock this operation in maintenance? move it to setup? try to remove dialogs?
     if [ "$2" == "compareConfigs" ] 
 	   then
         
@@ -2096,16 +2017,9 @@ then
         exit 0
     fi
     
-
     
-
     
-
-    #SEGUIR
     
-
- 
-
     #Check if password is valid for a store
     #3-> dev
     #4-> password    
@@ -2114,9 +2028,10 @@ then
         checkParameterOrDie DEV "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"
         
-        $OPSEXE checkPwd -d "$3"  -p "$4"    2>>$LOGFILE #0 ok  1 bad pwd  #////PROBAR
+        $OPSEXE checkPwd -d "$3"  -p "$4"    2>>$LOGFILE #0 ok  1 bad pwd
 	       exit $?
     fi
+    
     
     
     
@@ -2148,6 +2063,8 @@ then
     fi
     
     
+    
+    
     #Read a key share block from the usb store
     #3-> dev
     #4-> password
@@ -2175,8 +2092,9 @@ then
 	       exit $ret
     fi
     
-
-
+    
+    #### SEGUIR REVISANDO
+    
     #3-> dev
     #4-> password   
     # 5 -> El número de share que debe escribir:
@@ -2297,67 +2215,9 @@ then
 # //// Construir fichero de persistencia de variables en el tmp del root, para guardar valores entre invocaciones a privOps. El fichero de variables que se guarda en la part cifrada, ponerlo en el dir de root y gestionarlo desde priv ops (no devolver las variables críticas.).
 
 
-fi
+fi #End of storops gropu of operations
 
 
-
-#Generate a large cipher key and divide it in shares using Shamir's
-#algorithm
-#2 -> Number of total shares
-#3 -> Minimum amount of them needed to rebuild
-if [ "$1" == "genNfragKey" ] 
-then
-    
-    #Chedck input parameters
-    checkParameterOrDie SHARES "$2"
-    checkParameterOrDie THRESHOLD "$3"
-    if [ "$SHARES" -lt 2 -o "$SHARES" -lt "$THRESHOLD" ] ; then
-        echo "Bad number of shares ($SHARES) or threshold ($THRESHOLD)"  >>$LOGFILE 2>>$LOGFILE
-        exit 1
-    fi
-    
-    #Get reference to the currently active slot, there we will fragment the key
-    getVar mem CURRENTSLOT
-    slotPath=$ROOTTMP/slot$CURRENTSLOT/
-    
-    #Generate a large (91 char) true random password (entropy source: randomsound)
-	   PARTPWD=$(randomPassword)
-	   
-    #We used to clean the slot, but not anymore, as it might already
-    #contain a ready to use configuration file.
-	
-    #Fragment the password
-	   echo -n "$PARTPWD" >$slotPath/key
-	   $OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key >>$LOGFILE 2>>$LOGFILE 
-	   ret=$?
-	   echo "$OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key" >>$LOGFILE 2>>$LOGFILE
-	   
-    exit $ret
-fi
-
-
-
-
-#Grant or remove privileged admin access to webapp
-#2-> 'grant' or 'remove'
-if [ "$1" == "grantAdminPrivileges" ] 
-    then
-    
-    getVar disk DBPWD
-
-    privilege=0 
-    if [ "$2" == "grant" ] ; then
-        # TODO el grant Con verificación de llave
-        privilege=1
-    fi
-    
-    echo "giving/removing webapp privileges ($2)."  >>$LOGFILE 2>>$LOGFILE
-    mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE  <<EOF
-update eVotDat set mante=$privilege;
-EOF
-    
-    exit 0
-fi
 
 
 
@@ -2473,162 +2333,6 @@ fi
 
 
 
-#Create admin user, substitute admin user or update admin user credentials
-# 2-> Operation: 'new': add a new administrator, (existing user or new) and withdraw
-#                       role to the former one. If existing, username and id must match.
-#             'reset': update the two passwords and the IP for the current admin
-# 3-> Username
-# 4-> Web application password
-# 5-> Full Name
-# 6-> Personal ID number
-# 7-> IP address
-# 8-> Mail address
-# 9-> Local password
-if [ "$1" == "setAdmin" ]
-then
-    if [ "$2" != "new" -a "$2" != "reset" ]
-    then
-	       echo "setAdmin: Bad operation parameter $2" >>$LOGFILE 2>>$LOGFILE
-	       exit 1
-    fi
-    
-    checkParameterOrDie ADMINNAME   "${3}"
-    checkParameterOrDie MGRPWD      "${4}"
-    checkParameterOrDie ADMREALNAME "${5}"
-    checkParameterOrDie ADMIDNUM    "${6}"
-    checkParameterOrDie ADMINIP     "${7}"
-    checkParameterOrDie MGREMAIL    "${8}"
-    checkParameterOrDie LOCALPWD    "${9}"
-    
-    #Get database password
-    getVar disk DBPWD
-    
-    #Get stored value for the admin username
-    getVar disk ADMINNAME
-    oldADMINNAME="$ADMINNAME"
-    oldAdmName=$($addslashes "$oldADMINNAME" 2>>$LOGFILE)
-
-    #Encode IP into long integer
-    newIP=$(ip2long "$ADMINIP")
-    [ "$newIP" == "" ] && newIP="-1" #If empty or bad format, default
-    
-    #Hash passwords for storage, for security reasons
-	   MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
-    
-    
-    
-    #In any case, update local manager password (if any)
-    if [ "$LOCALPWD" != "" ] ; then
-        LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
-        setVar LOCALPWDSUM "$LOCALPWDSUM" disk
-    fi
-    
-    #Update other data
-    setVar ADMREALNAME "$ADMREALNAME" disk
-	   setVar MGREMAIL "$MGREMAIL" disk
-    setVar ADMINIP "$ADMINIP" disk
-    
-    #Reset credentials of current admin (web app password and IP address)
-    if [ "$2" == "reset" ]
-	   then
-	       echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM' where us='$oldAdmName';" |
-            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-        exit 0
-    fi        
-    
-    ### If adding a new admin (or replacing a former one)
-    
-    #Escape input data
-	   adminname=$($addslashes "$ADMINNAME" 2>>$LOGFILE)
-	   admidnum=$($addslashes "$ADMIDNUM" 2>>$LOGFILE)
-	   adminrealname=$($addslashes "$ADMREALNAME" 2>>$LOGFILE)
-	   mgremail=$($addslashes "$MGREMAIL" 2>>$LOGFILE)
-	       
-	   #Insert new admin user (if existing, will fail)
-	   echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo)" \
-         "values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,$newIP,'$mgremail');" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-	   
-	   #Update new admin user (if already existing, insert will have
-	   #failed and this will update some parameters plus role)
-	   echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM',"\
-         "nom='$adminrealname',correo='$mgremail',rol=3 where us='$adminname';" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-
-    
-    #If there was a previous admin name and it is different from the new one
-    if [ "$oldADMINNAME" != "" -a "$oldADMINNAME" != "$ADMINNAME" ] ; then
-        
-        #Reduce role for the former admin
-        echo "update eVotPob set rol=0 where us='$oldAdmName';" |
-            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-        
-        #New admin's e-mail will be the new notification e-mail recipient
-	       echo "update eVotDat set email='$mgremail';"  |
-            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE        
-        
-        #Also, update mail aliases
-        setNotifcationEmail "$MGREMAIL"
-    fi
-    
-    #Store the new admin name and ID
-    setVar ADMINNAME "$ADMINNAME" disk
-    setVar ADMIDNUM "$ADMIDNUM" disk
-    
-    #Add administrator's IP to the whitelist
-    getVar disk ADMINIP
-    echo "$ADMINIP" >> /etc/whitelist
-    
-    exit 0
-fi
-
-
-
-
-
-
-
-
-
-#Store the certificate and auth token to communicate with the
-#anonymity network
-#2 -> authentication token
-#3 -> private key (PEM)
-#4 -> self-signed certificate (B64), later to be signed by the anonyimity central authority
-#5 -> public exponent (B64)
-#6 -> modulus (B64)
-if [ "$1" == "storeLcnCreds" ]
-then
-    checkParameterOrDie SITESTOKEN "${2}"
-    checkParameterOrDie SITESPRIVK "${3}"
-    checkParameterOrDie SITESCERT "${4}"
-    checkParameterOrDie SITESEXP "${5}"
-    checkParameterOrDie SITESMOD "${6}"
-
-    
-    getVar disk DBPWD
-    
-    
-    #Insert keys and the self-signed certificate sent to eSurveySites.
-    # keyyS -> service private ley (PEM)
-    # certS -> self-signed service certificate (B64)
-    # expS  -> public exponent of the certificate (B64)
-    # modS  -> modulus of the certificate (B64)
-	   echo "update eVotDat set keyyS='$SITESPRIVK', certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-	   
-    #Insert authentication token used to communicate with eSurveySites
-	   echo "update eVotDat set tkD='$SITESTOKEN';" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-fi
-
-
-
-
-
-
-
-
 
 
 
@@ -2667,6 +2371,8 @@ if [ "$1" == "launchTerminal" ]
 	echo "$mailbody" | mutt -s "$mailsubject"  -a $HISTFILE --  $emaillist
 
 	exit 0
+
+# TODO: recordarb que existe la op 'rootShell'
 fi
 
 
@@ -2758,19 +2464,236 @@ fi
 
 
 
+
+
+
+
+
+
+
+
+
+# SEGUIR REVISANDO
+
+
+if [ "$1" == "formatearClauer"  -o "$1" == "formatearUSB" ] 
+    then
+
+#1-> el dev
+createPartitionTable () {
+
+    dev="$1"
+    echo "Dev a formatear: $dev" >>$LOGFILE 2>>$LOGFILE
+    
+
+    if [ "$dev" == "" ]
+	then
+	echo $"No existe el dispositivo" >>$LOGFILE 2>>$LOGFILE
+	return 11
+    fi
+
+
+    #Nos cargamos la tabla de particiones
+    dd if=/dev/zero of=$dev count=10 1>/dev/null 2>/dev/null
+
+    #El algoritmo que calcula la geometría perfecta es erróneo. Fijando los cilindros al máximo (1024), 
+    #itera por todas las combinaciones posibles de número de cabezal (1-255) y sector (1-63) y busca 
+    #que coincida con el num de bytes real del dev. El problema es que no va almacenando el mejor 
+    #resultado parcial y, si no coincide, no saca el óptimo.
+    
+    #Bloques del dev (el kernel lo devuelve en bloques de 1024 bytes)
+    bloques=$[$($fdisk -s $dev 2>>$LOGFILE)]
+    if [ $bloques -eq 0 ]
+	then
+	echo $"Error durante el particionado: Dispositivo inválido." >>$LOGFILE 2>>$LOGFILE
+	return 12
+    fi
+
+    total=$((bloques *1024 )) #tam del disp en bytes 
+    #echo "Tam real en bytes del dev: $total"
+    tamB=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep ", [0-9]* bytes" | sed "s/.*, \([0-9]*\) bytes/\1/g" 2>>$LOGFILE)] #tamaño real en bytes del disco. Como es una flash y la geometría CHS es inventada, puede darse el caso de que C*H*S*Blocksize sea distinto a este. El algoritmo intenta optimizar esto.
+    #echo "tamB: $tamB"
+
+    if [ $tamB -eq 0 ]
+	then
+	echo "Error durante el particionado: Dispositivo inválido (2)." >>$LOGFILE 2>>$LOGFILE
+	return 12
+    fi
+
+
+    tam=$(($tamB/1000/1000))
+    #echo "tam: $tam"
+
+
+    #tam de sector del dev (teóricamente autodetectado por el kernel)
+    BytesPorSector=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep "\* [0-9]* = [0-9]* bytes" | sed "s/.*\* \([0-9]*\) = [0-9]* bytes/\1/")]
+    #echo "BytesPorSector: $BytesPorSector"
+
+   if [ $BytesPorSector -eq 0 ]
+	then
+	echo "Error durante el particionado: Dispositivo inválido (3)." >>$LOGFILE 2>>$LOGFILE
+	return 12
+    fi
+
+
+    sectors=1
+    headers=1
+    cylinders=1024
+    found=0
+    tt=0
+    to=0
+    
+    while (( $found==0  && $sectors<=64 )); do
+	headers=1
+        #echo "$BytesPorSector*$headers*$sectors*$cylinders";
+	while (($found==0 && $headers<=256)); do 
+	    tt=$(($BytesPorSector*$headers*$sectors*$cylinders));
+	    if (( $tt>$to && $tt<=$tamB )); then 
+		to=$tt;
+		ho=$headers;
+		so=$sectors;
+		if (( $tt == $tamB )); then
+		    found=1
+		fi
+	    fi
+	    headers=$((headers + 1));
+	done
+	sectors=$((sectors + 1));
+    done
+    
+    H=$ho
+    S=$so
+    #echo "C: $cylinders"
+    #echo "H: $H"
+    #echo "S: $S"
+    
+    BytesPorCilindro=$((H*S*$BytesPorSector))
+    #echo "BytesPorCilindro: $BytesPorCilindro"
+    CilindroFinalDatos=$(( $(($total - $cryptosize*1000*1024))/ $BytesPorCilindro ))
+    #echo "CilindroFinalDatos: $CilindroFinalDatos"
+    
+    
+    sync
+    # TODO revisar esta func. Ya no son clauers, ya no hace falta dos aprts. Ve ris merge con la que particiona la unidad de datos
+    
+    cmd="n\np\n1\n\n""$CilindroFinalDatos""\nn\np\n4\n\n\nt\n1\nc\nt\n4\n69\nw\n";
+    echo -ne "$cmd" | $fdisk $dev -C $cylinders -H $H -S $S 1>/dev/null 2>>$LOGFILE
+    
+    sync 
+    umount  ${dev}1 2>/dev/null
+    
+    sleep 1
+ 
+
+    x=$(mkfs.vfat -S ${BytesPorSector} ${dev}1 2>&1 )
+
+    if [ $? -ne 0 ]
+	then
+	echo $"Error durante el particionado" >>$LOGFILE 2>>$LOGFILE
+	return 13
+    fi
+    
+    sync
+    sleep 1
+    
+    
+    return
+}
+
+
+#1 -> dev
+#2 -> pwd
+createCryptoPart () {
+
+    sync
+    sleep 1
+    
+    x=$(clmakefs -d "$1"4  -p "$2" 2>&1 ) 
+
+    if [ $? -ne 0 ] 
+	then
+	echo $"Error durante el formateo"  >>$LOGFILE 2>>$LOGFILE
+	return 14
+    fi
+    
+    #echo "Salida de clmakefs: $x" 
+    
+    sync
+    
+    #echo "Part datos: $total - $cryptosize*1000*1024"
+    totaldatos=$(( $total - $cryptosize*1000*1024 ))
+    #echo "Part datos: $totaldatos"
+
+    return
+}
+
+
+checkParameterOrDie DEV "${2}" "0"
+
+
+if [ "$1" == "formatearUSB" ]
+    then
+    
+    checkParameterOrDie DEVPWD "${3}" "0"
+    
+fi
+
+
+createPartitionTable "$2"
+ret=$?
+
+if [ "$1" == "formatearUSB" ]
+    then
+    exit $ret;
+fi
+
+
+if [ "$ret" -eq 0 ]
+    then
+    
+    #$dlg   --infobox $"Formateando Clauer..." 0 0
+    echo $"Formateando Clauer..."  >>$LOGFILE 2>>$LOGFILE
+    createCryptoPart "$2" "$3"
+    ret=$?
+else
+	echo "Error durante el formateo (2)"  >>$LOGFILE 2>>$LOGFILE
+	exit 14
+fi
+
+exit $ret;
+
+fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+echo "Operation '$1' not found."  >>$LOGFILE 2>>$LOGFILE 
+exit 42
+
+
+
+
+
 #//// implementar verifycert  SIN VERIF!! (porque se usa para discernir si la instalación del cert requiere autorización o no  ---> Las ops que se ejecutan durante la instal del cert deben hacerse sin verif, pero sólo cuando falle verifycert!!!  --> ver cuáles son.)
-
-
-
-
-
-
-
-
-echo "LA OP $1 $2 $3 HA LLEGADO AL FINAL. PUEDE SER UN EXIT OLVIDADO O EL COD/SUBCOD ESTA MAL ESCRITO O UBICADO " >>$LOGFILE 2>>$LOGFILE  
-exit 255
-#//// asegurarme de que no sale ninguna vez en el log cuando todo vaya bien, pero dejarlo.
-
 
 
 
@@ -2835,3 +2758,27 @@ exit 255
 
 
     #//// los pwd al menos, leerlos de los dirs de config
+
+
+
+
+
+
+# TODO Revisar todas las ops y ver cuáles deben estar bloqueadas en mant (ej, clops init)
+
+# TODO Todas las ops y las de psetup, acabarlas con un exit 0, revisar el resto de exits y returns y ser coherente con los retornos de error.
+
+
+
+
+#//// Hay ops que no requieren reconstruir la clave.  --> Hay algunas que son sólo para el setup separarlas y al acabar el setup ya no se podrán ejecutar (revisar qué ops sólo se ejecutan en el setup). Las otras, ponerlas antes d ela verificación de clave.
+
+
+
+
+
+
+# TODO remove all dialogs from privileged scripts. At least from the ops and common, setup will be fine
+
+
+

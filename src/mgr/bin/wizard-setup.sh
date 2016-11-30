@@ -351,8 +351,45 @@ if [ $? -ne 0 ] ; then
 fi
 
 
+
+
 #If possible, Move CD filesystem to system memory
-$PSETUP moveToRAM
+$dlg  --msgbox $"To avoid tampering, all the CD content will be loaded to RAM memory" 0 0
+force=0
+while true
+do
+    $dlg --infobox $"Copying CD filesystem to system memory..."  0 0
+    $PSETUP moveToRAM $force
+    ret=$?
+    
+    #Not enough memory
+    if [ $ret -eq 1 ] ; then
+        $dlg --msgbox $"Not enough free memory. CD content won't be copied. System physical tampering protection cannot be assured." 0 0
+    fi
+    
+    #Low memory
+    if [ $ret -eq 2 ] ; then
+        aufsFreeSize=$($PVOPS getFilesystemSize aufsFreeSize)
+        cdfsSize=$($PVOPS getFilesystemSize cdfsSize)
+        
+        #Let the user decide
+        $dlg --yes-label $"Copy"  --no-label $"Do not copy" --yesno  $"Amount of free memory may be insufficient for a proper functioning in certain conditions.""\n\n"$"Available memory:"" $aufsFreeSize MB\n"$"Size of the CD filesystem:"" $cdfsSize MB\n\n"$"Copy the system if you belive usage won't be affected" 0 0
+        if [ "$?" -eq 0  ] ; then
+            force=1
+            continue
+        fi
+    fi
+    
+    #Copy successful
+    if [ $ret -eq 0 ] ; then
+        #Calculate and show available space at the end
+	       aufsFinalFreeSize=$($PVOPS getFilesystemSize aufsFreeSize)
+        $dlg --msgbox $"Copy successful.""\n\n"$"Still available RAM filesystem space:"" $aufsFinalFreeSize MB." 0 0
+    fi
+    
+    break
+done
+
 
 
 #Init usb and slot system management
@@ -379,7 +416,7 @@ do
         $dlg --extra-button --extra-label $"I do not agree" --no-cancel \
              --ok-label $"I agree"  --textbox /usr/share/doc/License.$LANGUAGE 0 0
         #Does not accept EULA, halt
-        [ $? -eq 3 ] && $PSETUP halt
+        [ $? -eq 3 ] && shutdownServer "h"
     fi
 
     #On restore, inform about the procedure # TODO CHECK IF THE PROCEDURE IS RIGHT, review that all sections of the restore are right and well ordered
@@ -565,7 +602,7 @@ do
     
     
     
-    ######## Get parameters and key from usb drives ##########
+    ######## Get parameters and key from usb drives ##########  # TODO this block must be put to a common function (getClauersRebuildKey)
     if [ "$DOSTART" -eq 1  -o  "$DORESTORE" -eq 1 ] ; then
         #We need to obtain a cipherkey and config parameters from a set of usb stores
         $dlg --msgbox $"We need to rebuild the shared cipher key.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
@@ -671,34 +708,12 @@ do
     
     
     
-    
     #Configure timezone
     $PSETUP setupTimezone "$TIMEZONE"    
     
     #Make sure time is synced
     $dlg   --infobox $"Syncronizing server time..." 0 0
     $PSETUP forceTimeAdjust
-    
-    
-    
-    
-    #If using SSH backups, configure it
-    if [ "$SSHBAKSERVER" != ""  ] ; then
-        
-        $dlg --infobox $"Configuring SSH backup..." 0 0
-        
-        #Set trust on the backup server
-	       $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"
-        if [ "$?" -ne 0 ] ; then
-		          dlg --msgbox $"Error configuring SSH backup service." 0 0
-            continue #Failed, go back to the menu
-	       fi
-        
-        #Enable the backup cron
-	       $PVOPS enableBackup	    
-    fi
-    
-    
     
     
     
@@ -716,13 +731,18 @@ do
     fi
     
     
-    # REVISAR DESDE AQUÍ    
-
     
     
-    ### Set web app database configuration
+    ### Setup web app database
     if [ "$DOINSTALL" -eq 1 ]
     then
+        
+        #Build the database with the base configuration
+        $PSETUP populateDB
+        if [ $? -ne 0 ] ; then
+            dlg --msgbox $"Error configuring database." 0 0
+            continue #Failed, go back to the menu
+        fi
         
         #Generate ballot box rsa keypair and insert it into DB
         $dlg --infobox $"Generate Ballot Box keys..." 0 0
@@ -731,78 +751,118 @@ do
         #Miscellaneous database options
         $PSETUP setWebAppDbConfig
         
-        #If anonymity network registration process was performed
+        #If anonymity network registration process was performed, insert data
         if [ "$SITESTOKEN" != "" ] ; then
             $PVOPS storeLcnCreds "$SITESTOKEN" "$SITESPRIVK" "$SITESCERT" "$SITESEXP" "$SITESMOD"
         fi
         
         #Insert webapp administrator into the database
         $PVOPS setAdmin new "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD" 
+    fi
+    
+    
+    
+    
+    #Set admin e-mail as the alias for root, so he will receive all
+    #system notifications (already done on install on setAdmin)
+    $PSETUP setupNotificationMails
+    
+    
+    
+    
+    #If using SSH backups, configure it
+    if [ "$SSHBAKSERVER" != ""  ] ; then
         
+        $dlg --infobox $"Configuring SSH backup..." 0 0
         
-        # SEGUIR TODO dismantle populatedb op and call individuals
-         
-     fi
-     
-     #Set admin e-mail as the alias for root, so he will receive all
-     #system notifications (already done on install on setAdmin)
-     $PSETUP setupNotificationMails
+        #Set trust on the backup server
+	       $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"
+        if [ "$?" -ne 0 ] ; then
+		          dlg --msgbox $"Error configuring SSH backup service." 0 0
+            continue #Failed, go back to the menu
+	       fi
+        
+        #Enable the backup cron and database mark
+	       $PVOPS enableBackup
+    else
+        #Otherwise, remove cron (if any) and mark the databse
+        $PVOPS disableBackup
+    fi
+    
+    
+    
+    # REVISAR DESDE AQUÍ    
+
     
     
 
-     # TODO setup php app
-     $PVOPS configureServers "alterPhpScripts"
-
-
-
-     # TODO setup Apache server  # TODO make sure, ssl certs (snakeoil at first) are configured before apache and postfix. maybe extract the cert part and domit independentñly? 
-
-     
-
-
-
-     #Configure postfix # TODO make sure it is done before any email is sent
-     $dlg --infobox $"Configuring mail server..." 0 0
-     
-     $PVOPS mailServer relay "$MAILRELAY"
-     $PVOPS mailServer reload
-     if [ $? -ne 0 ] ; then
-         dlg --msgbox $"Error activating mail server." 0 0
-         continue #Failed, go back to the menu
-     fi
-     
-     
-     
-     
-     #Setup statistics system
-     $dlg --infobox $"Setting up statistics system..." 0 0
-     if [ "$DOINSTALL" -eq 1 ] ; then
-	        #Build RRDs
-	        $PVOPS stats startLog  # TODO review this op.
-     fi
-     #Setup cron that updates the results and generates the graphics
-     $PVOPS stats installCron # TODO review this op.
-     
-     #Draw the stat graphs
-     $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE  # TODO review this op.
+    # TODO setup php app
+    $PVOPS configureServers "alterPhpScripts"
     
-
-   
-
+    
+    
+    # TODO setup Apache server  # TODO make sure, ssl certs (snakeoil at first) are configured before apache and postfix. maybe extract the cert part and domit independentñly? 
+    
+    
+    
+    
+    
+    $PVOPS configureServers "configureWebserver" "finalConf"
 
     
-     
-     #Final setup steps: initial firewall whitelist, RAID test e-mail
-     $PSETUP init4
-     
-     
-     
-     # TODO give (install) or remove privileges (reboot) the admin user
-             #Ejecutamos la cesión o denegación de privilegios al adminsitrador de la aplicación
-	grantAdminPrivileges  # TODO now, it expects the value here. do it aprpopiately depending on what's expected
-     # TODO give extra auth point on  install
-     
-
+    
+    
+    
+    
+    #Configure postfix
+    $dlg --infobox $"Configuring mail server..." 0 0
+    
+    $PVOPS mailServer relay "$MAILRELAY"
+    $PVOPS mailServer reload
+    if [ $? -ne 0 ] ; then
+        dlg --msgbox $"Error activating mail server." 0 0
+        continue #Failed, go back to the menu
+    fi
+    
+    
+    
+    
+    #Setup statistics system  # TODO review everything regarding this. Do it at the end
+    $dlg --infobox $"Setting up statistics system..." 0 0
+    if [ "$DOINSTALL" -eq 1 ] ; then
+	       #Build RRDs
+	       $PVOPS stats startLog 
+    fi
+    
+    #Setup cron that updates the results and generates the graphics
+    $PVOPS stats installCron # TODO review this op.
+    
+    #Draw the stat graphs
+    $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE  # TODO review this op.
+    
+    
+    
+    
+    #Reconfigure power management package to fit the specific hardware
+    $PSETUP pmutils
+    
+    
+    
+    
+    #Final setup steps: initial firewall whitelist, RAID test e-mail
+    $PSETUP init4
+    [ $? -ne 0 ] && $dlg --msgbox $"RAID arrays detected. You will receive an e-mail with the test result." 0 0
+    
+    
+    
+    
+    
+    # TODO give (install) or remove privileges (reboot) the admin user
+    #Ejecutamos la cesión o denegación de privilegios al adminsitrador de la aplicación
+	   grantAdminPrivileges  # TODO now, it expects the value here. do it aprpopiately depending on what's expected
+    # TODO give extra auth point on  install
+    
+    
     
     
     
@@ -822,7 +882,7 @@ do
     
     
     
-    ######## Retrieve backup to restore #########  # TODO decidir dónde
+    ######## Retrieve backup to restore #########  # TODO revisar y reintegrar todo el sistema de backup y de recuperación
     
     
     
@@ -842,30 +902,36 @@ do
 
     $PSETUP lockOperations
 
+
+
+    #Send test e-mails and do the final security adjustments to lock down
+    #all scripts and operations not needed anymore
+    $PSETUP init5
+    $dlg --msgbox $"You must receive an e-mail as a proof for the notification system working properly. Check your inbox" 0 0
+
+    #Clean any remaining rebuilt keys. Any privileged action invoked from
+    #now will need a key reconstruction
+    $PVOPS storops resetAllSlots
+
+
+    #Go into the maintenance mode. Process context is overriden with a new
+    #one for security reasons
+    exec /bin/bash  /usr/local/bin/wizard-maintenance.sh  
     
-    break # TODO invoke here the maintenance script?
-    
+    break
 done #Main action loop
+echo "wizard maintenance loop script execution failed." >>$LOGFILE 2>>$LOGFILE
+exit 42
 
 
 
-#Send test e-mails and do the final security adjustments to lock down
-#all scripts and operations not needed anymore
-$PSETUP init5
-
-#Clean any remaining rebuilt keys. Any privileged action invoked from
-#now will need a key reconstruction
-$PVOPS storops resetAllSlots
 
 
-#Go into the maintenance mode. Process context is overriden with a new
-#one for security reasons
-exec /bin/bash  /usr/local/bin/wizard-maintenance.sh  
   
 
 
 
-# TODO extinguir systemPanic, al menos en el wizard. cambiar por msgbox y ya
+# TODO extinguir system Panic, al menos en el wizard. cambiar por msgbox y ya
 
 
 # TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
@@ -889,3 +955,5 @@ exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
 # TODO: add a maint option to change ip config [commis. authorisation]
 
 # TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password)
+
+# TODO  asegurarme de que sólo es el root quien ejecuta los backups.

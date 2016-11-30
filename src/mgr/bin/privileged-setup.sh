@@ -132,6 +132,10 @@ privilegedSetupPhase1 () {
     chmod 700 $ROOTTMP/ >>$LOGFILE 2>>$LOGFILE
     $PVOPS storops init
     
+    #Unlock privileged operations during setup
+    echo -n "0" > $LOCKOPSFILE
+    chmod 400 $LOCKOPSFILE
+    
     #Prepare whitelist file
     touch /etc/whitelist
     chmod 644 /etc/whitelist
@@ -142,8 +146,9 @@ privilegedSetupPhase1 () {
 
 
 
-
-
+#Copies all of the filesystem to RAM. This way, it cannot be altered
+#by a CD-ROM substitution.
+#1-> 1: force copy, even if only a dangerously low memory amount is available.
 moveToRAM () {
     
     ###################################################################
@@ -154,8 +159,6 @@ moveToRAM () {
     # option fails due to tight memory conditions]                    #
     ###################################################################
     exec 4>&1 
-    $dlg  --msgbox $"To avoid tampering, all the CD content will be loaded to RAM memory" 0 0
-    local copyOnRAM=1    
     
     #Calculate free space (in MB) for the aufs (the stackable root filesystem)
     local aufsSize=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 2)
@@ -169,42 +172,31 @@ moveToRAM () {
     
     
     #If not enough free space, return
-    if [ "$aufsSize" -lt $cdfsSize ]
-    then
-	       $dlg  --msgbox $"Not enough free memory. CD content won't be copied. System physical tampering protection cannot be assured." 0 0
-	       copyOnRAM=0
-        
+    if [ "$aufsSize" -lt $cdfsSize ] ; then
+        setVar copyOnRAM "0" mem
+        return 1
+    fi
+    
+    
     #If copying the CD doesn't leave at least a 30% of the aufs
     #original free space or aufs is smaller than a constant, let the
-    #user decide
-    elif [ "$aufsSize" -lt $MINAUFSSIZE -o  "$aufsFreeSize" -lt "$cdandpad" ]
-	   then
-	       copyOnRAM=0
+    #user decide (must call again with the force parameter)
+    if [ "$aufsSize" -lt $MINAUFSSIZE -o  "$aufsFreeSize" -lt "$cdandpad" ]
+    then
+        #If force not activated, return and let decide
+        if [ "$1" -ne 1 ] ; then
+            setVar copyOnRAM "0" mem
+            return 2
+        fi
         
-	       $dlg --yes-label $"Copy"  --no-label $"Do not copy" --yesno  $"Amount of free memory may be insufficient for a proper functioning in certain conditions.""\n\n"$"Available memory:"" $aufsFreeSize MB\n"$"Size of the CD filesystem:"" $cdfsSize MB\n\n"$"Copy the system if you belive usage won't be affected" 0 0
-        [ "$?" -eq 0  ] && copyOnRAM=1    
-	   fi
-	   
-    if [ "$copyOnRAM" -eq 1 ]
-	   then
-        #Copy the filesystem to RAM
-	       $dlg --infobox $"Copying CD filesystem to system memory..."  0 0
-	       find /  -xdev -type f -print0 | xargs -0 touch
-	       
-        #Calculate available space at the end
-	       local aufsFinalFreeSize=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 4)
-        $dlg --msgbox $"Copy successful.""\n\n"$"Still available RAM filesystem space:"" $aufsFinalFreeSize MB." 0 0
+        #If forced, do it
+        setVar copyOnRAM "1" mem
     fi
-    #Persist this variable (to the memory config file)
-    setVar copyOnRAM "$copyOnRAM" mem
+	   
+    #Copy the filesystem to RAM
+	   find /  -xdev -type f -print0 | xargs -0 touch
     
-    #Workaround. This directory may not be listable despite the proper permissions  # TODO commented out. If problems detected, uncomment, otherwise, delete
-#    mv /var/www /var/aux >>$LOGFILE 2>>$LOGFILE
-#    mkdir /var/www >>$LOGFILE 2>>$LOGFILE
-#    chmod a+rx /var/www >>$LOGFILE 2>>$LOGFILE
-#    mv /var/aux/* /var/www/  >>$LOGFILE 2>>$LOGFILE
-#    chmod 550 /var/www/ >>$LOGFILE 2>>$LOGFILE
-#    chown root:www-data /var/www/  >>$LOGFILE 2>>$LOGFILE
+    return 0
 }
 
 
@@ -232,9 +224,13 @@ privilegedSetupPhase4 () {
     mdadm --examine --scan --config=partitions >/tmp/mdadm.conf  2>>$LOGFILE
     if [ "$(cat /tmp/mdadm.conf)" != "" ] 
 	   then
-	       $dlg --msgbox $"RAID arrays detected. You will receive an e-mail with the test result." 0 0
-    fi
+        # Not an error, just to tell that the user must be warned of
+        # the incoming e-mail
+	       return 1
+    fi   
+    return 0
 }
+
 
 
 
@@ -242,8 +238,7 @@ privilegedSetupPhase4 () {
 privilegedSetupPhase5 () {
     
     # TODO add some more useful info on the e-mail?
-    emailAdministrator $"Test" $"This is a test e-mail to prove that the messaging system works end to end."
-    $dlg --msgbox $"You must receive an e-mail as a proof for the notification system working properly. Check your inbox" 0 0
+    emailAdministrator $"Test" $"This is a test e-mail to check that the messaging system works end to end."
     
     ### Now, neuter the setup scripts to reduce attack vectors ###
     
@@ -311,7 +306,7 @@ recoverSSHBackupFileOp () {
         setVar SSHBAKPASSWD "$SSHBAKPASSWDaux" disk 
 }
 
-# TODO review this better when implementing and testing  the backup recovery.
+# TODO review this better when implementing and testing  the backup recovery. Also, try to remove the dialogs
 #Downloads backup file and untars it on the specified dir
 # $2 -> Password de cifrado de los datos
 # $3 -> user
@@ -383,11 +378,16 @@ then
 fi
 
 
+
+
+#2 -> force copy on low memory situation
 if [ "$1" == "moveToRAM" ]
 then
-    moveToRAM
+    moveToRAM "$2"
     exit 0
 fi
+
+
 
 
 if [ "$1" == "forceTimeAdjust" ]
@@ -397,22 +397,26 @@ then
 fi
 
 
+
+#If there are RAID arrays, will return 1 to warn the user of the
+#incoming e-mail with the RAID test results
 if [ "$1" == "init4" ]
 then
     privilegedSetupPhase4
-    exit 0
+    exit $?
 fi
+
 
 
 
 #Activate privileged operations execution lock. Any op invoked
 #from now on will first check for a valid rebuilt cipherkey  
 if [ "$1" == "lockOperations" ]
-then   
-    echo -n "1" > $LOCKOPSFILE     # TODO review that thre locking system is solid 
-    chmod 400 $LOCKOPSFILE
+then
+    echo -n "1" > $LOCKOPSFILE
     exit 0
 fi
+
 
 
 
@@ -423,15 +427,7 @@ then
 fi    
 
 
-    
-#Shuts down the system
-if [ "$1" == "halt" ]
-then
-    halt
-    exit 111
-fi    
 
-    
     
 #System logs are relocated from the RAM fs to the ciphered partition on the hard drive
 if [ "$1" == "relocateLogs" ]
@@ -459,7 +455,7 @@ then
 fi    
 
 
-    
+
     
 #loads a keyboard keymap
 if [ "$1" == "loadkeys" ]
@@ -469,15 +465,15 @@ then
 fi    
 
 
-    
+
+
 #Configure pm-utils to be able to suspend the computer
 if [ "$1" == "pmutils" ] 
 then
-    #Reinstall and reconfigure package # TODO probably a reconfigure would be-enough
+    #Reinstall and reconfigure package
     dpkg -i /usr/local/bin/pm-utils*  >>$LOGFILE  2>>$LOGFILE
     exit 0
 fi    
-
 
 
 
@@ -503,38 +499,6 @@ then
     ln -s "/usr/share/zoneinfo/right/$TIMEZONE" /etc/localtime
     exit 0
 fi        
-    
-    
-    
-#Recover the system from a backup file retrieved through SSH  #  TODO test
-if [ "$1" == "recoverSSHBackup_phase1" ]
-then
-    recoverSSHBackupFileOp # TODO backup recovery process: get parameters from user when recovering, forget clauer conf move ssh bak paramsfrom clauer conf to disk conf and allow to modify them during operation theough a menu option
-    exit 0
-fi    
-
-
-
-if [ "$1" == "recoverSSHBackup_phase2" ]
-then
-    
-    #restore database dump
-    mysql -f -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection  <"$ROOTTMP/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
-    [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos."
-    
-    #Delete backup directory # TODO. this may change
-    rm -rf "$ROOTTMP/backupRecovery/"
-    exit 0
-fi    
-
-
-
-
-
-
-
-
-
 
 
 
@@ -596,7 +560,7 @@ then
         mysqladmin -u root -p'defaultpassword' password "$MYSQLROOTPWD" 2>>$SQLLOGFILE
         [ $? -ne 0 ] &&  exit 4
         
-        #Create user, set privileges and password and refresh passwords
+        #Create user, schema, set privileges and password and refresh passwords
         mysql -u root -p"$MYSQLROOTPWD" mysql 2>>$SQLLOGFILE  <<-EOF
           CREATE DATABASE eLection;
           CREATE USER 'election'@'localhost' 
@@ -610,9 +574,6 @@ EOF
     
     exit 0
 fi
-
-
-
 
 
 
@@ -646,6 +607,7 @@ fi
 
 
 
+
 #Sets other web application configurations
 if [ "$1" == "setWebAppDbConfig" ]
 then
@@ -660,60 +622,57 @@ fi
 
 
 
-
-
-
-
-
-
-
-if [ "$1" == "populateDb" ]
-    then
-    
-    checkParameterOrDie INT "${2}" "0" # Guess inside here if backups are used or not, don't rely on the main program, so delete param $2 and use a locally read vr if needed
-
+#Run the script that creates the tables and sets the default data on
+#the web app database
+if [ "$1" == "populateDB" ]
+then
     getVar disk DBPWD
-
-    #Ejecutamos las sentencias sql genéricas y las específicas (el -f obliga a cont. aunque haya un error, que no nos afectan)
+    
+    #Run the script (-f to go on despite errors, as the script
+    #executes some alters for backwards compatibility)
     mysql -f -u election -p"$DBPWD" eLection  </usr/local/bin/buildDB.sql 2>>$SQLLOGFILE
-    mysql -f -u election -p"$DBPWD" eLection  </tmp/config.sql 2>>$SQLLOGFILE
-    [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
+    [ $? -ne 0 ] &&  return 1
     
-
-    rm -f /tmp/config.sql
-    
-    #Si no se usan backups alteramos la Bd para indicarlo
-    if [ "$2" -ne 1 ] 
-	then
-	echo "update  eVotDat set backup=-1;"| mysql -u election -p"$DBPWD" eLection
-	[ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor de base de datos." f
-    fi
-
-    exit 0
-fi   
-
-
-if [ "$1" == "updateDb" ]
-    then
-
-    getVar disk DBPWD
-
-    #grep /usr/local/bin/buildDB.sql -iEe "\s*alter "  2>>$LOGFILE       > /tmp/dbUpdate.sql
-
-    perl -000 -lne 'print $1 while /^\s*((UPDATE|ALTER).+?;)/sgi' /usr/local/bin/buildDB.sql  2>>$LOGFILE  > /tmp/dbUpdate.sql
-    mysql -f -u root -p"$MYSQLROOTPWD" eLection          2>>$SQLLOGFILE  < /tmp/dbUpdate.sql #////probar
-
-
     exit 0
 fi
 
 
-# //// en la func de montar la part cifrada, establecer los permisos para todos los directorios y ficheros. Así me aseguro de que estén bien.
+
+
+
+
+
+
+   
+    
+    
+#Recover the system from a backup file retrieved through SSH  #  TODO test
+if [ "$1" == "recoverSSHBackup_phase1" ]
+then
+    recoverSSHBackupFileOp # TODO backup recovery process: get parameters from user when recovering, forget clauer conf move ssh bak paramsfrom clauer conf to disk conf and allow to modify them during operation theough a menu option
+    exit 0
+fi    
+
+
+
+if [ "$1" == "recoverSSHBackup_phase2" ]
+then
+    
+    #restore database dump
+    mysql -f -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection  <"$ROOTTMP/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
+    [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos."
+    
+    #Delete backup directory # TODO. this may change
+    rm -rf "$ROOTTMP/backupRecovery/"
+    exit 0
+fi    
+
+
+
+
 
 
 
 
 echo "Bad privileged setup operation: $1" >>$LOGFILE  2>>$LOGFILE
-
-
 exit 42
