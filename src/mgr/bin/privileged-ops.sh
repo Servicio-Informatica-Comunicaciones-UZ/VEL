@@ -378,6 +378,30 @@ fi
 
 
 
+
+#Start the entropy daemon
+if [ "$1" == "randomSoundStart" ] 
+    then
+    /etc/init.d/randomsound start >>$LOGFILE 2>>$LOGFILE
+    exit 0
+fi
+
+
+
+
+
+
+#Stop the entropy daemon [if left on, it generates quite a bit of CPU load]
+if [ "$1" == "randomSoundStop" ] 
+    then
+    /etc/init.d/randomsound stop >>$LOGFILE 2>>$LOGFILE
+    exit 0
+fi
+
+
+
+
+
 #Get size of a certain filesystem
 #2 -> name of the FS
 #STDOUT: size of the filesystem (in MB)
@@ -557,6 +581,32 @@ then
     
     halt  #Should not reach
     exit 42  #Should not reach
+fi
+
+
+
+
+
+#TODO Esta No debe necesitar verif llave
+#Suspend machine
+if [ "$1" == "suspend" ]
+then
+    getVar mem copyOnRAM
+    
+    #If not copied on RAM, system could be tampered
+    if [ "$copyOnRAM" -eq 0 ]
+	   then
+	       echo "Cannot suspend if disc is not in ram" >>$LOGFILE 2>>$LOGFILE
+	       exit 1 
+    fi
+    
+    #Suspend
+    pm-suspend
+    
+    #On waking, adjust time
+    forceTimeAdjust
+    
+    exit 0
 fi
 
 
@@ -776,8 +826,9 @@ fi
 #Mark system to force a backup
 if [ "$1" == "forceBackup" ]
 then
-    #Backup cron reads database for next backup date. Set date to now. # TODO make sure this works fine and the pwd is there
-    echo "update eVotDat set backup="$(date +%s) | mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
+    #Backup cron reads database for next backup date. Set date to now.
+    echo "update eVotDat set backup="$(date +%s) |
+        mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
     exit 0
 fi    
     
@@ -1111,6 +1162,44 @@ fi
 
 
 
+#Set configuration variables on the web app's PHP scripts. All scripts
+#have been pre-processed during build to include placeholders for the
+#values.
+if [ "$1" == "processPHPScripts" ]
+then
+    getVar disk DBPWD
+    getVar disk KEYSIZE
+    getVar disk SITESORGSERV
+    getVar disk SITESNAMEPURP
+    
+    #Set database access parameters
+    sed -i  -e "s|###\*\*\*myHost\*\*\*###||g" /var/www/*.php # Host empty to use system sockets
+    sed -i  -e "s|###\*\*\*myUser\*\*\*###|election|g" /var/www/*.php
+    sed -i  -e "s|###\*\*\*myPass\*\*\*###|$DBPWD|g" /var/www/*.php
+    sed -i  -e "s|###\*\*\*myDb\*\*\*###|eLection|g" /var/www/*.php
+    
+    #Nodes from the anonymity network to be excluded
+    sed -i  -e "s|###\*\*\*exclnd\*\*\*###||g" /var/www/*.php
+    
+    #Key lenght to use on the application (ballot box, and election keys)
+    sed -i  -e "s|###\*\*\*klng\*\*\*###|$KEYSIZE|g" /var/www/*.php
+    
+    #Stork organisation and service identifiers # TODO still use them?
+    sed -i  -e "s|###\*\*\*organizacion\*\*\*###|$SITESORGSERV|g" /var/www/*.php
+    sed -i  -e "s|###\*\*\*proposito\*\*\*###|$SITESNAMEPURP|g" /var/www/*.php
+    
+    #App ID, to avoid cross-app sessions. Since we don't host any more
+    #apps, just set a random value
+    pw=$(randomPassword 12)
+    sed -i  -e "s|###\*\*\*secr\*\*\*###|$pw|g" /var/www/*.php
+    pw=''
+    
+    #Leave the app version empty to block remote updates
+    sed -i  -e "s|###\*\*\*ver\*\*\*###||g" /var/www/*.php
+    
+    exit 0
+fi
+
 
 
 
@@ -1140,97 +1229,13 @@ fi
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-#//// verif en mant: si
-
-
-if [ "$1" == "configureServers" ] 
-    then
-
-
-
-
-
-
-
    
-   
-   if [ "$2" == "alterPhpScripts" ] #//// donde use esto, quitar los params y pasar todo a priv 
-       then
-       
 
-       getVar disk DBPWD
-       getVar disk KEYSIZE
-       getVar disk SITESORGSERV
-       getVar disk SITESNAMEPURP
-
-       #getVar disk EXCLUDEDNODE #Actualmente no se guarda
-       
-
-   
-    #Alteramos los ficheros de la aplicación php con la contraseña para acceder a la bd. (y demás variables)
-    sed -i  -e "s|###\*\*\*myHost\*\*\*###||g" /var/www/*.php   #El valor antes era localhost, pero así se conecta al mysql por tcp/ip que es más lento. Si se deja vacia, se conecta por socket del sistema.
-    sed -i  -e "s|###\*\*\*myUser\*\*\*###|election|g" /var/www/*.php
-    sed -i  -e "s|###\*\*\*myPass\*\*\*###|$DBPWD|g" /var/www/*.php
-    sed -i  -e "s|###\*\*\*myDb\*\*\*###|eLection|g" /var/www/*.php
-
-    #Nodos excluidos por ser administrados por este admin (vacio)
-    #sed -i  -e "s|###\*\*\*exclnd\*\*\*###|$EXCLUDEDNODE|g" /var/www/*.php
-    sed -i  -e "s|###\*\*\*exclnd\*\*\*###||g" /var/www/*.php
-    
-    #Longitud de la llave
-    sed -i  -e "s|###\*\*\*klng\*\*\*###|$KEYSIZE|g" /var/www/*.php
-
-    #Parámetros para STORK
-    sed -i  -e "s|###\*\*\*organizacion\*\*\*###|$SITESORGSERV|g" /var/www/*.php
-    sed -i  -e "s|###\*\*\*proposito\*\*\*###|$SITESNAMEPURP|g" /var/www/*.php
-
-    ### La var secr sólo sirve para evitar que un usuario desde otra
-    ### aplic. php en este servidor pueda autenticarse falsamente en
-    ### esta ya que la variable SESSION es compartida. Así que aquí no
-    ### sirve para nada, ya que no hay más apps. Le damos un valor
-    ### random
-    pw=$(randomPassword)
-    sed -i  -e "s|###\*\*\*secr\*\*\*###|$pw|g" /var/www/*.php
-    pw=''
-    
-
-    ### Al dejar vacía la cadena de versión, se impide la
-    ### actualización del programa, cumpliendo así con el requisito de
-    ### seguridad de que nadie pueda alterar la funcionalidad del
-    ### sistema
-    sed -i  -e "s|###\*\*\*ver\*\*\*###||g" /var/www/*.php
-    
-    #//// Si tuviese incoherencias con los permisos del dir web (y ficheros y subdir), aquí debería poner los definitivos
-    
-
-    exit 0
-       
-   fi
    
    
    
    
-   
-   
-   
-   if [ "$2" == "configureWebserver" ] 
-   then
-      
-  
-
-      
+ 
 
 
 
@@ -1241,156 +1246,140 @@ if [ "$1" == "configureServers" ]
 
 
 #//// sin verif condicionada a verifcert
-      # 4-> certChain o serverCert
-      if [ "$3" == "checkCertificate" ] 
-	  then
+# 4-> certChain o serverCert
+## TODO cambiar numeración de params, será 1 o 2 ahora
+if [ "$3" == "checkCertificate" ] 
+then
 
-	  if [ "$4" != "serverCert" -a "$4" != "certChain" ]
-	      then
-	      echo "checkCertificate: bad param 4: $4" >>$LOGFILE 2>>$LOGFILE
-	      exit 1
-	  fi
+	   if [ "$4" != "serverCert" -a "$4" != "certChain" ]
+	   then
+	       echo "checkCertificate: bad param 4: $4" >>$LOGFILE 2>>$LOGFILE
+	       exit 1
+	   fi
 
-	  #El nombre con que se guardará si se acepta 
-	  destfilename="ca_chain.pem"
+	   #El nombre con que se guardará si se acepta 
+	   destfilename="ca_chain.pem"
 
-	  keyfile=''
-	  #Si estamos verificando el cert de serv, necesitamos la privkey
-	  if [ "$4" == "serverCert" ]
-	      then
+	   keyfile=''
+	   #Si estamos verificando el cert de serv, necesitamos la privkey
+	   if [ "$4" == "serverCert" ]
+	   then
 
-	      #El nombre con que se guardará si se acepta 
-	      destfilename="server.crt"
+	       #El nombre con que se guardará si se acepta 
+	       destfilename="server.crt"
 
-	      crtstate=$(cat $DATAPATH/root/sslcertstate.txt 2>>$LOGFILE)
-	      
-	      if [ "$crtstate" == "RENEW" ]
-		  then
-		  #Buscamos la llave en el subdirectorio (porque la del principal está en uso y e sválida)
-		  keyfile="$DATAPATH/webserver/newcsr/server.key"
-	      else #DUMMY y  OK
-		  #La buscamos en el dir principal
-		  keyfile="$DATAPATH/webserver/server.key"
-	      fi
- 
-	  fi 
-	  
-	  checkCertificate  $ROOTFILETMP/usbrreadfile "$4" $keyfile
-	  ret="$?"
+	       crtstate=$(cat $DATAPATH/root/sslcertstate.txt 2>>$LOGFILE)
+	       
+	       if [ "$crtstate" == "RENEW" ]
+		      then
+		          #Buscamos la llave en el subdirectorio (porque la del principal está en uso y e sválida)
+		          keyfile="$DATAPATH/webserver/newcsr/server.key"
+	       else #DUMMY y  OK
+		          #La buscamos en el dir principal
+		          keyfile="$DATAPATH/webserver/server.key"
+	       fi
+        
+	   fi 
+	   
+	   checkCertificate  $ROOTFILETMP/usbrreadfile "$4" $keyfile
+	   ret="$?"
 
-	  if [ "$ret" -ne 0 ] 
-	      then
-	      rm -rf $ROOTFILETMP/*  >>$LOGFILE  2>>$LOGFILE #Vaciamos el temp de lectura de ficheros
-	      exit "$ret" 	  
-	  fi
+	   if [ "$ret" -ne 0 ] 
+	   then
+	       rm -rf $ROOTFILETMP/*  >>$LOGFILE  2>>$LOGFILE #Vaciamos el temp de lectura de ficheros
+	       exit "$ret" 	  
+	   fi
+
+	   #Si no existe el temp específico de ssl, crearlo
+	   if [ -e $ROOTSSLTMP ]
+	   then
+	       :
+	   else
+	       mkdir -p  $ROOTSSLTMP >>$LOGFILE 2>>$LOGFILE
+	       chmod 750 $ROOTSSLTMP >>$LOGFILE 2>>$LOGFILE
+	   fi
+	   
+	   #Movemos el fichero al temporal específico (al destino se copiará cuando estén verificados la chain y el cert)	  
+	   mv -f $ROOTFILETMP/usbrreadfile $ROOTSSLTMP/$destfilename  >>$LOGFILE  2>>$LOGFILE
+	   
+	   
+	   rm -rf $ROOTFILETMP/* >>$LOGFILE  2>>$LOGFILE #Vaciamos el temp de lectura de ficheros
+	   exit 0
+fi
 
 
 
-	  #Si no existe el temp específico de ssl, crearlo
-	  if [ -e $ROOTSSLTMP ]
-	      then
-	      :
-	  else
-	      mkdir -p  $ROOTSSLTMP >>$LOGFILE 2>>$LOGFILE
-	      chmod 750 $ROOTSSLTMP >>$LOGFILE 2>>$LOGFILE
-	  fi
-	  
-	  #Movemos el fichero al temporal específico (al destino se copiará cuando estén verificados la chain y el cert)	  
-	  mv -f $ROOTFILETMP/usbrreadfile $ROOTSSLTMP/$destfilename  >>$LOGFILE  2>>$LOGFILE
-	  
-	  
-	  rm -rf $ROOTFILETMP/* >>$LOGFILE  2>>$LOGFILE #Vaciamos el temp de lectura de ficheros
-	  exit 0
-      fi
+
       
-#*-*-
 
 #//// sin verif condicionada a verifcert?
 
-
-      if [ "$3" == "installSSLCert" ] 
-	  then
-	  
-	  #Verificamos el certificado frente a la cadena.
-	  verifyCert $ROOTSSLTMP/server.crt $ROOTSSLTMP/ca_chain.pem
-	  if [ "$?" -ne 0 ] 
-	      then
+## TODO cambiar numeración de params, será 1 o 2 ahora
+if [ "$3" == "installSSLCert" ] 
+then
+	   
+	   #Verificamos el certificado frente a la cadena.
+	   verifyCert $ROOTSSLTMP/server.crt $ROOTSSLTMP/ca_chain.pem
+	   if [ "$?" -ne 0 ] 
+	   then
  	      #No ha verificado. Avisamos y salimos (borramos el cert y la chain en temp)
-	      echo "Cert not properly verified against chain"  >>$LOGFILE  2>>$LOGFILE
-	      rm -rf $ROOTSSLTMP/*  >>$LOGFILE  2>>$LOGFILE
-	      exit 1
-	  fi
-	  
-	  #Según si estamos instalando el primer cert o uno renovado, elegimos el dir.
-	  crtstate=$(cat $DATAPATH/root/sslcertstate.txt 2>>$LOGFILE)
-	  if [ "$crtstate" == "RENEW" ]
-	      then
-	      basepath="$DATAPATH/webserver/newcsr/"
-	  else #DUMMY y  OK
-	      basepath="$DATAPATH/webserver/"
-	  fi
+	       echo "Cert not properly verified against chain"  >>$LOGFILE  2>>$LOGFILE
+	       rm -rf $ROOTSSLTMP/*  >>$LOGFILE  2>>$LOGFILE
+	       exit 1
+	   fi
+	   
+	   #Según si estamos instalando el primer cert o uno renovado, elegimos el dir.
+	   crtstate=$(cat $DATAPATH/root/sslcertstate.txt 2>>$LOGFILE)
+	   if [ "$crtstate" == "RENEW" ]
+	   then
+	       basepath="$DATAPATH/webserver/newcsr/"
+	   else #DUMMY y  OK
+	       basepath="$DATAPATH/webserver/"
+	   fi
 
 
-          #Si todo ha ido bien, copiamos la chain a su ubicación 
-	  mv -f $ROOTSSLTMP/ca_chain.pem  $basepath/ca_chain.pem >>$LOGFILE  2>>$LOGFILE
+    #Si todo ha ido bien, copiamos la chain a su ubicación 
+	   mv -f $ROOTSSLTMP/ca_chain.pem  $basepath/ca_chain.pem >>$LOGFILE  2>>$LOGFILE
     
-          #Si todo ha ido bien, copiamos el cert a su ubicación
-	  mv -f $ROOTSSLTMP/server.crt  $basepath/server.crt >>$LOGFILE  2>>$LOGFILE
-	      
+    #Si todo ha ido bien, copiamos el cert a su ubicación
+	   mv -f $ROOTSSLTMP/server.crt  $basepath/server.crt >>$LOGFILE  2>>$LOGFILE
+	   
 
-	  /etc/init.d/apache2 stop  >>$LOGFILE  2>>$LOGFILE
-
-
-	  #Si es renew, sustituye el cert activo por el nuevo.
-	  if [ "$crtstate" == "RENEW" ]
-	      then
-	      mv -f  "$DATAPATH/newcsr/server.csr"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	      mv -f  "$DATAPATH/newcsr/server.crt"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	      mv -f  "$DATAPATH/newcsr/server.key"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	      mv -f  "$DATAPATH/newcsr/ca_chain.pem" "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	      rm -rf "$DATAPATH/newcsr/"                           >>$LOGFILE  2>>$LOGFILE
-	  fi
-
-	  
-          #Cambiar estado de SSL
-	  echo -n "OK" > $DATAPATH/root/sslcertstate.txt
+	   /etc/init.d/apache2 stop  >>$LOGFILE  2>>$LOGFILE
 
 
-	  #enlazar el csr en el directorio web. (borrar cualquier enlace anterior)
-	  rm /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	  cp -f $DATAPATH/server.csr /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	  chmod 444 /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	  
-	  
-	  /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
-	  if [ "$ret" -ne 0 ]; then
-	      echo "Error restarting web server!"  >>$LOGFILE 2>>$LOGFILE
-	      exit 2
-	  fi
-	  
-	  exit 0
-      fi
-      
-      
+	   #Si es renew, sustituye el cert activo por el nuevo.
+	   if [ "$crtstate" == "RENEW" ]
+	   then
+	       mv -f  "$DATAPATH/newcsr/server.csr"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
+	       mv -f  "$DATAPATH/newcsr/server.crt"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
+	       mv -f  "$DATAPATH/newcsr/server.key"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
+	       mv -f  "$DATAPATH/newcsr/ca_chain.pem" "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
+	       rm -rf "$DATAPATH/newcsr/"                           >>$LOGFILE  2>>$LOGFILE
+	   fi
 
-      
-
-  fi
+	   
+    #Cambiar estado de SSL
+	   echo -n "OK" > $DATAPATH/root/sslcertstate.txt
 
 
+	   #enlazar el csr en el directorio web. (borrar cualquier enlace anterior)
+	   rm /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
+	   cp -f $DATAPATH/server.csr /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
+	   chmod 444 /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
+	   
+	   
+	   /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
+	   if [ "$ret" -ne 0 ]; then
+	       echo "Error restarting web server!"  >>$LOGFILE 2>>$LOGFILE
+	       exit 2
+	   fi
+	   
+	   exit 0
+fi
 
+    
 
-
-
-
-
-
-
-
-
-
-  exit 1
-fi #End configureServers op
 
 
 
@@ -1402,118 +1391,120 @@ fi #End configureServers op
 
 
 if [ "$1" == "fetchCSR" ] 
-    then
+then
 
 
-#TODO revisar y sacar de aquí los dialog
+    #TODO revisar y sacar de aquí los dialog
 
 
-# $1 --> el fichero que contiene la CSR
-fetchCSR () {
+    #$2 -> modo: 'new' o 'renew'
+    sslpath="$DATAPATH/webserver"
+    if [ "$2" == "renew" ] 
+	   then
+	       sslpath="$DATAPATH/webserver/newcsr"	
+    fi
+    
+    
+
+	   pk10copied=0
+	   mkdir -p /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # TODO now it is created once on boot. modify
+	   while [ "$pk10copied" -eq 0 ]
+	   do
+	       umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE # Lo desmontamos por si se ha quedado montado
+
+	       insertUSB $"Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\n(Puede ser uno de los Clauer que acaban de emplear)" "none"
+
+	       #intentar montar la part 1 del DEV. # TODO ahora devuelve directamente la partición, hay que mirar el ret de la func para ver si es part o dev (en cuyo caso debe dar error porque seria un dev sin particiones montables)
+	       part="$DEV""1"
+	       #echo "DEv: $DEV"
+	       mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       ret=$?
+	       if [ "$ret" -ne "0" ]
+	       then
+	           $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo no es válido. ¿Desea insertar otro o prefiere formatear este?" 0 0
+	           ret=$?
+	           [ $ret -eq 0 ] && continue # Elegir otro
+	           $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
+	           ret=$?
+	           [ $ret -eq 0 ] && continue # Elegir otro
+	           umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
+	           $dlg --infobox $"Formateando dispositivo..." 0 0 
+	           ret=$($PVOPS formatearUSB "$DEV")
+	           [ "$ret" -ne 0 ] && continue
+	           mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       fi
+	       echo "a" > /media/usbdrive/testwritability 2>/dev/null
+	       ret=$?
+	       if [ "$ret" -ne "0" ]
+	       then
+	           $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo es de sólo lectura. ¿Desea insertar otro o prefiere formatear este?" 0 0
+	           ret=$?
+	           [ $ret -eq 0 ] && continue # Elegir otro
+	           $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
+	           ret=$?
+	           [ $ret -eq 0 ] && continue # Elegir otro
+	           umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
+	           $dlg --infobox $"Formateando dispositivo..." 0 0 
+	           ret=$($PVOPS formatearUSB "$DEV")
+	           [ "$ret" -ne 0 ] && continue
+	           mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       else
+	           rm -f /media/usbdrive/testwritability
+	       fi
+	       
+	       #Es correcta. Escribimos el pk10
+	       $dlg --infobox $"Escribiendo petición de certificado..." 0 0 
+	       tries=10
+	       while  [ $pk10copied -eq 0 ]
+	       do
+	           cp -f "$sslpath/server.csr" /media/usbdrive/server.csr  >>$LOGFILE 2>>$LOGFILE
+	           
+	           #Añadimos, junto a la CSR, un Readme indicando las instrucciones
+	           cp -f /usr/share/doc/eLectionLiveCD-README.txt.$LANGUAGE  /media/usbdrive/VTUJI-README.txt
+	           
+	           if [ -s  "/media/usbdrive/server.csr" ] 
+		          then
+		              :
+	           else 
+		              tries=$(($tries-1))
+		              [ "$tries" -eq 0  ] &&  break
+		              continue
+	           fi
+	           
+	           pk10copied=1
+	           
+	       done
+	       
+	       if [ $pk10copied -eq 0 ]
+	       then
+	           $dlg --msgbox $"Error de escritura. Inserte otro dispositivo" 0 0
+	           continue
+	       fi
+	       
+	       umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+
+	       #TODO get these messages out of here or decide on how to handle i18n
+	       detectUsbExtraction $DEV $"Petición de certificado escrita con éxito.\nRetire el dispositivo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
+
+	   done
+	   rmdir /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 
 
-	pk10copied=0
-	mkdir -p /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # TODO now it is created once on boot. modify
-	while [ "$pk10copied" -eq 0 ]
-	  do
-	  umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE # Lo desmontamos por si se ha quedado montado
 
-	  insertUSB $"Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\n(Puede ser uno de los Clauer que acaban de emplear)" "none"
-
-	  #intentar montar la part 1 del DEV. # TODO ahora devuelve directamente la partición, hay que mirar el ret de la func para ver si es part o dev (en cuyo caso debe dar error porque seria un dev sin particiones montables)
-	  part="$DEV""1"
-	  #echo "DEv: $DEV"
-	  mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	  ret=$?
-	  if [ "$ret" -ne "0" ]
-	      then
-	      $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo no es válido. ¿Desea insertar otro o prefiere formatear este?" 0 0
-	      ret=$?
-	      [ $ret -eq 0 ] && continue # Elegir otro
-	      $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
-	      ret=$?
-	      [ $ret -eq 0 ] && continue # Elegir otro
-	      umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
-	      $dlg --infobox $"Formateando dispositivo..." 0 0 
-	      ret=$($PVOPS formatearUSB "$DEV")
-	      [ "$ret" -ne 0 ] && continue
-	      mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	  fi
-	  echo "a" > /media/usbdrive/testwritability 2>/dev/null
-	  ret=$?
-	  if [ "$ret" -ne "0" ]
-	      then
-	      $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo es de sólo lectura. ¿Desea insertar otro o prefiere formatear este?" 0 0
-	      ret=$?
-	      [ $ret -eq 0 ] && continue # Elegir otro
-	      $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
-	      ret=$?
-	      [ $ret -eq 0 ] && continue # Elegir otro
-	      umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
-	      $dlg --infobox $"Formateando dispositivo..." 0 0 
-	      ret=$($PVOPS formatearUSB "$DEV")
-	      [ "$ret" -ne 0 ] && continue
-	      mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	  else
-	      rm -f /media/usbdrive/testwritability
-	  fi
-	  
-	  #Es correcta. Escribimos el pk10
-	  $dlg --infobox $"Escribiendo petición de certificado..." 0 0 
-	  tries=10
-	  while  [ $pk10copied -eq 0 ]
-	    do
-	    cp -f "$1" /media/usbdrive/server.csr  >>$LOGFILE 2>>$LOGFILE
-	    
-	    #Añadimos, junto a la CSR, un Readme indicando las instrucciones
-	    cp -f /usr/share/doc/eLectionLiveCD-README.txt.$LANGUAGE  /media/usbdrive/VTUJI-README.txt
-	    
-	    if [ -s  "/media/usbdrive/server.csr" ] 
-		then
-		:
-	    else 
-		tries=$(($tries-1))
-		[ "$tries" -eq 0  ] &&  break
-		continue
-	    fi
-	    
-	    pk10copied=1
-	    
-	  done
-	  
-	  if [ $pk10copied -eq 0 ]
-	      then
-	      $dlg --msgbox $"Error de escritura. Inserte otro dispositivo" 0 0
-	      continue
-	  fi
-	  
-	  umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-
-	  #TODO get these messages out of here or decide on how to handle i18n
-	  detectUsbExtraction $DEV $"Petición de certificado escrita con éxito.\nRetire el dispositivo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
-
-	done
-	rmdir /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-
-
-
-
-}
-
-
-
-      #$2 -> modo: 'new' o 'renew'
-      sslpath="$DATAPATH/webserver"
-      if [ "$2" == "renew" ] 
-	  then
-	  sslpath="$DATAPATH/webserver/newcsr"	
-      fi
-      
-
-      fetchCSR "$sslpath/server.csr"
-
-      exit 0
+    exit 0
 fi
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1995,8 +1986,19 @@ then
 	       exit $ret
     fi
     
+
+
+
+
+
+
+
+
+
+
+
     
-    #### SEGUIR REVISANDO
+# SEGUIR REVISANDO
     
     #3-> dev
     #4-> password   
@@ -2126,32 +2128,9 @@ fi #End of storops gropu of operations
 
 
 
-if [ "$1" == "randomSoundStart" ] 
-    then
-    /etc/init.d/randomsound start >>$LOGFILE 2>>$LOGFILE
-    exit 0
-fi
-
-if [ "$1" == "randomSoundStop" ] 
-    then
-    /etc/init.d/randomsound stop >>$LOGFILE 2>>$LOGFILE
-    exit 0
-fi
-
-
-if [ "$1" == "getSslCertState" ] 
-    then
-    crtstate=$(cat $DATAPATH/root/sslcertstate.txt 2>>$LOGFILE)
-    echo -n "$crtstate"  2>>$LOGFILE
-    exit 0
-fi
 
 
 
-#*-*- cuando implemente "sslcert-installcurr" y "sslcert-installnew", pasar internamente la verificación de si necesitan autorización para ejecutarse (llamar cuando las ops sean estas, hacerlo antes de la verif global, arriba del todo.).
-
-
-#++++
 if [ "$1" == "stats" ] 
     then
 
@@ -2207,27 +2186,6 @@ fi
 
 
 
-#//// No necesita verif llave
-if [ "$1" == "suspend" ] #//// probar en entorno real
-    then
-    
-    getVar mem copyOnRAM
-    
-    #Si no está en RAM, el sistema suspendido puede ser vulnerado.
-    if [ "$copyOnRAM" -eq 0 ]
-	then
-	echo "Cannot suspend if disc is not in ram" >>$LOGFILE 2>>$LOGFILE
-	exit 1 
-    fi
-    
-    pm-suspend
-    
-    #Al volver del suspend, ajustamos el reloj
-    ntpdate-debian  >>$LOGFILE 2>>$LOGFILE
-    hwclock -w >>$LOGFILE 2>>$LOGFILE
-
-    exit 0
-fi
 
 
 
@@ -2249,116 +2207,120 @@ fi
 
 
 if [ "$1" == "launchTerminal" ] 
-    then
+then
 
-        
-        #Si no existe el directorio de logs del terminal, lo crea
-        [ -d "$DATAPATH/terminalLogs" ] || mkdir  "$DATAPATH/terminalLogs"  >>$LOGFILE  2>>$LOGFILE
-	
-        #Guarda el bash_history actual si existe (no debería ocurrir, pero por si acaso)
-        if [ -s /root/.bash_history  ] ; then
-	    mv /root/.bash_history  $DATAPATH/terminalLogs/bash_history_$(date +before-%Y%m%d-%H%M%S)  >>$LOGFILE  2>>$LOGFILE
-	fi
-	
-	#El history de esta sesión, se escribirá directamente en la zona de datos
-	export HISTFILE=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S) #//// probar que se guardan.
+    
+    #Si no existe el directorio de logs del terminal, lo crea
+    [ -d "$DATAPATH/terminalLogs" ] || mkdir  "$DATAPATH/terminalLogs"  >>$LOGFILE  2>>$LOGFILE
+	   
+    #Guarda el bash_history actual si existe (no debería ocurrir, pero por si acaso)
+    if [ -s /root/.bash_history  ] ; then
+	       mv /root/.bash_history  $DATAPATH/terminalLogs/bash_history_$(date +before-%Y%m%d-%H%M%S)  >>$LOGFILE  2>>$LOGFILE
+	   fi
+	   
+	   #El history de esta sesión, se escribirá directamente en la zona de datos
+	   export HISTFILE=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S) #//// probar que se guardan.
 
-	echo $"ESCRIBA exit PARA VOLVER AL MENÚ DE ESPERA."
-	/bin/bash
-	
-	#Enviar el bash_history a todos los interesados
-	mailsubject=$"Registro de la sesión de mantenimiento sobre el servidor de voto vtUJI del $(date +%d/%m/%Y-%H:%M)"
-	mailbody=$"Usted ha proporcionado su dirección como interesado en recibir una copia de la secuencia de comandos introducida por el técnico designado sobre el terminal del servidor de voto. Esta se encuentra en el fichero adjunto. Puede emplear este fichero para realizar o encargar personalmente una auditoría de la seguridad del mismo."
-	
-        #Enviar correo a los interesados
-	echo "$mailbody" | mutt -s "$mailsubject"  -a $HISTFILE --  $emaillist
+	   echo $"ESCRIBA exit PARA VOLVER AL MENÚ DE ESPERA."
+	   /bin/bash
+	   
+	   #Enviar el bash_history a todos los interesados
+	   mailsubject=$"Registro de la sesión de mantenimiento sobre el servidor de voto vtUJI del $(date +%d/%m/%Y-%H:%M)"
+	   mailbody=$"Usted ha proporcionado su dirección como interesado en recibir una copia de la secuencia de comandos introducida por el técnico designado sobre el terminal del servidor de voto. Esta se encuentra en el fichero adjunto. Puede emplear este fichero para realizar o encargar personalmente una auditoría de la seguridad del mismo."
+	   
+    #Enviar correo a los interesados
+	   echo "$mailbody" | mutt -s "$mailsubject"  -a $HISTFILE --  $emaillist
 
-	exit 0
+	   exit 0
 
-# TODO: recordarb que existe la op 'rootShell'
+    # TODO: recordarb que existe la op 'rootShell'
 fi
+
+
+
+
 
 
 
 #////revisar
 if [ "$1" == "getFile" ] 
-    then
+then
     
     # 3-> Dev
     if [ "$2" == "mountDev" ] 
-	then
-	
-	checkParameterOrDie DEV "${3}"
-	
+	   then
+	       
+	       checkParameterOrDie DEV "${3}"
+	       
         #//// Verificar los permisos con que se monta (por lo de las umask).
-	
-	#Montamos el directorio para que sólo el root puda leer y escribir 
-	# los ficheros y modificar los dirs, pero vtuji pueda recorrer y 
-	# listar el árbol de dirs. (las máscaras son umask, hace el XOR 
-	# entre estas y la default del proceso, que debería ser 755)
-	mkdir -p /media/USB >>$LOGFILE 2>>$LOGFILE
-	mount "$DEV""1" /media/USB -o dmask=022,fmask=027 >>$LOGFILE 2>>$LOGFILE
-	ret=$?
-	
-	if [ "$ret" -ne 0 ] 
-	    then
-	    echo "getFile mountDev: El dispositivo no pudo ser accedido."  >>$LOGFILE  2>>$LOGFILE
-	    umount /media/USB
-	    exit 11
-	fi
-	
-	exit 0
+	       
+	       #Montamos el directorio para que sólo el root puda leer y escribir 
+	       # los ficheros y modificar los dirs, pero vtuji pueda recorrer y 
+	       # listar el árbol de dirs. (las máscaras son umask, hace el XOR 
+	       # entre estas y la default del proceso, que debería ser 755)
+	       mkdir -p /media/USB >>$LOGFILE 2>>$LOGFILE
+	       mount "$DEV""1" /media/USB -o dmask=022,fmask=027 >>$LOGFILE 2>>$LOGFILE
+	       ret=$?
+	       
+	       if [ "$ret" -ne 0 ] 
+	       then
+	           echo "getFile mountDev: El dispositivo no pudo ser accedido."  >>$LOGFILE  2>>$LOGFILE
+	           umount /media/USB
+	           exit 11
+	       fi
+	       
+	       exit 0
     fi
 
     
 
 
     if [ "$2" == "umountDev" ] 
-	then
-	umount /media/USB >>$LOGFILE 2>>$LOGFILE
-	rmdir /media/USB  >>$LOGFILE 2>>$LOGFILE
-	exit 0
+	   then
+	       umount /media/USB >>$LOGFILE 2>>$LOGFILE
+	       rmdir /media/USB  >>$LOGFILE 2>>$LOGFILE
+	       exit 0
     fi
 
 
 
     # 3 -> file path to copy to destination
     if [ "$2" == "copyFile" ] 
-	then
+	   then
 
 
-	checkParameterOrDie FILEPATH  "$3"  "0"
-	
-	aux=$(echo "$3" | grep -Ee "^/media/USB/.+")
-	if [ "$aux" == "" ] 
-	    then
-	    echo "Ruta inválida. Debe ser subdirectorio de /media/USB/"  >>$LOGFILE 2>>$LOGFILE
-	    exit 31
-	fi
+	       checkParameterOrDie FILEPATH  "$3"  "0"
+	       
+	       aux=$(echo "$3" | grep -Ee "^/media/USB/.+")
+	       if [ "$aux" == "" ] 
+	       then
+	           echo "Ruta inválida. Debe ser subdirectorio de /media/USB/"  >>$LOGFILE 2>>$LOGFILE
+	           exit 31
+	       fi
 
-	aux=$(echo "$3" | grep -Ee "/\.\.(/| |$)")
-	if [ "$aux" != "" ] 
-	    then
-	    echo "Ruta inválida. No puede acceder a directorios superiores."  >>$LOGFILE 2>>$LOGFILE 
-	    exit 32
-	fi
-	
-	rm -rf    $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	mkdir -p  $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	chmod 750 $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	
-	destfile=$ROOTFILETMP"/usbrreadfile"
-	
-	#echo "------->cp $3  $destfile"
+	       aux=$(echo "$3" | grep -Ee "/\.\.(/| |$)")
+	       if [ "$aux" != "" ] 
+	       then
+	           echo "Ruta inválida. No puede acceder a directorios superiores."  >>$LOGFILE 2>>$LOGFILE 
+	           exit 32
+	       fi
+	       
+	       rm -rf    $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
+	       mkdir -p  $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
+	       chmod 750 $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
+	       
+	       destfile=$ROOTFILETMP"/usbrreadfile"
+	       
+	       #echo "------->cp $3  $destfile"
         #echo "-------------------"
         #ls -l $3
         #echo "-------------------"
         #ls -l $DATAPATH 
         #echo "-------------------"
 
-	cp -f "$3" "$destfile"  >>$LOGFILE 2>>$LOGFILE
-      
-	exit 0
+	       cp -f "$3" "$destfile"  >>$LOGFILE 2>>$LOGFILE
+        
+	       exit 0
     fi
     
     echo "getFile: bad subopcode." >>$LOGFILE 2>>$LOGFILE
@@ -2375,206 +2337,193 @@ fi
 
 
 
-
-# SEGUIR REVISANDO
-
-
 if [ "$1" == "formatearClauer"  -o "$1" == "formatearUSB" ] 
+then
+
+    #1-> el dev
+    createPartitionTable () {
+
+        dev="$1"
+        echo "Dev a formatear: $dev" >>$LOGFILE 2>>$LOGFILE
+        
+
+        if [ "$dev" == "" ]
+	       then
+	           echo $"No existe el dispositivo" >>$LOGFILE 2>>$LOGFILE
+	           return 11
+        fi
+
+
+        #Nos cargamos la tabla de particiones
+        dd if=/dev/zero of=$dev count=10 1>/dev/null 2>/dev/null
+
+        #El algoritmo que calcula la geometría perfecta es erróneo. Fijando los cilindros al máximo (1024), 
+        #itera por todas las combinaciones posibles de número de cabezal (1-255) y sector (1-63) y busca 
+        #que coincida con el num de bytes real del dev. El problema es que no va almacenando el mejor 
+        #resultado parcial y, si no coincide, no saca el óptimo.
+        
+        #Bloques del dev (el kernel lo devuelve en bloques de 1024 bytes)
+        bloques=$[$($fdisk -s $dev 2>>$LOGFILE)]
+        if [ $bloques -eq 0 ]
+	       then
+	           echo $"Error durante el particionado: Dispositivo inválido." >>$LOGFILE 2>>$LOGFILE
+	           return 12
+        fi
+
+        total=$((bloques *1024 )) #tam del disp en bytes 
+        #echo "Tam real en bytes del dev: $total"
+        tamB=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep ", [0-9]* bytes" | sed "s/.*, \([0-9]*\) bytes/\1/g" 2>>$LOGFILE)] #tamaño real en bytes del disco. Como es una flash y la geometría CHS es inventada, puede darse el caso de que C*H*S*Blocksize sea distinto a este. El algoritmo intenta optimizar esto.
+        #echo "tamB: $tamB"
+
+        if [ $tamB -eq 0 ]
+	       then
+	           echo "Error durante el particionado: Dispositivo inválido (2)." >>$LOGFILE 2>>$LOGFILE
+	           return 12
+        fi
+
+
+        tam=$(($tamB/1000/1000))
+        #echo "tam: $tam"
+
+
+        #tam de sector del dev (teóricamente autodetectado por el kernel)
+        BytesPorSector=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep "\* [0-9]* = [0-9]* bytes" | sed "s/.*\* \([0-9]*\) = [0-9]* bytes/\1/")]
+        #echo "BytesPorSector: $BytesPorSector"
+
+        if [ $BytesPorSector -eq 0 ]
+	       then
+	           echo "Error durante el particionado: Dispositivo inválido (3)." >>$LOGFILE 2>>$LOGFILE
+	           return 12
+        fi
+
+
+        sectors=1
+        headers=1
+        cylinders=1024
+        found=0
+        tt=0
+        to=0
+        
+        while (( $found==0  && $sectors<=64 )); do
+	           headers=1
+            #echo "$BytesPorSector*$headers*$sectors*$cylinders";
+	           while (($found==0 && $headers<=256)); do 
+	               tt=$(($BytesPorSector*$headers*$sectors*$cylinders));
+	               if (( $tt>$to && $tt<=$tamB )); then 
+		                  to=$tt;
+		                  ho=$headers;
+		                  so=$sectors;
+		                  if (( $tt == $tamB )); then
+		                      found=1
+		                  fi
+	               fi
+	               headers=$((headers + 1));
+	           done
+	           sectors=$((sectors + 1));
+        done
+        
+        H=$ho
+        S=$so
+        #echo "C: $cylinders"
+        #echo "H: $H"
+        #echo "S: $S"
+        
+        BytesPorCilindro=$((H*S*$BytesPorSector))
+        #echo "BytesPorCilindro: $BytesPorCilindro"
+        CilindroFinalDatos=$(( $(($total - $cryptosize*1000*1024))/ $BytesPorCilindro ))
+        #echo "CilindroFinalDatos: $CilindroFinalDatos"
+        
+        
+        sync
+        # TODO revisar esta func. Ya no son clauers, ya no hace falta dos aprts. Ve ris merge con la que particiona la unidad de datos
+        
+        cmd="n\np\n1\n\n""$CilindroFinalDatos""\nn\np\n4\n\n\nt\n1\nc\nt\n4\n69\nw\n";
+        echo -ne "$cmd" | $fdisk $dev -C $cylinders -H $H -S $S 1>/dev/null 2>>$LOGFILE
+        
+        sync 
+        umount  ${dev}1 2>/dev/null
+        
+        sleep 1
+        
+
+        x=$(mkfs.vfat -S ${BytesPorSector} ${dev}1 2>&1 )
+
+        if [ $? -ne 0 ]
+	       then
+	           echo $"Error durante el particionado" >>$LOGFILE 2>>$LOGFILE
+	           return 13
+        fi
+        
+        sync
+        sleep 1
+        
+        
+        return
+    }
+
+
+    #1 -> dev
+    #2 -> pwd
+    createCryptoPart () {
+
+        sync
+        sleep 1
+        
+        x=$(clmakefs -d "$1"4  -p "$2" 2>&1 ) 
+
+        if [ $? -ne 0 ] 
+	       then
+	           echo $"Error durante el formateo"  >>$LOGFILE 2>>$LOGFILE
+	           return 14
+        fi
+        
+        #echo "Salida de clmakefs: $x" 
+        
+        sync
+        
+        #echo "Part datos: $total - $cryptosize*1000*1024"
+        totaldatos=$(( $total - $cryptosize*1000*1024 ))
+        #echo "Part datos: $totaldatos"
+
+        return
+    }
+
+
+    checkParameterOrDie DEV "${2}" "0"
+
+
+    if [ "$1" == "formatearUSB" ]
     then
-
-#1-> el dev
-createPartitionTable () {
-
-    dev="$1"
-    echo "Dev a formatear: $dev" >>$LOGFILE 2>>$LOGFILE
-    
-
-    if [ "$dev" == "" ]
-	then
-	echo $"No existe el dispositivo" >>$LOGFILE 2>>$LOGFILE
-	return 11
+        
+        checkParameterOrDie DEVPWD "${3}" "0"
+        
     fi
 
 
-    #Nos cargamos la tabla de particiones
-    dd if=/dev/zero of=$dev count=10 1>/dev/null 2>/dev/null
-
-    #El algoritmo que calcula la geometría perfecta es erróneo. Fijando los cilindros al máximo (1024), 
-    #itera por todas las combinaciones posibles de número de cabezal (1-255) y sector (1-63) y busca 
-    #que coincida con el num de bytes real del dev. El problema es que no va almacenando el mejor 
-    #resultado parcial y, si no coincide, no saca el óptimo.
-    
-    #Bloques del dev (el kernel lo devuelve en bloques de 1024 bytes)
-    bloques=$[$($fdisk -s $dev 2>>$LOGFILE)]
-    if [ $bloques -eq 0 ]
-	then
-	echo $"Error durante el particionado: Dispositivo inválido." >>$LOGFILE 2>>$LOGFILE
-	return 12
-    fi
-
-    total=$((bloques *1024 )) #tam del disp en bytes 
-    #echo "Tam real en bytes del dev: $total"
-    tamB=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep ", [0-9]* bytes" | sed "s/.*, \([0-9]*\) bytes/\1/g" 2>>$LOGFILE)] #tamaño real en bytes del disco. Como es una flash y la geometría CHS es inventada, puede darse el caso de que C*H*S*Blocksize sea distinto a este. El algoritmo intenta optimizar esto.
-    #echo "tamB: $tamB"
-
-    if [ $tamB -eq 0 ]
-	then
-	echo "Error durante el particionado: Dispositivo inválido (2)." >>$LOGFILE 2>>$LOGFILE
-	return 12
-    fi
-
-
-    tam=$(($tamB/1000/1000))
-    #echo "tam: $tam"
-
-
-    #tam de sector del dev (teóricamente autodetectado por el kernel)
-    BytesPorSector=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep "\* [0-9]* = [0-9]* bytes" | sed "s/.*\* \([0-9]*\) = [0-9]* bytes/\1/")]
-    #echo "BytesPorSector: $BytesPorSector"
-
-   if [ $BytesPorSector -eq 0 ]
-	then
-	echo "Error durante el particionado: Dispositivo inválido (3)." >>$LOGFILE 2>>$LOGFILE
-	return 12
-    fi
-
-
-    sectors=1
-    headers=1
-    cylinders=1024
-    found=0
-    tt=0
-    to=0
-    
-    while (( $found==0  && $sectors<=64 )); do
-	headers=1
-        #echo "$BytesPorSector*$headers*$sectors*$cylinders";
-	while (($found==0 && $headers<=256)); do 
-	    tt=$(($BytesPorSector*$headers*$sectors*$cylinders));
-	    if (( $tt>$to && $tt<=$tamB )); then 
-		to=$tt;
-		ho=$headers;
-		so=$sectors;
-		if (( $tt == $tamB )); then
-		    found=1
-		fi
-	    fi
-	    headers=$((headers + 1));
-	done
-	sectors=$((sectors + 1));
-    done
-    
-    H=$ho
-    S=$so
-    #echo "C: $cylinders"
-    #echo "H: $H"
-    #echo "S: $S"
-    
-    BytesPorCilindro=$((H*S*$BytesPorSector))
-    #echo "BytesPorCilindro: $BytesPorCilindro"
-    CilindroFinalDatos=$(( $(($total - $cryptosize*1000*1024))/ $BytesPorCilindro ))
-    #echo "CilindroFinalDatos: $CilindroFinalDatos"
-    
-    
-    sync
-    # TODO revisar esta func. Ya no son clauers, ya no hace falta dos aprts. Ve ris merge con la que particiona la unidad de datos
-    
-    cmd="n\np\n1\n\n""$CilindroFinalDatos""\nn\np\n4\n\n\nt\n1\nc\nt\n4\n69\nw\n";
-    echo -ne "$cmd" | $fdisk $dev -C $cylinders -H $H -S $S 1>/dev/null 2>>$LOGFILE
-    
-    sync 
-    umount  ${dev}1 2>/dev/null
-    
-    sleep 1
- 
-
-    x=$(mkfs.vfat -S ${BytesPorSector} ${dev}1 2>&1 )
-
-    if [ $? -ne 0 ]
-	then
-	echo $"Error durante el particionado" >>$LOGFILE 2>>$LOGFILE
-	return 13
-    fi
-    
-    sync
-    sleep 1
-    
-    
-    return
-}
-
-
-#1 -> dev
-#2 -> pwd
-createCryptoPart () {
-
-    sync
-    sleep 1
-    
-    x=$(clmakefs -d "$1"4  -p "$2" 2>&1 ) 
-
-    if [ $? -ne 0 ] 
-	then
-	echo $"Error durante el formateo"  >>$LOGFILE 2>>$LOGFILE
-	return 14
-    fi
-    
-    #echo "Salida de clmakefs: $x" 
-    
-    sync
-    
-    #echo "Part datos: $total - $cryptosize*1000*1024"
-    totaldatos=$(( $total - $cryptosize*1000*1024 ))
-    #echo "Part datos: $totaldatos"
-
-    return
-}
-
-
-checkParameterOrDie DEV "${2}" "0"
-
-
-if [ "$1" == "formatearUSB" ]
-    then
-    
-    checkParameterOrDie DEVPWD "${3}" "0"
-    
-fi
-
-
-createPartitionTable "$2"
-ret=$?
-
-if [ "$1" == "formatearUSB" ]
-    then
-    exit $ret;
-fi
-
-
-if [ "$ret" -eq 0 ]
-    then
-    
-    #$dlg   --infobox $"Formateando Clauer..." 0 0
-    echo $"Formateando Clauer..."  >>$LOGFILE 2>>$LOGFILE
-    createCryptoPart "$2" "$3"
+    createPartitionTable "$2"
     ret=$?
-else
-	echo "Error durante el formateo (2)"  >>$LOGFILE 2>>$LOGFILE
-	exit 14
+
+    if [ "$1" == "formatearUSB" ]
+    then
+        exit $ret;
+    fi
+
+
+    if [ "$ret" -eq 0 ]
+    then
+        
+        #$dlg   --infobox $"Formateando Clauer..." 0 0
+        echo $"Formateando Clauer..."  >>$LOGFILE 2>>$LOGFILE
+        createCryptoPart "$2" "$3"
+        ret=$?
+    else
+	       echo "Error durante el formateo (2)"  >>$LOGFILE 2>>$LOGFILE
+	       exit 14
+    fi
+
+    exit $ret;
+
 fi
-
-exit $ret;
-
-fi
-
-
-
-
-
-
-
-
-
 
 
 

@@ -26,6 +26,50 @@ relocateLogs () {
 
 
 
+
+#Grant admin user a privileged admin status on the web app
+#1-> 'grant' or 'remove'
+grantAdminPrivileges () {
+    echo "Setting web app privileged admin status to: $1 on "$(date)  >>$LOGFILE 2>>$LOGFILE
+	   $PVOPS  grantAdminPrivileges "$1"	
+}
+
+
+
+
+
+#Wrapper for the privileged operation to set a variable
+# $1 -> Destination: 'disk' persistent disk;
+#                    'mem'  (default) or nothing if we want it in ram;
+#                    'usb'  if we want it on the usb config file;
+#                    'slot' in the active slot configuration
+# $2 -> variable
+# $3 -> value
+setVar () {    
+    $PVOPS setVar "$1" "$2" "$3"
+}
+
+
+
+#Wrapper for the privileged operation to get a variable value	
+# $1 -> Where to read the var from 'disk' disk;
+#                                  'mem' or nothing if we want it from volatile memory;
+#                                  'usb' if we want it from the usb config file;
+#                                  'slot' from the active slot's configuration
+# $2 -> var name (to be read)
+#STDOUT: the value of the read variable, empty string if not found
+#Returns: 0 if it could find the variable, 1 otherwise.
+getVar () {
+    $PVOPS getVar $1 $2
+    return $?
+}
+
+
+
+
+
+
+
 #Configure access to ciphered data
 #1 -> 'new': setup new ciphered device
 #     reset: load existing ciphered device
@@ -235,15 +279,6 @@ readNextUSB () {
 
 
 
-
-
-
-#Grant admin user a privileged admin status on the web app
-#1-> 'grant' or 'remove'
-grantAdminPrivileges () {
-    echo "Setting web app privileged admin status to: $1"  >>$LOGFILE 2>>$LOGFILE
-	   $PVOPS  grantAdminPrivileges "$1"	
-}
 
 
 
@@ -707,41 +742,6 @@ sysAdminParams () {
 
 
 
-#Wrapper for the privileged operation to set a variable
-# $1 -> Destination: 'disk' persistent disk;
-#                    'mem'  (default) or nothing if we want it in ram;
-#                    'usb'  if we want it on the usb config file;
-#                    'slot' in the active slot configuration
-# $2 -> variable
-# $3 -> value
-setVar () {    
-    $PVOPS setVar "$1" "$2" "$3"
-}
-
-
-
-#Wrapper for the privileged operation to get a variable value	
-# $1 -> Where to read the var from 'disk' disk;
-#                                  'mem' or nothing if we want it from volatile memory;
-#                                  'usb' if we want it from the usb config file;
-#                                  'slot' from the active slot's configuration
-# $2 -> var name (to be read)
-#STDOUT: the value of the read variable, empty string if not found
-#Returns: 0 if it could find the variable, 1 otherwise.
-getVar () {
-    $PVOPS getVar $1 $2
-    return $?
-}
-
-
-
-
-
-
-
-
-
-
 
 #Prompt user to select a partition among those available
 #1 -> 'all' to list all available partitions
@@ -1131,9 +1131,6 @@ selectSharingParams () {
 
 
 
-
-
-
 #Prompts the user to select the content of the SSL certificate request
 #for the HTTP and mail servers
 #Will set the following global variables:
@@ -1274,6 +1271,8 @@ sslCertParameters () {
 
 
 
+
+
 #Prompts the user to select the info to request
 #access to the anonimity network
 #Will set the following global variables:
@@ -1391,9 +1390,6 @@ lcnRegisterParams () {
     
     return 0
 }
-
-
-
 
 
 
@@ -1538,15 +1534,6 @@ testForDeadShares () {
 
 
 
-
-
-
-
-
-#SEGUIR
-
-
-
 #Will generate a RSA keypair and then a certificate request to be
 #signed by a CA
 # 1 -> 'new': will generate the keys and the csr
@@ -1578,28 +1565,23 @@ generateCSR () {
 
 
 
+
+
+
+
+
+#SEGUIR
+
+
+
+
+
 # $1 --> 'new' o 'renew'  #///Cambiar en las llamadas
 fetchCSR () {
     
     $PVOPS fetchCSR "$1"
     
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

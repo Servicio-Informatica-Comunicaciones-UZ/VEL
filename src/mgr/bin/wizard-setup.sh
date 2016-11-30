@@ -814,29 +814,24 @@ do
     
     
     
-    
-    
-    $dlg --infobox $"Configuring web server..." 0 0
+    #Configure apache web server    
+    $dlg --infobox $"Configuring web services..." 0 0
     sleep 1
     
-
-    # TODO setup php app
-    $PVOPS configureServers "alterPhpScripts"
+    #Set configuration variables on the web app's PHP scripts
+    $PVOPS processPHPScripts
     
-
-
-    
-    # TODO configure apache
-    
-    
-       
-
+    #Start daemon
     $PVOPS startApache
-    [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor web." f
+    if [ $? -ne 0 ] ; then
+        dlg --msgbox $"Error activating web server." 0 0
+        continue #Failed, go back to the menu
+    fi
     
     
     
-    #Configure postfix
+    
+    #Configure postfix mail server
     $dlg --infobox $"Configuring mail server..." 0 0
     
     $PVOPS mailServer relay "$MAILRELAY"
@@ -878,15 +873,17 @@ do
     
     
     
+    if [ "$DOINSTALL" -eq 1 ] ; then
+        #Give privileged access to the webapp to the administrator (temporary)
+        grantAdminPrivileges  grant
+    else
+        #Explicitly remove privileges to the administrator
+        grantAdminPrivileges  remove
+    fi
     
-    # TODO give (install) or remove privileges (reboot) the admin user
-    #Ejecutamos la cesión o denegación de privilegios al adminsitrador de la aplicación
-	   grantAdminPrivileges  # TODO now, it expects the value here. do it aprpopiately depending on what's expected
-    # TODO give extra auth point on  install
     
     
-    
-    
+    # TODO SEGUIR mañana revisar y ajustar la parte en que se escribe la csr y los clauers. luego poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
     
     ######## Store certificate request ########
     
@@ -907,7 +904,6 @@ do
     
     
     
-    ######## Retrieve backup to restore #########  # TODO revisar y reintegrar todo el sistema de backup y de recuperación
     
     
     
@@ -917,31 +913,37 @@ do
 
     
 
-
-    #Forzamos un backup al acabar de instalar       #//// probar
-    $PVOPS   forceBackup
     
-    $dlg --msgbox $"System is running properly.""\n"$"The administrator has now privileged access to the voting web application. Don't forget to remove privileges before running an election. Otherwise he will have the means to disenfranchise targeted voters." 0 0
-
-
-
+    #Force a backup after installation is complete
+    $PVOPS forceBackup
+    
+    
+    #Lock privileged operations. Any privileged action invoked from
+    #now will need a key reconstruction
     $PSETUP lockOperations
-
-
-
+    
+    
+    #Clean any remaining rebuilt keys.
+    $PVOPS storops resetAllSlots
+    
+    
     #Send test e-mails and do the final security adjustments to lock down
     #all scripts and operations not needed anymore
     $PSETUP init5
     $dlg --msgbox $"You must receive an e-mail as a proof for the notification system working properly. Check your inbox" 0 0
-
-    #Clean any remaining rebuilt keys. Any privileged action invoked from
-    #now will need a key reconstruction
-    $PVOPS storops resetAllSlots
-
-
+    
+    
+    
+    
+    #Inform the user that system is successfully running
+    $dlg --msgbox $"System is running properly.""\n"$"The administrator has now privileged access to the voting web application. Don't forget to remove privileges before running an election. Otherwise he will have the means to disenfranchise targeted voters." 0 0
+    
+    
     #Go into the maintenance mode. Process context is overriden with a new
     #one for security reasons
     exec /bin/bash  /usr/local/bin/wizard-maintenance.sh  
+    
+    
     
     break
 done #Main action loop
@@ -950,6 +952,11 @@ exit 42
 
 
 
+
+
+
+
+# TODO reimplementar backup retrieval    ######## Retrieve backup to restore #########  # TODO revisar y reintegrar todo el sistema de backup y de recuperación
 
 
   

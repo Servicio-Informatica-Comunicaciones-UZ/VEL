@@ -1037,7 +1037,7 @@ copyOnRAM=$(getVar mem copyOnRAM)
 # TODO leer estas variables para el modo mant? para default en la op de renovar cert ssl?
 #"$HOSTNM.$DOMNAME"
 
-sslCertState=$($PVOPS getSslCertState)
+sslCertState=$($PVOPS getSslCertState) # TODO use getVar
 [ "$sslCertState" == "" ] && echo "Error: debería existir algún estado para el cert."  >>$LOGFILE 2>>$LOGFILE
   
 	#Ver cuáles son estrictamente necesarias. borrar el resto////
