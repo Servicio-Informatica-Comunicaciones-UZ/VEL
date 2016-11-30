@@ -792,8 +792,9 @@ do
     
     
     # REVISAR DESDE AQUÍ    
-
     
+    $dlg --infobox $"Configuring web server..." 0 0
+    sleep 1
     
 
     # TODO setup php app

@@ -256,7 +256,7 @@ privilegedSetupPhase5 () {
 
 
 
-
+## SEGUIR: faltan las funcs de backup y restore
 
 
 
@@ -642,7 +642,7 @@ fi
 
 
 
-
+## SEGUIR : faltan las ops de backup y restore
    
     
     
