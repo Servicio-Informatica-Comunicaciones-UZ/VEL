@@ -483,8 +483,10 @@ sed -i -re "s/^(vtuji:)[^:]*(:.+)$/\1\!\2/g" /etc/shadow
 
 ctell "Configure web server and PHP"
 a2enmod ssl
+a2enmod php5
 a2enmod rewrite
 a2enmod headers
+a2enconf security
 a2disconf apache2-doc
 a2disconf serve-cgi-bin
 a2ensite default-ssl

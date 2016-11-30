@@ -777,7 +777,7 @@ do
         
         #Set trust on the backup server
 	       $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"
-        if [ "$?" -ne 0 ] ; then
+        if [ $? -ne 0 ] ; then
 		          dlg --msgbox $"Error configuring SSH backup service." 0 0
             continue #Failed, go back to the menu
 	       fi
@@ -791,7 +791,30 @@ do
     
     
     
-    # REVISAR DESDE AQUÍ    
+    
+    # REVISAR DESDE AQUÍ 
+
+    #Handle SSL certificate
+    if [ "$DOINSTALL" -eq 1 ]
+    then
+	       #Generate the certificate signing request for the SSL connections
+	       generateCSR "new"
+	       [ $? -ne 0 ] && continue #Failed, go back to the menu
+	   
+        #Generate temporary self-signed certificate from the csr.
+	       $PSETUP generateSelfSigned
+    
+        #Store the SSL certificate current state
+        setVar disk SSLCERTSTATE  "dummy" #Currently running with a self-signed
+    fi
+    
+    #Set the certificate and key on the route expected by apache and postfix 
+    $PVOPS setupSSLcertificate
+    
+    
+    
+    
+    
     
     $dlg --infobox $"Configuring web server..." 0 0
     sleep 1
@@ -800,18 +823,16 @@ do
     # TODO setup php app
     $PVOPS configureServers "alterPhpScripts"
     
-    
-    
-    # TODO setup Apache server  # TODO make sure, ssl certs (snakeoil at first) are configured before apache and postfix. maybe extract the cert part and domit independentñly? 
-    
-    
-    
-    
-    
-    $PVOPS configureServers "configureWebserver" "finalConf"
+
 
     
+    # TODO configure apache
     
+    
+       
+
+    $PVOPS startApache
+    [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor web." f
     
     
     
@@ -870,7 +891,10 @@ do
     ######## Store certificate request ########
     
     # TODO write csr if in install
-    
+            #EScribimos el pkcs10 en la zona de datos de un clauer
+	       $dlg --msgbox $"Se ha generado una petición de certificado SSL para este servidor.\nPor favor, prepare un dispositivo USB para almacenarla (puede ser uno de los Clauers empleados ahora).\nEsta petición deberá ser entregada a una Autoridad de Certificacion confiable para su firma.\n\nHaga notar al encargado de este proceso que en un fichero adjunto debe proporcionarse toda la cadena de certificación." 0 0
+
+	       fetchCSR "new"
 
     
     ######## Share key and basic config on usbs #########

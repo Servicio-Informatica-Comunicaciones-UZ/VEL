@@ -48,8 +48,7 @@ relocateLogs () {
     /etc/init.d/rsyslog stop >>$LOGFILE 2>>$LOGFILE 
     
     #If new, move /var/log to the ciphered partition
-    if [ "$1" == "new"  ]
-	   then
+    if [ "$1" == "new"  ] ; then
 	       mv /var/log $DATAPATH >>$LOGFILE 2>>$LOGFILE 
     else
         #If reset, save boot process logs in a temporary dir in case
@@ -62,12 +61,10 @@ relocateLogs () {
     #Restore stopped services
     /etc/init.d/rsyslog start >>$LOGFILE 2>>$LOGFILE 
     
-    if [ "$RESTARTMYSQL" -eq "1" ]
-	   then
+    if [ "$RESTARTMYSQL" -eq "1" ] ; then
 	       /etc/init.d/mysql start >>$LOGFILE 2>>$LOGFILE
     fi
-    if [ "$RESTARTAPACHE" -eq "1" ]
-	   then
+    if [ "$RESTARTAPACHE" -eq "1" ] ; then
 	       /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE 
     fi
 }
@@ -432,14 +429,13 @@ fi
 #System logs are relocated from the RAM fs to the ciphered partition on the hard drive
 if [ "$1" == "relocateLogs" ]
 then
-    if [ "$2" != "new" -a "$2" != "reset" ]
-    then
+    if [ "$2" != "new" -a "$2" != "reset" ] ; then
 	       echo "relocateLogs: Bad parameter" >>$LOGFILE 2>>$LOGFILE
 	       exit 1
     fi
     relocateLogs "$2"
     exit 0
-fi    
+fi
 
 
 
@@ -635,6 +631,30 @@ then
     
     exit 0
 fi
+
+
+
+
+
+#Create a self-signed certificate from the pending certificate request
+#(and also the CA chain)
+if [ "$1" == "generateSelfSigned" ] 
+then
+    #Generate self-signed certificate
+    openssl x509 -req -days 3650 \
+            -in      $DATAPATH/webserver/server.csr \
+            -signkey $DATAPATH/webserver/server.key \
+            -out     $DATAPATH/webserver/server.crt   >>$LOGFILE 2>>$LOGFILE
+    
+    #Set the same certificate as the CA chain
+	   cp $DATAPATH/webserver/server.crt $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
+    
+    exit 0
+fi
+
+
+
+
 
 
 

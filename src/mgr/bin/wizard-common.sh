@@ -1547,7 +1547,32 @@ testForDeadShares () {
 
 
 
-
+#Will generate a RSA keypair and then a certificate request to be
+#signed by a CA
+# 1 -> 'new': will generate the keys and the csr
+#    'renew': only a new csr will be generated
+#Global variables accessed:
+# SERVERCN
+# COMPANY
+# DEPARTMENT
+# COUNTRY
+# STATE
+# LOC
+# SERVEREMAIL
+generateCSR () {
+    
+    $dlg --infobox $"Generating SSL certificate request..." 0 0
+    echo "$PVOPS generateCSR '$mode' '$SERVERCN' '$COMPANY' '$DEPARTMENT' '$COUNTRY' '$STATE' '$LOC' '$SERVEREMAIL'"  >>$LOGFILE 2>>$LOGFILE
+    
+    $PVOPS generateCSR "$mode" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
+    if [ $? -ne 0 ]
+	   then
+		      dlg --msgbox $"Error generating the SSL certificate request." 0 0
+	       return 1
+    fi
+    
+    return 0
+}
 
 
 
@@ -1561,27 +1586,7 @@ fetchCSR () {
 }
 
 
-# 1 -> 'new' o 'renew'	
-generateCSR () { #*-*-adaptando al  nuevo conjunto de datos
-    
 
-    
-    $dlg --infobox $"Generando petición de certificado..." 0 0
-
-    $PVOPS configureServers generateCSR "$mode" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
-    ret=$?
-
-    echo "$PVOPS configureServers generateCSR '$mode' '$SERVERCN' '$COMPANY' '$DEPARTMENT' '$COUNTRY' '$STATE' '$LOC' '$SERVEREMAIL' ret:$ret"  >>$LOGFILE 2>>$LOGFILE
-
-    if [ "$ret" -ne 0 ]
-	then
-	$dlg --msgbox $"Error generando la petición de certificado." 0 0
-	return 1
-    fi
-    
-
-    return 0
-}
 
 
 

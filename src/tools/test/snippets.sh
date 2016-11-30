@@ -275,10 +275,16 @@ rm /tmp/tempdlg /tmp/nodelist 2>/dev/null
 
 
 
-    #Workaround. This directory may not be listable despite the proper permissions  # TODO commented out. If problems detected, uncomment, otherwise, delete
-    #    mv /var/www /var/aux >>$LOGFILE 2>>$LOGFILE
-    #    mkdir /var/www >>$LOGFILE 2>>$LOGFILE
-    #    chmod a+rx /var/www >>$LOGFILE 2>>$LOGFILE
-    #    mv /var/aux/* /var/www/  >>$LOGFILE 2>>$LOGFILE
-    #    chmod 550 /var/www/ >>$LOGFILE 2>>$LOGFILE
-    #    chown root:www-data /var/www/  >>$LOGFILE 2>>$LOGFILE
+#Workaround. This directory may not be listable despite the proper permissions
+# TODO If problems detected, uncomment, otherwise, delete
+#    mv /var/www /var/aux >>$LOGFILE 2>>$LOGFILE
+#    mkdir /var/www >>$LOGFILE 2>>$LOGFILE
+#    chmod a+rx /var/www >>$LOGFILE 2>>$LOGFILE
+#    mv /var/aux/* /var/www/  >>$LOGFILE 2>>$LOGFILE
+#    chmod 550 /var/www/ >>$LOGFILE 2>>$LOGFILE
+#    chown root:www-data /var/www/  >>$LOGFILE 2>>$LOGFILE
+
+
+
+#Subject structure (must be this way, with the eMail upfront)
+#"/emailAddress=XXX/C=XX/ST=XXXX/L=XXXXX/O=XXXXXX/OU=XXXX/CN=XX.XX.XX"

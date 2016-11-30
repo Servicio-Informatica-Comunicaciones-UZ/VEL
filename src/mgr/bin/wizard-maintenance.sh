@@ -802,6 +802,8 @@ executeSystemAction (){
 
       ######### Operaciones con el cert del servidor. ######### 
 
+      # TODO extinguir el  fichero sslcertstate.txt, ahora va todo en una variable en disk, los valores: ok si hay un cert instalado, dummy si está a la espera del primer cert corriendo con un self-signed o renew si está a la espera de un nuevo cert pero corriendo con uno funcional.
+      
       "sslcert-getcurrcsr" )
         fetchCSR "new" #No hay cambio de estado  
       ;;
@@ -829,6 +831,7 @@ executeSystemAction (){
       ret=$?
 
       echo "Retorno de generateCSR: $ret"  >>$LOGFILE 2>>$LOGFILE
+
       
       if [ "$ret" -eq 0 ]; then
 
@@ -1093,3 +1096,4 @@ doLoop
 
 
 
+# TODO incluir tb la posibilidad de, en el SSL, instalar una clave privada externa? (por si acaso el porcedimiento de la org lo obliga), pero esta op debe ser con autorización de la comisión, pero esto sólo en el modo mant, no en la inst. --> es un lío y sería poco garante, no vale la pena fomentarlo. Describirlo como proced. de emergencia y ponerlo en el manual, describiendo los pasos para hacerlo desde el terminal. (así menos mantenimiento). hacerlo al final de todo. --> a veces puede ser que la constitución del sistema y la elección vayan muy pegadas... no sé. pensar qué hago.

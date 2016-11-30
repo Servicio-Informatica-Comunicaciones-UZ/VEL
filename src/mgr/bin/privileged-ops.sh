@@ -1001,10 +1001,151 @@ fi
 
 
 
+#Will generate a RSA keypair and then a certificate request to be
+#signed by a CA, with the specified Subject
+#2 -> 'new': will generate the keys and the csr
+#   'renew': only a new csr will be generated
+#3 -> SERVERCN
+#4 -> COMPANY
+#5 -> DEPARTMENT
+#6 -> COUNTRY
+#7 -> STATE
+#8 -> LOC
+#9 -> SERVEREMAIL
+if [ "$1" == "generateCSR" ] 
+then
+    
+    checkParameterOrDie SERVERCN    "${3}"
+    checkParameterOrDie COMPANY     "${4}"
+    checkParameterOrDie DEPARTMENT  "${5}"
+    checkParameterOrDie COUNTRY     "${6}"
+    checkParameterOrDie STATE       "${7}"
+    checkParameterOrDie LOC         "${8}"
+    checkParameterOrDie SERVEREMAIL "${9}"
+    
+    
+    #Path where all the ssl data can eb found in the encrypted drive
+    sslpath="$DATAPATH/webserver"
+    #If this is a cert renewal, create a secondary directory for the
+    #new request
+    if [ "$2" == "renew" ] ; then
+	       sslpath="$DATAPATH/webserver/newcsr"  
+        
+	       mkdir -p $sslpath            >>$LOGFILE 2>>$LOGFILE
+	       chown root:www-data $sslpath >>$LOGFILE 2>>$LOGFILE
+	       chmod 755  $sslpath          >>$LOGFILE 2>>$LOGFILE
+    fi
+    
+    #Destination file
+    OUTFILE="$sslpath/server.csr"
+    
+    #Build the subject (email goes at the beginning, for compatibility reasons)    
+    SUBJECT="/O=$COMPANY/C=$COUNTRY/CN=$SERVERCN"
+    [ "$DEPARTMENT" != "" ]  && SUBJECT="/OU=$DEPARTMENT"$SUBJECT
+    [ "$STATE" != "" ]       && SUBJECT="/ST=$STATE"$SUBJECT
+    [ "$LOC" != "" ]         && SUBJECT="/L=$LOC"$SUBJECT
+    [ "$SERVEREMAIL" != "" ] && SUBJECT="/emailAddress=$SERVEREMAIL"$SUBJECT
+    
+    
+    #Generate the request
+    echo "Generating CSR in $OUTFILE with subject: $SUBJECT" >>$LOGFILE 2>>$LOGFILE
+    openssl req -new -sha256 -newkey rsa:2048 -nodes -keyout "${sslpath}/server.key" -out $OUTFILE -subj "$SUBJECT" >>$LOGFILE 2>>$LOGFILE
+    ret=$?
+    if [ $ret -ne 0 ] ; then
+	       echo  "Error $ret while generating CSR."  >>$LOGFILE 2>>$LOGFILE
+	       exit $ret
+    fi
+    
+    #Set proper permissions for the generated files
+    chown root:www-data $OUTFILE  >>$LOGFILE 2>>$LOGFILE
+    chmod 444           $OUTFILE  >>$LOGFILE 2>>$LOGFILE
+    chown root:root $sslpath/server.key  >>$LOGFILE 2>>$LOGFILE
+    chmod 400       $sslpath/server.key  >>$LOGFILE 2>>$LOGFILE 
+    
+    exit 0
+fi
+
+
+
+
+
+#Set the certificate and key on the path expected by apache and
+#postfix
+if [ "$1" == "setupSSLcertificate" ] 
+then
+    
+    #Set the permissions and ownership (yes, every time, just in case)
+    chown root:ssl-cert $DATAPATH/webserver/server.key   >>$LOGFILE 2>>$LOGFILE
+    chown root:root     $DATAPATH/webserver/server.crt   >>$LOGFILE 2>>$LOGFILE
+    chown root:root     $DATAPATH/webserver/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+    chmod 640 $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
+    chmod 644 $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
+    chmod 644 $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
+    
+    #Link the files from the data drive to the system path
+	   ln -s  $DATAPATH/webserver/server.key    /etc/ssl/private/server.key >>$LOGFILE 2>>$LOGFILE
+	   ln -s  $DATAPATH/webserver/server.crt    /etc/ssl/certs/server.crt   >>$LOGFILE 2>>$LOGFILE
+	   ln -s  $DATAPATH/webserver/ca_chain.pem  /etc/ssl/ca_chain.pem       >>$LOGFILE 2>>$LOGFILE
+
+    #Postfix SMTP client requires CAs to be on the same file, se we create a special
+    cp -f $DATAPATH/webserver/server.crt /etc/ssl/certs/server_postfix.crt    >>$LOGFILE 2>>$LOGFILE
+    cat $DATAPATH/webserver/ca_chain.pem >> /etc/ssl/certs/server_postfix.crt 2>>$LOGFILE
+    chmod 644 /etc/ssl/certs/server_postfix.crt                               >>$LOGFILE 2>>$LOGFILE
+    exit 0
+fi
+
+
+
+
+
+#Launch the apache web server
+if [ "$1" == "startApache" ] 
+then
+    #Launch web server
+    /etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE 
+    /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
+    exit "$?"            
+fi
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
 
 
 
 ##### SEGUIR: faltan por revisar
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1083,99 +1224,20 @@ if [ "$1" == "configureServers" ]
    
    
    
-
-  if [ "$2" == "configureWebserver" ] 
-       then
+   
+   if [ "$2" == "configureWebserver" ] 
+   then
       
-      
-      #Param común a las 3 operacuiones de conf del webserver. Es el modo del servidor: con ssl o sin.
-      getVar disk WWWMODE
-       
-      
-      if [ "$3" == "wsmode" ] 
-	  then
-	  	  
-	  
-	  if [ "$WWWMODE" == "ssl" ] ; then
-	      #Para el vhost del pto 80: config que redirige las peticiones del 80 al 443
-	      cp -f /etc/apache2/sites-available/000-default.sslredirect /etc/apache2/sites-enabled/000-default >>$LOGFILE 2>>$LOGFILE
-
-	      #Modificamos el firewall de nuevo
-	      setupFirewall "ssl" >>$LOGFILE 2>>$LOGFILE
-	  fi
-	  if [ "$WWWMODE" == "plain" ] ; then
-	      #Para el vhost del pto 80:acepta las peticiones en el 80
-	      cp -f /etc/apache2/sites-available/000-default.noredirect /etc/apache2/sites-enabled/000-default >>$LOGFILE 2>>$LOGFILE
-	      
-	      #Cerramos el acceso al servidor web a través de ssl
-	      setupFirewall "plain" >>$LOGFILE 2>>$LOGFILE
-	  fi
-	  
-	  exit 0
-      fi
-
+  
 
       
 
 
-      if [ "$3" == "dummyCert" ] 
-	  then
 
-	  
-          #Si no hay cert (dummy o bueno), generar un dummy a partir de la csr (ya hay una llave seguro)
-	  genDummy=0
-	  [ -f $DATAPATH/webserver/server.crt ] || genDummy=1
-	  if [ "$genDummy" -eq 1 ]
-	      then 
-	      
-	      openssl x509 -req -days 3650 -in $DATAPATH/webserver/server.csr -signkey $DATAPATH/webserver/server.key -out $DATAPATH/webserver/server.crt   >>$LOGFILE 2>>$LOGFILE
 
-              #Poner como chain el propio certificado
-	      cp $DATAPATH/webserver/server.crt $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
 
-              #Poner em modo prueba el fichero de estado del cert (si no estamos en plain)
-	      [ "$WWWMODE" != "plain" ] && echo -n "DUMMY" > $DATAPATH/root/sslcertstate.txt
 	
-	  fi
-	  
-	  exit 0
-      fi
-
-
-
-
-      if [ "$3" == "finalConf" ] 
-	  then
-	  
-	    mkdir -p /etc/apache2/ssl/
-    
-	    rm     /etc/apache2/ssl/server.key  >>$LOGFILE 2>>$LOGFILE
-	    rm     /etc/apache2/ssl/server.crt  >>$LOGFILE 2>>$LOGFILE
-	    ln -s  $DATAPATH/webserver/server.key    /etc/apache2/ssl/server.key >>$LOGFILE 2>>$LOGFILE
-	    ln -s  $DATAPATH/webserver/server.crt    /etc/apache2/ssl/server.crt >>$LOGFILE 2>>$LOGFILE
-	    ln -s  $DATAPATH/webserver/ca_chain.pem  /etc/apache2/ssl/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
-	    
-	    
-            #enlazar el csr en el directorio web. (borrar cualquier enlace anterior)
-	    rm -f /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	    cp -f $DATAPATH/webserver/server.csr /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	    chmod 444 /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	    
-            #Enable los módulos que se necesiten (PHP, MySQL...)
-	    a2enmod php5 >>$LOGFILE 2>>$LOGFILE
-	    a2enmod ssl  >>$LOGFILE 2>>$LOGFILE
-
-	    #Si estamos en modo ssl, activamos el rewriteengine para que las peticiones plain vayan al ssl
-	    [ "$WWWMODE" != "plain" ] && a2enmod rewrite >>$LOGFILE 2>>$LOGFILE
-
-    
-            #Lanzar apache
-	    /etc/init.d/apache2 stop  >>$LOGFILE  2>>$LOGFILE
-	    /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
-	    [ $? -ne 0 ] &&  systemPanic $"Error grave: no se pudo activar el servidor web." f
-
-	    exit 0
-      fi
+     
 
 
 #//// sin verif condicionada a verifcert
@@ -1312,174 +1374,15 @@ if [ "$1" == "configureServers" ]
       
 
       
-      exit 1 #Por si acaso. Ninguna op debe llegar aquí
-  fi
 
-
-
-  if [ "$2" == "generateDummyCSR" ] 
-       then
-      
-	    #Generamos la petición de certificado de pruebas de forma no interactiva
-	    OUTFILE="$DATAPATH/webserver/server.csr"
-	    openssl req -new  -sha1 -newkey rsa:2048 -nodes\
-		-keyout $DATAPATH/webserver/server.key -out $OUTFILE \
-		-subj "/CN=dummy"   >>$LOGFILE 2>>$LOGFILE
-	    ret=$?
-	    
-	    if [ "$ret" -ne 0 ] 
-		then
-		echo "Error $ret generando dummy cert"    >>$LOGFILE 2>>$LOGFILE
-		exit "$ret"
-	    fi
-	    
-	    #El modo de cert ssl es 'NOCERT'
-	    echo -n "NOCERT" > $DATAPATH/root/sslcertstate.txt	  2>>$LOGFILE   
-	    
-	    exit 0
   fi
 
 
 
 
-  if [ "$2" == "generateCSR" ] 
-       then
-
-
-      #$3 -> modo: 'new' o 'renew'
-      ruta="$DATAPATH/webserver"
-      if [ "$3" == "renew" ] 
-	  then
-	  ruta="$DATAPATH/webserver/newcsr"  
-
-	  mkdir -p $ruta            >>$LOGFILE 2>>$LOGFILE
-	  chown root:www-data $ruta >>$LOGFILE 2>>$LOGFILE
-	  chmod 755  $ruta          >>$LOGFILE 2>>$LOGFILE
-      fi
-
-#//// probar
-
-      
-      checkParameterOrDie SERVERCN     "${4}"
-      checkParameterOrDie COUNTRY     "${7}"
-      checkParameterOrDie SERVEREMAIL "${10}"
-
-      aux=$(echo "${5}" | grep -Ee "[='\"/$]")	  
-      if [ "$aux" != "" -o "${5}" == "" ] #Campo obligatorio
-	  then
-	  echo "PVOPS generateCSR: bad parameter COMPANY: $5" >>$LOGFILE 2>>$LOGFILE
-	  exit 1
-      fi
-      COMPANY="${5}"
-      
-      aux=$(echo "${6}" | grep -Ee "[='\"/$]")	  
-      if [ "$aux" != "" ]
-	  then
-	  echo "PVOPS generateCSR: bad parameter DEPARTMENT: $6" >>$LOGFILE 2>>$LOGFILE
-	  exit 1
-      fi
-      DEPARTMENT="${6}"
-      
-      aux=$(echo "${8}" | grep -Ee "[='\"/$]")	  
-      if [ "$aux" != "" ]
-	  then
-	  echo "PVOPS generateCSR: bad parameter STATE: $8" >>$LOGFILE 2>>$LOGFILE
-	  exit 1
-      fi
-      STATE="${8}"
-
-      
-      aux=$(echo "${9}" | grep -Ee "[='\"/$]")	  
-      if [ "$aux" != "" ]
-	  then
-	  echo "PVOPS generateCSR: bad parameter LOC: $9" >>$LOGFILE 2>>$LOGFILE
-	  exit 1
-      fi
-      LOC="${9}"
-
-      #Construimos el subject
-      #"/emailAddress=lol@uji.es/C=ES/ST=estado/L=pueblo/O=organization/OU=department/CN=lol.uji.es"
-
-      #Los obligatorios
-      SUBJECT="/O=$COMPANY/C=$COUNTRY/CN=$SERVERCN"
-
-      if [ "$DEPARTMENT" != "" ]
-	  then
-	  SUBJECT="/OU=$DEPARTMENT$SUBJECT"
-      fi
-      
-      if [ "$STATE" != "" ]
-	  then
-	  SUBJECT="/ST=$STATE$SUBJECT"
-      fi
-
-      if [ "$LOC" != "" ]
-	  then
-	  SUBJECT="/L=$LOC$SUBJECT"
-      fi
-      
-      #Este campo va el primero, para que no haya confusión al interpretar. por compatibilidad.
-      if [ "$SERVEREMAIL" != "" ]
-	  then
-	  SUBJECT="/emailAddress=$SERVEREMAIL$SUBJECT"
-      fi
-      
-      echo "subject: $SUBJECT" >>$LOGFILE 2>>$LOGFILE
-      
-      echo "*******############******gCSR ruta: $ruta" >>$LOGFILE 2>>$LOGFILE
-      
-      #AUTOSIGNED="-x509 -days 1095 " #para pruebas con autofirmado: añadir $AUTOSIGNED tras -new
-      OUTFILE="$ruta/server.csr"   #Para pruebas con autofirmado: $ruta/server.crt EN VEZ DE $ruta/server.csr
-      openssl req -new  -sha1 -newkey rsa:2048 -nodes -keyout "${ruta}/server.key" -out $OUTFILE -subj "$SUBJECT" >>$LOGFILE 2>>$LOGFILE
-      ret=$?
-      
-      echo "openssl req -new  -sha1 -newkey rsa:2048 -nodes -keyout $1/server.key -out $OUTFILE -subj '$SUBJECT'" >>$LOGFILE 2>>$LOGFILE
-      
-      if [ "$ret" -ne 0 ]
-	  then
-	  echo  "Error $ret en la ejec de openssl req."  >>$LOGFILE 2>>$LOGFILE
-	  exit $ret
-      fi
-      
-      #echo "*******############******gCSR: openssl req -new  -sha1 -newkey rsa:2048 -nodes\
-#	  -keyout '${ruta}/server.key' -out $OUTFILE -subj '/CN=$SERVERCN'" >>$LOGFILE 2>>$LOGFILE
-#      echo "*******############******gCSR ret: $ret" >>$LOGFILE 2>>$LOGFILE
-
-
-  
-      chown root:www-data $OUTFILE    >>$LOGFILE 2>>$LOGFILE
-      chmod 444  $OUTFILE             >>$LOGFILE 2>>$LOGFILE
-      
-      chown root:root $ruta/server.key    >>$LOGFILE 2>>$LOGFILE
-      chmod 400 $ruta/server.key              >>$LOGFILE 2>>$LOGFILE 
-
-
-      #enlazar el csr en el directorio web. (borrar cualquier enlace anterior)
-      rm /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-      cp -f $DATAPATH/webserver/server.csr /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-      chmod 444 /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE	  
-
-      #uno de los procesos pesados del apache corre como root. Asumo que es un coordinador y parece ser que carga la llave SSL como root, por lo que puedo protegerla bien con los permisos.
-      
-
-      #En modo renew, hay que cambiar el estado aquí, que no genero dummyCert. 
-      if [ "$3" == "renew" ] 
-	  then
-	  echo -n "RENEW" > $DATAPATH/root/sslcertstate.txt	  
-      fi
-
-      setVar WWWMODE "ssl" disk # TODO extinguir esta variable
 
 
 
-      #No hace falta ponerlo aquí porque si no es renew, se llama a la op dummyCert
-#      if [ "$3" == "new" ] 
-#	  then
-#	  echo -n "DUMMY" > $DATAPATH/root/sslcertstate.txt	  
-#      fi
-      
-      exit 0
-  fi
 
 
 
@@ -1600,14 +1503,14 @@ fetchCSR () {
 
 
       #$2 -> modo: 'new' o 'renew'
-      ruta="$DATAPATH/webserver"
+      sslpath="$DATAPATH/webserver"
       if [ "$2" == "renew" ] 
 	  then
-	  ruta="$DATAPATH/webserver/newcsr"	
+	  sslpath="$DATAPATH/webserver/newcsr"	
       fi
       
 
-      fetchCSR "$ruta/server.csr"
+      fetchCSR "$sslpath/server.csr"
 
       exit 0
 fi
@@ -2762,11 +2665,10 @@ exit 42
 
 
 
-
+# TODO when installing a ssl cert, extract cert expiration date, store it on a var, and create an at job (or a cron) to remind of expiration
 
 # TODO Revisar todas las ops y ver cuáles deben estar bloqueadas en mant (ej, clops init)
 
-# TODO Todas las ops y las de psetup, acabarlas con un exit 0, revisar el resto de exits y returns y ser coherente con los retornos de error.
 
 
 

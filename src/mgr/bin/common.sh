@@ -440,6 +440,11 @@ checkParameter () {
             parseInput b64 "$2"
 	           ret=$?
 	           ;;
+
+        "COMPANY" | "DEPARTMENT" | "STATE" | "LOC" )
+            parseInput x500 "$2"
+	           ret=$?
+	           ;;
         
 	       * )
 	           echo "Not Expected Variable name: $1"  >>$LOGFILE 2>>$LOGFILE
