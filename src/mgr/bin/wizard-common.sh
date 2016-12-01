@@ -1575,11 +1575,33 @@ generateCSR () {
 
 
 
-
-# $1 --> 'new' o 'renew'  #///Cambiar en las llamadas
+#Instructs the user to insert a usb device and writes the server csr
+#for its signature by a CA
 fetchCSR () {
     
-    $PVOPS fetchCSR "$1"
+    while true ; do
+        
+        #Detect device insertion
+        insertUSB $"Insert USB storage device" $"Cancel"
+        [ $? -eq 1 ] && return 9
+
+
+        if [ $? -eq 2 ] ; then
+        #No readable partitions.
+        $dlg --msgbox $"Device contained no readable partitions." 0 0
+        return 1 
+    fi
+    
+    #Mount the device (will do on /media/usbdrive)
+    $PVOPS mountUSB mount $USBDEV
+
+    
+    
+    
+    
+    
+    
+    $PVOPS fetchCSR
     
 }
 

@@ -131,6 +131,12 @@ getFileToTmp() {
 #1-> chain and crt destinaton, and csr and key location
 installSSLCert () {
 
+    ## TODO make sure to rename the chosen files to the expected names.
+
+    # TODO make sure the cert file is validated
+
+    # TODO make sure all the cert chain is validated before accepting it
+
     ## TODO restart el apache y el postfix
 
     #Pedimos el fichero con el certificado ssl
@@ -338,7 +344,7 @@ maintenanceActionMenu () {  #////probar que al darle a esc, se queda en el bucle
     
     while true; do
 
-	exec 4>&1 
+	exec 4>&1 ### TODO rehacer y que no se vea el tag con el cod de op, creo que era --no-tag, ver man dialog, y cambiar elñ número por un tag más descriptivo
 	selec=$($dlg --no-cancel  --menu $"El sistema está en marcha.\nSi lo desean pueden realizar alguna de estas acciones:" 0 80  14  \
 	    01  $"Otorgar privilegios al administrador del sistema de voto temporalmente." \
 	    02  $"Resetear credenciales del administrador del sistema de voto." \
@@ -486,7 +492,7 @@ sslActionMenu () {
     esac
  
     
-    exec 4>&1 
+    exec 4>&1 # TODO si este menu tiene tag + label y una es superflua, ocultarla
     selec=$($dlg  --menu "$crtstatestr" 0 80  3  \
 	"$op1val" "$op1str" \
 	"$op2val" "$op2str" \

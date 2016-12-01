@@ -1221,6 +1221,109 @@ fi
 
 
 
+if [ "$1" == "fetchCSR" ] 
+then
+
+
+    #TODO revisar y sacar de aquí los dialog
+
+
+    #$2 -> modo: 'new' o 'renew' # TODO ya no. leer el estado y sacar de ahí new: dummy, renew: renew
+    sslpath="$DATAPATH/webserver"
+    if [ "$2" == "renew" ] ; then
+	       sslpath="$DATAPATH/webserver/newcsr"	
+    fi
+    
+    
+    
+	   pk10copied=0
+	   mkdir -p /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # TODO now it is created once on boot. modify
+	   while [ "$pk10copied" -eq 0 ]
+	   do
+	       umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE # Lo desmontamos por si se ha quedado montado
+
+	       insertUSB $"Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\n(Puede ser uno de los Clauer que acaban de emplear)" "none"
+
+	       #intentar montar la part 1 del DEV. # TODO ahora devuelve directamente la partición, hay que mirar el ret de la func para ver si es part o dev (en cuyo caso debe dar error porque seria un dev sin particiones montables)
+	       part="$DEV""1"
+	       #echo "DEv: $DEV"
+	       mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       ret=$?
+	       if [ "$ret" -ne "0" ]
+	       then
+	           $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo no es válido. ¿Desea insertar otro o prefiere formatear este?" 0 0
+	           ret=$?
+	           [ $ret -eq 0 ] && continue # Elegir otro
+	           $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
+	           ret=$?
+	           [ $ret -eq 0 ] && continue # Elegir otro
+	           umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
+	           $dlg --infobox $"Formateando dispositivo..." 0 0 
+	           ret=$($PVOPS formatearUSB "$DEV")
+	           [ "$ret" -ne 0 ] && continue
+	           mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       fi
+	       echo "a" > /media/usbdrive/testwritability 2>/dev/null
+	       ret=$?
+	       if [ "$ret" -ne "0" ]
+	       then
+	           $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo es de sólo lectura. ¿Desea insertar otro o prefiere formatear este?" 0 0
+	           ret=$?
+	           [ $ret -eq 0 ] && continue # Elegir otro
+	           $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
+	           ret=$?
+	           [ $ret -eq 0 ] && continue # Elegir otro
+	           umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
+	           $dlg --infobox $"Formateando dispositivo..." 0 0 
+	           ret=$($PVOPS formatearUSB "$DEV")
+	           [ "$ret" -ne 0 ] && continue
+	           mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	       else
+	           rm -f /media/usbdrive/testwritability
+	       fi
+	       
+	       #Es correcta. Escribimos el pk10
+	       $dlg --infobox $"Escribiendo petición de certificado..." 0 0 
+	       tries=10
+	       while  [ $pk10copied -eq 0 ]
+	       do
+	           cp -f "$sslpath/server.csr" /media/usbdrive/server.csr  >>$LOGFILE 2>>$LOGFILE
+	           
+	           #Añadimos, junto a la CSR, un Readme indicando las instrucciones
+	           cp -f /usr/share/doc/eLectionLiveCD-README.txt.$LANGUAGE  /media/usbdrive/VTUJI-README.txt
+	           
+	           if [ -s  "/media/usbdrive/server.csr" ] 
+		          then
+		              :
+	           else 
+		              tries=$(($tries-1))
+		              [ "$tries" -eq 0  ] &&  break
+		              continue
+	           fi
+	           
+	           pk10copied=1
+	           
+	       done
+	       
+	       if [ $pk10copied -eq 0 ]
+	       then
+	           $dlg --msgbox $"Error de escritura. Inserte otro dispositivo" 0 0
+	           continue
+	       fi
+	       
+	       umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+
+	       #TODO get these messages out of here or decide on how to handle i18n
+	       detectUsbExtraction $DEV $"Petición de certificado escrita con éxito.\nRetire el dispositivo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
+
+	   done
+	   rmdir /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+
+
+
+    exit 0
+fi
+
 
 
 
@@ -1389,110 +1492,6 @@ fi
 
 
 
-
-if [ "$1" == "fetchCSR" ] 
-then
-
-
-    #TODO revisar y sacar de aquí los dialog
-
-
-    #$2 -> modo: 'new' o 'renew'
-    sslpath="$DATAPATH/webserver"
-    if [ "$2" == "renew" ] 
-	   then
-	       sslpath="$DATAPATH/webserver/newcsr"	
-    fi
-    
-    
-
-	   pk10copied=0
-	   mkdir -p /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # TODO now it is created once on boot. modify
-	   while [ "$pk10copied" -eq 0 ]
-	   do
-	       umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE # Lo desmontamos por si se ha quedado montado
-
-	       insertUSB $"Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\n(Puede ser uno de los Clauer que acaban de emplear)" "none"
-
-	       #intentar montar la part 1 del DEV. # TODO ahora devuelve directamente la partición, hay que mirar el ret de la func para ver si es part o dev (en cuyo caso debe dar error porque seria un dev sin particiones montables)
-	       part="$DEV""1"
-	       #echo "DEv: $DEV"
-	       mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	       ret=$?
-	       if [ "$ret" -ne "0" ]
-	       then
-	           $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo no es válido. ¿Desea insertar otro o prefiere formatear este?" 0 0
-	           ret=$?
-	           [ $ret -eq 0 ] && continue # Elegir otro
-	           $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
-	           ret=$?
-	           [ $ret -eq 0 ] && continue # Elegir otro
-	           umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
-	           $dlg --infobox $"Formateando dispositivo..." 0 0 
-	           ret=$($PVOPS formatearUSB "$DEV")
-	           [ "$ret" -ne 0 ] && continue
-	           mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	       fi
-	       echo "a" > /media/usbdrive/testwritability 2>/dev/null
-	       ret=$?
-	       if [ "$ret" -ne "0" ]
-	       then
-	           $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo es de sólo lectura. ¿Desea insertar otro o prefiere formatear este?" 0 0
-	           ret=$?
-	           [ $ret -eq 0 ] && continue # Elegir otro
-	           $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
-	           ret=$?
-	           [ $ret -eq 0 ] && continue # Elegir otro
-	           umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
-	           $dlg --infobox $"Formateando dispositivo..." 0 0 
-	           ret=$($PVOPS formatearUSB "$DEV")
-	           [ "$ret" -ne 0 ] && continue
-	           mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	       else
-	           rm -f /media/usbdrive/testwritability
-	       fi
-	       
-	       #Es correcta. Escribimos el pk10
-	       $dlg --infobox $"Escribiendo petición de certificado..." 0 0 
-	       tries=10
-	       while  [ $pk10copied -eq 0 ]
-	       do
-	           cp -f "$sslpath/server.csr" /media/usbdrive/server.csr  >>$LOGFILE 2>>$LOGFILE
-	           
-	           #Añadimos, junto a la CSR, un Readme indicando las instrucciones
-	           cp -f /usr/share/doc/eLectionLiveCD-README.txt.$LANGUAGE  /media/usbdrive/VTUJI-README.txt
-	           
-	           if [ -s  "/media/usbdrive/server.csr" ] 
-		          then
-		              :
-	           else 
-		              tries=$(($tries-1))
-		              [ "$tries" -eq 0  ] &&  break
-		              continue
-	           fi
-	           
-	           pk10copied=1
-	           
-	       done
-	       
-	       if [ $pk10copied -eq 0 ]
-	       then
-	           $dlg --msgbox $"Error de escritura. Inserte otro dispositivo" 0 0
-	           continue
-	       fi
-	       
-	       umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-
-	       #TODO get these messages out of here or decide on how to handle i18n
-	       detectUsbExtraction $DEV $"Petición de certificado escrita con éxito.\nRetire el dispositivo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
-
-	   done
-	   rmdir /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-
-
-
-    exit 0
-fi
 
 
 
@@ -1789,7 +1788,7 @@ then
     
     
     #Compare last read config with the one considered the correct one # TODO lock this operation in maintenance? move it to setup? try to remove dialogs?
-    if [ "$2" == "compareConfigs" ] 
+    if [ "$2" == "compareConfigs" ]   # TODO cambiar el textbox por un programbox o prgbox? así, la op priv devuelve por stdout el contenido del diff, y al estar piped, nos ahorramos manejar el fichero
 	   then
         
         getVar mem CURRENTSLOT

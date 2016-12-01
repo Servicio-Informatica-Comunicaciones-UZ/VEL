@@ -17,6 +17,10 @@ export PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 #Dialog options for all windows
 DLGCNF="--shadow --cr-wrap --aspect 60 --insecure"
+#<DEBUG>
+# Enable tracing of the dialog widgets
+DLGCNF="--shadow --cr-wrap --aspect 60 --insecure --trace /tmp/dialogTrace"
+#</DEBUG>
 dlg="dialog $DLGCNF "
 
 
@@ -550,17 +554,27 @@ detectUsbExtraction (){
 
 #Detect insertion of a usb device
 # $1 --> "Insert device" message.
-# $2 --> "No" label message.
+# $2 --> "No" label message (if empty, no cancel allowed).
 #$USBDEV: dev path of the inserted usb device or partition
 #Return code 0: selected device/partition is writable
 #            1: nothing selected/insertion cancelled (the 'no' option has been selected)
 #            2: selected device needs to be formatted
-insertUSB () {  # TODO extinguish usage of $DEV and $ISCLAUER
+insertUSB () {  # TODO extinguish usage of $DEV
+
+    local cancelButton="--no-cancel"
+    [ "$2" != "" ] && cancelButton="--no-label ""$2"
     
-	   $dlg --yes-label $"Continue" --no-label "$2"  --yesno "$1" 0 0
-    
-    #Insertion cancelled
-	   [ $? -ne 0 ]  &&  return 1
+    while true 
+    do
+        $dlg --yes-label $"Continue" $cancelButton  --yesno "$1" 0 0
+        ret=$?
+        #Go on
+        [ $ret -eq 0 ] && break
+        #Insertion cancelled (and allowed)
+	       [ $ret -ne 0 -a "$2" != "" ]  &&  return 1
+        #Cancelled (with Esc) and not allowed
+        continue
+    done
     
     while true 
     do
@@ -601,11 +615,11 @@ insertUSB () {  # TODO extinguish usage of $DEV and $ISCLAUER
             local options=""
             for p in $parts
             do
-                options="$options $p -"
+                options="$options $p" # TODO removed the - at the end because put --no-items. check
             done
 
             exec 4>&1
-            local part=$($dlg --cancel-label "$2" --menu $"Choose one partition:" 0 0 3 $options  2>&1 >&4)
+            local part=$($dlg --no-items --cancel-label "$2" --menu $"Choose one partition:" 0 0 3 $options  2>&1 >&4)
             [ $? -ne 0 ] && break
             
             USBDEV=$part

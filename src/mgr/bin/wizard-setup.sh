@@ -34,24 +34,24 @@ chooseMaintenanceAction () {
     
     exec 4>&1
     while true; do
-        selec=$($dlg --no-cancel  --menu $"Select an action:" 0 80  6  \
-	                    1 $"Start voting system." \
-                     2 $"Setup new voting system." \
-	                    3 $"Recover a voting system backup." \
-	                    4 $"Launch administrator terminal." \
-                     5 $"Reboot system." \
-	                    6 $"Shutdown system." \
+        selec=$($dlg --no-cancel --no-tags --menu $"Select an action:" 0 80  6  \
+	                    start   $"Start voting system." \
+                     setup   $"Setup new voting system." \
+	                    recover $"Recover a voting system backup." \
+	                    term    $"Launch administrator terminal." \
+                     reboot  $"Reboot system." \
+	                    halt    $"Shutdown system." \
 	                    2>&1 >&4)
         
         case "$selec" in
-	           "1" )
+	           "start" )
                 DOSTART=1
                 DOINSTALL=0
                 DORESTORE=0
 	               return 1
                 ;;
             
-	           "2" )
+	           "setup" )
                 #Double check option if user chose to format
                 $dlg --yes-label $"Back" --no-label $"Format system" \
                      --yesno  $"You chose NEW system.\nThis will destroy any previous installation of the voting system. Do you wish to continue?" 0 0
@@ -63,7 +63,7 @@ chooseMaintenanceAction () {
 	               return 2
                 ;;
             
-            "3" )
+            "recover" )
                 #Double check option if user chose to recover
                 $dlg --yes-label $"Back" --no-label $"Recover backup" \
                      --yesno  $"You chose to RECOVER a backup.\nThis will destroy any changes on a previously existing system. Do you wish to continue?" 0 0
@@ -75,7 +75,7 @@ chooseMaintenanceAction () {
 	               return 3
                 ;;
 	           
-	           "4" )
+	           "term" )
 	               $dlg --yes-label $"Yes" --no-label $"No"  \
                      --yesno  $"WARNING:\n\nYou chose to open a terminal. This gives free action powers to the administrator. Make sure he does not operate it without proper technical supervision. Do you wish to continue?" 0 0
 	               [ "$?" -eq 1 ] && continue
@@ -83,13 +83,13 @@ chooseMaintenanceAction () {
                 exec /bin/false
                 ;;
 	           
-	           "5" )	
+	           "reboot" )	
 	               $dlg --yes-label $"Cancel"  --no-label $"Reboot" --yesno $"Are you sure to go on?" 0 0
 	               [ "$?" -eq 1 ] && shutdownServer "r"
 	               continue
 	               ;;	
 		          
-	           "6" )	
+	           "halt" )	
 	               $dlg --yes-label $"Cancel"  --no-label $"Shutdown" --yesno $"Are you sure to go on?" 0 0
 	               [ "$?" -eq 1 ] && shutdownServer "h"
 	               continue
@@ -113,7 +113,9 @@ selectParameterSection () {
     exec 4>&1
     local selec=''
     while true; do
-        selec=$($dlg --cancel-label $"Go back to the main menu"  --menu $"Select parameter section:" 0 80  6  \
+        selec=$($dlg --cancel-label $"Go back to the main menu" \
+                     --no-tags \
+                     --menu $"Select parameter section:" 0 80  11  \
 	                    1  $"Set local timezone." \
                      2  $"Network configuration." \
 	                    3  $"Encrypted drive configuration." \
@@ -235,16 +237,16 @@ selectTimezone () {
     exec 4>&1
     while true
     do
-        local areaOptions=$(ls -F  /usr/share/zoneinfo/right/ | grep / | sed -re "s|/| - |g")
-        local tzArea=$($dlg --cancel-label $"Menu" --default-item $defaultItem --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)        
+        local areaOptions=$(ls -F  /usr/share/zoneinfo/right/ | grep / | sed -re "s|/| |g")
+        local tzArea=$($dlg --no-items --cancel-label $"Menu" --default-item $defaultItem --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)        
         if [ "$tzArea" == ""  ] ; then
 	           $dlg --msgbox $"Please, select a timezone area." 0 0
 	           continue
         fi
         defaultItem=$tzArea
         
-        local tzOptions=$(ls /usr/share/zoneinfo/right/$tzArea | sed -re "s|$| - |g")
-        local tz=$($dlg --cancel-label $"Back" --menu $"Choose your timezone" 0 50 15 $tzOptions   2>&1 >&4)
+        local tzOptions=$(ls /usr/share/zoneinfo/right/$tzArea | sed -re "s|$| |g")
+        local tz=$($dlg --no-items --cancel-label $"Back" --menu $"Choose your timezone" 0 50 15 $tzOptions   2>&1 >&4)
         [ "$?" -ne 0 -o "$tz" == "" ]  && continue
                 
         break
@@ -883,17 +885,17 @@ do
     
     
     
+    
+    ### Store certificate request
+    if [ "$DOINSTALL" -eq 1 ] ; then
+
+        $dlg --msgbox $"Insert a usb device to write the generated SSL certificate request." 0 0
+        fetchCSR
+
+
     # TODO SEGUIR mañana revisar y ajustar la parte en que se escribe la csr y los clauers. luego poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
-    
-    ######## Store certificate request ########
-    
-    # TODO write csr if in install
-            #EScribimos el pkcs10 en la zona de datos de un clauer
-	       $dlg --msgbox $"Se ha generado una petición de certificado SSL para este servidor.\nPor favor, prepare un dispositivo USB para almacenarla (puede ser uno de los Clauers empleados ahora).\nEsta petición deberá ser entregada a una Autoridad de Certificacion confiable para su firma.\n\nHaga notar al encargado de este proceso que en un fichero adjunto debe proporcionarse toda la cadena de certificación." 0 0
 
-	       fetchCSR "new"
-
-    
+        
     ######## Share key and basic config on usbs #########
     
     # TODO write usbs if in install # TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
