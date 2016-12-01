@@ -209,6 +209,7 @@ readNextUSB () {
     
     #Mount the device (will do on /media/usbdrive)
     $PVOPS mountUSB mount $USBDEV
+    [ $? -ne 0 ] && return 1 #Mount error
 
     #Ask for device password
     while true ; do
@@ -1582,23 +1583,22 @@ fetchCSR () {
     while true ; do
         
         #Detect device insertion
-        insertUSB $"Insert USB storage device" $"Cancel"
-        [ $? -eq 1 ] && return 9
-
-
+        insertUSB $"Insert USB storage device" $"Start again"
+        [ $? -eq 1 ] && continue #Cannot cancel, just restart this step
         if [ $? -eq 2 ] ; then
-        #No readable partitions.
-        $dlg --msgbox $"Device contained no readable partitions." 0 0
-        return 1 
-    fi
+            #No readable partitions found. Ask to use another one
+            $dlg --msgbox $"Device contained no readable partitions. Try another one." 0 0
+            continue 
+        fi
+        
+        #Mount the device (will do on /media/usbdrive)
+        $PVOPS mountUSB mount $USBDEV
+        [ $? -ne 0 ] && return 1 #Mount error
+        
+        
+        
     
-    #Mount the device (will do on /media/usbdrive)
-    $PVOPS mountUSB mount $USBDEV
-
-    
-    
-    
-    
+    done
     
     
     $PVOPS fetchCSR

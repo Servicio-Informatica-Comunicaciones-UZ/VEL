@@ -298,7 +298,7 @@ forceTimeAdjust () {
 
 #List of usb connected storage devices ( printed on stdout) and the number (return value)
 #$1 -> 'devs'  : show all usb storage devices, not partitions (default)
-#      'valid' : show partitions from usb devices that can be mounted
+#      'valid' : show partitions from usb devices that can be mounted and written
 listUSBs  () {
     
     local USBDEVS=""
@@ -308,14 +308,28 @@ listUSBs  () {
         #Check all devices and partitions to be mountable
         for f in $devs
         do
+            #Umount previous
+            umount /mnt >>$LOGFILE 2>>$LOGFILE
+
+            #Try to mount
             local currdev=$(realpath /dev/disk/by-id/$f)
             mount $currdev /mnt  >>$LOGFILE 2>>$LOGFILE
-            if [ "$?" -eq 0 ] ; then
-                USBDEVS="$USBDEVS $currdev"
-                count=$((count+1))
-                umount /mnt >>$LOGFILE 2>>$LOGFILE
-            fi
+            [ $? -ne 0 ] && continue # Can't be mounted
+            
+            #Try to write a file
+	           local testfile=testfile$(randomPassword 32)
+            echo "test writability" > /media/usbdrive/$testfile 2>/dev/null
+            [ $? -ne 0 ] && continue # Can't write
+	           rm -f /media/usbdrive/$testfile
+            
+            #Mountable and writable, add to the list
+            USBDEVS="$USBDEVS $currdev"
+            count=$((count+1))
         done
+        
+        #Umount last
+        umount /mnt >>$LOGFILE 2>>$LOGFILE
+        
     else
         #Show only the devices, not partitions
         for f in $devs

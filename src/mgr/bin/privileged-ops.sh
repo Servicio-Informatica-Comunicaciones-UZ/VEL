@@ -467,6 +467,7 @@ fi
 #Handles mounting or umounting of USB drive partitions
 #2 -> 'mount' or 'umount'
 #3 -> [on mount only] partition path (will be checked against the list of valid ones)
+#Return: None. Mount path is a constant
 if [ "$1" == "mountUSB" ] 
 then
     
@@ -500,8 +501,18 @@ then
     if [ "$2" == "mount" ] ; then
         mount  "$3" /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 	       if [ "$?" -ne "0" ] ; then
-            echo "mountUSB: Partition '$3' mount error" >>$LOGFILE 2>>$LOGFILE
-            exit 1
+            #Maybe the path is already mounted. Umount and retry
+            umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	           if [ "$?" -ne "0" ] ; then
+                echo "mountUSB: Partition '$3' preemptive umount error device must be in use" >>$LOGFILE 2>>$LOGFILE
+                exit 1
+            fi
+            #Try a second and last mount
+            mount  "$3" /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+            if [ "$?" -ne "0" ] ; then
+                echo "mountUSB: Partition '$3' mount error" >>$LOGFILE 2>>$LOGFILE
+                exit 1
+            fi
         fi
     else
         echo "mountUSB: Bad op code: $2" >>$LOGFILE 2>>$LOGFILE  
@@ -1237,50 +1248,10 @@ then
     
     
 	   pk10copied=0
-	   mkdir -p /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # TODO now it is created once on boot. modify
 	   while [ "$pk10copied" -eq 0 ]
 	   do
-	       umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE # Lo desmontamos por si se ha quedado montado
 
-	       insertUSB $"Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\n(Puede ser uno de los Clauer que acaban de emplear)" "none"
-
-	       #intentar montar la part 1 del DEV. # TODO ahora devuelve directamente la partición, hay que mirar el ret de la func para ver si es part o dev (en cuyo caso debe dar error porque seria un dev sin particiones montables)
-	       part="$DEV""1"
-	       #echo "DEv: $DEV"
-	       mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	       ret=$?
-	       if [ "$ret" -ne "0" ]
-	       then
-	           $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo no es válido. ¿Desea insertar otro o prefiere formatear este?" 0 0
-	           ret=$?
-	           [ $ret -eq 0 ] && continue # Elegir otro
-	           $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
-	           ret=$?
-	           [ $ret -eq 0 ] && continue # Elegir otro
-	           umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
-	           $dlg --infobox $"Formateando dispositivo..." 0 0 
-	           ret=$($PVOPS formatearUSB "$DEV")
-	           [ "$ret" -ne 0 ] && continue
-	           mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	       fi
-	       echo "a" > /media/usbdrive/testwritability 2>/dev/null
-	       ret=$?
-	       if [ "$ret" -ne "0" ]
-	       then
-	           $dlg --yes-label $"Otro" --no-label $"Formatear"  --yesno $"Este dispositivo es de sólo lectura. ¿Desea insertar otro o prefiere formatear este?" 0 0
-	           ret=$?
-	           [ $ret -eq 0 ] && continue # Elegir otro
-	           $dlg --yes-label $"Otro" --no-label $"Formatear" --yesno $"¿Seguro que desea formatear? Todos los datos SE PERDERÁN." 0 0
-	           ret=$?
-	           [ $ret -eq 0 ] && continue # Elegir otro
-	           umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE  # Lo desmontamos antes de formatearlo
-	           $dlg --infobox $"Formateando dispositivo..." 0 0 
-	           ret=$($PVOPS formatearUSB "$DEV")
-	           [ "$ret" -ne 0 ] && continue
-	           mount  $part /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-	       else
-	           rm -f /media/usbdrive/testwritability
-	       fi
+        #SEGUIR: el usb montado es escribible
 	       
 	       #Es correcta. Escribimos el pk10
 	       $dlg --infobox $"Escribiendo petición de certificado..." 0 0 

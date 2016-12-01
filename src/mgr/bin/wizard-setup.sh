@@ -107,8 +107,8 @@ chooseMaintenanceAction () {
 
 
 
-#Returns which parameter gathering secion to access next to retake base flow
-#Returns 254 on cancel
+#Returns which parameter gathering section to access next to retake base flow
+#Returns 254 on cancel (max value: 255)
 selectParameterSection () {
     exec 4>&1
     local selec=''

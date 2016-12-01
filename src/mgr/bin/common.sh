@@ -478,7 +478,7 @@ listUSBDrives () {
 
 #Lists all writable partitions from all connected usb drives
 #Return value: number of writable partitions
-#Prints: list of writable partitions
+#Prints: list of mountable partitions
 listUSBPartitions () {   
     local parts=""
     local nparts=0
@@ -554,27 +554,15 @@ detectUsbExtraction (){
 
 #Detect insertion of a usb device
 # $1 --> "Insert device" message.
-# $2 --> "No" label message (if empty, no cancel allowed).
+# $2 --> "No" label message
 #$USBDEV: dev path of the inserted usb device or partition
 #Return code 0: selected device/partition is writable
 #            1: nothing selected/insertion cancelled (the 'no' option has been selected)
 #            2: selected device needs to be formatted
 insertUSB () {  # TODO extinguish usage of $DEV
-
-    local cancelButton="--no-cancel"
-    [ "$2" != "" ] && cancelButton="--no-label ""$2"
     
-    while true 
-    do
-        $dlg --yes-label $"Continue" $cancelButton  --yesno "$1" 0 0
-        ret=$?
-        #Go on
-        [ $ret -eq 0 ] && break
-        #Insertion cancelled (and allowed)
-	       [ $ret -ne 0 -a "$2" != "" ]  &&  return 1
-        #Cancelled (with Esc) and not allowed
-        continue
-    done
+    $dlg --yes-label $"Continue" --no-label "$2"  --yesno "$1" 0 0
+    [ $? -ne 0 ]  &&  return 1 #Insertion cancelled
     
     while true 
     do
