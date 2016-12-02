@@ -1566,16 +1566,6 @@ generateCSR () {
 
 
 
-
-
-
-
-
-#SEGUIR
-
-
-
-
 #Instructs the user to insert a usb device and writes the server csr
 #for its signature by a CA
 fetchCSR () {
@@ -1593,16 +1583,30 @@ fetchCSR () {
         
         #Mount the device (will do on /media/usbdrive)
         $PVOPS mountUSB mount $USBDEV
-        [ $? -ne 0 ] && return 1 #Mount error
+        if [ $? -ne 0 ] ; then
+            #Mount error. Try another one
+            $dlg --msgbox $"Error mounting the device. Try another one." 0 0
+            continue 
+        fi
         
+        #Write the CSR
+        $dlg --infobox $"Writing certificate request..." 0 0 
+        $PVOPS fetchCSR
+        if [ $? -ne 0 ] ; then
+            #Copy error. Try another
+            $dlg --msgbox $"Error while copying the certificate request. Try another device." 0 0
+            continue
+        fi
         
+        #Umount the device once done reading
+        $PVOPS mountUSB umount
         
-    
+        #Detect extraction before returning control to main program
+        detectUsbExtraction $USBDEV $"Certificate request stored. Remove device and press RETURN." \
+                            $"Didn't remove it. Please, do it and press RETURN."
+        
+        break
     done
-    
-    
-    $PVOPS fetchCSR
-    
 }
 
 
@@ -1610,22 +1614,14 @@ fetchCSR () {
 
 
 
-#1-> el dev
-#2-> el pwd
-formatearClauer () {
 
-    $PVOPS formatearClauer "$1" "$2"
-    local retval="$?"
 
-    [ "$retval" -eq 11 ] &&  $dlg --msgbox $"No existe el dispositivo" 0 0
-    [ "$retval" -eq 12 ] &&  $dlg --msgbox $"Error durante el particionado: Dispositivo inválido." 0 0
-    [ "$retval" -eq 13 ] &&  $dlg --msgbox $"Error durante el particionado" 0 0
-    [ "$retval" -eq 14 ] &&  $dlg --msgbox $"Error durante el formateo" 0 0
 
-    echo "formatearClauer: retval: ---$retval---"  >>$LOGFILE 2>>$LOGFILE
-	
-    return "$retval"
-}
+
+#SEGUIR
+
+
+
 
 
 #1->currShare
@@ -1663,7 +1659,7 @@ writeNextClauer () {
       #Formatear y particionar el dev        
       $dlg   --infobox $"Preparando Clauer..." 0 0
 
-      formatearClauer "$DEV" "$PASSWD"   
+      #formatearClauer "$DEV" "$PASSWD"    # Ya no hago esto. Los usbs, formateaditos y con filesystem válido. Yo escribo el store y au
       retf="$?"
 
       if [ "$retf" -ne 0  ]

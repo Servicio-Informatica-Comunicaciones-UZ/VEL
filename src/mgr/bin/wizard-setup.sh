@@ -397,6 +397,10 @@ done
 #Init usb and slot system management
 $PVOPS storops init
 
+#Store the chosen language as a memory variable
+setVar mem LANGUAGE "$LANGUAGE"
+
+
 
 #Main action loop
 while true
@@ -581,8 +585,8 @@ do
         
         #Set vars that will be put to the usb store (only the basic
         #ones, needed to load the encrypted drive)
-        setVar usb DRIVEMODE "$DRIVEMODE"        
-        setVar usb DRIVELOCALPATH "$DRIVELOCALPATH"        
+        setVar usb DRIVEMODE "$DRIVEMODE"
+        setVar usb DRIVELOCALPATH "$DRIVELOCALPATH"
 	       setVar usb FILEPATH "$FILEPATH"
 	       setVar usb FILEFILESIZE "$FILEFILESIZE"
         setVar usb CRYPTFILENAME "$CRYPTFILENAME"
@@ -886,35 +890,23 @@ do
     
     
     
-    ### Store certificate request
     if [ "$DOINSTALL" -eq 1 ] ; then
-
+        
+        #Store certificate request (won't let go until it is written
+        #on a usb)
         $dlg --msgbox $"Insert a usb device to write the generated SSL certificate request." 0 0
         fetchCSR
-
-
-    # TODO SEGUIR mañana revisar y ajustar la parte en que se escribe la csr y los clauers. luego poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
-
         
-    ######## Share key and basic config on usbs #########
-    
-    # TODO write usbs if in install # TODO when writing the usbdevs, if no writable partitions found, offer to format a drive?
-        # TODO: now, clauers are written at the end, after everything is configured.
-        #Avisamos antes de lo que va a ocurrir.
-    $dlg --msgbox $"Ahora procederemos a repartir la nueva información del sistema en los dispositivos de la comisión de custodia.\n\nLos dispositivos que se empleen NO DEBEN CONTENER NINGUNA INFORMACIÓN, porque VAN A SER FORMATEADOS." 0 0
-    writeClauers   
-    
-    
+        
+        
+        #Share key and basic config on usbs to be kept by the
+        #commission (usbs must have avalid data partition)
+        $dlg --msgbox $"Now we'll write the key shares on the commission's usb drives. Make sure these drives are cleanly formatted and free of any other key shares currently in use, as they might be overwritten." 0 0
+        writeClauers # TODO SEGUIR mañana revisar y ajustar la parte en que se escriben los clauers. luego poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
+    fi
     
     
     
-    
-    
-    
-
-
-    
-
     
     #Force a backup after installation is complete
     $PVOPS forceBackup
@@ -959,35 +951,23 @@ exit 42
 
 
 # TODO reimplementar backup retrieval    ######## Retrieve backup to restore #########  # TODO revisar y reintegrar todo el sistema de backup y de recuperación
-
-
-  
-
-
-
-# TODO extinguir system Panic, al menos en el wizard. cambiar por msgbox y ya
-
-
 # TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
-
-
-    
-    
-    # TODO on a recovery, ask the backup location parameters there, don't expect to read them from the usbs. Also, on the fresh install he will be able to set new ssh bak location (but on restoring, the values on the hard drive will be there. should we overwrite them? should we avoid defining certain things on a fresh install?) --> should we do this instead?: ask for the restoration clauers at the beginning, and ask for the ssh backup location (and provisional ip config). retrieve backup, setup hdd, restoee ******** I'm getting dizzy, think this really carefully. restoration is an emergency procedure and should not mess with the other ones, leave the other ones simple and see later what to do with this, I personally prefer to have the ip and ssh bak config on the hard drive and minimise usb config. if this means making a whole special flow for the restore, then it is. Think carefully what we backup and what we restore.
+# TODO on a recovery, ask the backup location parameters there, don't expect to read them from the usbs. Also, on the fresh install he will be able to set new ssh bak location (but on restoring, the values on the hard drive will be there. should we overwrite them? should we avoid defining certain things on a fresh install?) --> should we do this instead?: ask for the restoration clauers at the beginning, and ask for the ssh backup location (and provisional ip config). retrieve backup, setup hdd, restoee ******** I'm getting dizzy, think this really carefully. restoration is an emergency procedure and should not mess with the other ones, leave the other ones simple and see later what to do with this, I personally prefer to have the ip and ssh bak config on the hard drive and minimise usb config. if this means making a whole special flow for the restore, then it is. Think carefully what we backup and what we restore.
 
     
     
+# TODO extinguir system Panic, al menos en el wizard. cambiar por msgbox y ya
     
 
 # TODO implement a delayed rebuilt key anulation? this way, multiple privileged actions can be performed without bothering the keyholders. think about this calmly. maybe a file with the last action timestamp and a cron? but I think it's too risky...
 
+
+
 # TODO any action not requiring a key rebuild, now will require admin's local pwd
 
-# TODO (?) Arreglar al menos el menú de standby y las operaciones que se realizan antes y después de llamar a una op del bucle infinito. ha sacado dos mensajes impresos. supongo que estarán dentro del maintenance, pero revisarlo bien cuando esté mejor el fichero de maintenance poner reads
 
+# TODO: add a maint option to change ip config [commis. authorisation] --> this existed, just was not yet moved from the old script and was not in the new ones. same happend to some other ops.
 
-# TODO: add a maint option to change ip config [commis. authorisation]
+# TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password) --> do it. now the params are on disk
 
-# TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password)
-
-# TODO  asegurarme de que sólo es el root quien ejecuta los backups.
+# TODO  asegurarme de que sólo es el root quien ejecuta los backups. ver eprms de ficheros, ver qué hace la bd y la app php, ver mi  script y si hay cron de backup

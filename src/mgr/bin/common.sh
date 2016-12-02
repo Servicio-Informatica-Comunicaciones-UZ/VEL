@@ -532,6 +532,27 @@ randomPassword () { # TODO eliminar usos var $pw
 
 
 
+#Compares two files using the sha1 digest algorithm
+#1 -> first file path
+#2 -> second file path
+#Return: 0 if equals, 1 otherwise
+compareFiles () {
+    
+    #If one file does not exist, return no-match
+    [ ! -e "$1" ] && return 1
+    [ ! -e "$2" ] && return 1
+    
+    #Calculate digests
+    local firstDigest=$(sha1sum "$1" | cut -d " " -f 1 | tr -d "\n" )
+    local secondDigest=$(sha1sum "$2" | cut -d " " -f 1 | tr -d "\n" )
+    
+    #See if they match
+    [ "$firstDigest" == "$secondDigest" ] && return 0
+    return 1
+}
+
+
+
 #Detect removal of a usb device
 # $1 -> The dev path to oversee
 # $2 -> Message to show

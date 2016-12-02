@@ -264,7 +264,7 @@ localectl set-locale LANG="C.UTF-8"
 
 # TODO review all localization system. decide if only one or all scripts are handled
 ctell "***** Installing localization for our tools *****"
-#For each available language
+#For each available language (in the ll_CC.UTF-8 form)
 langs=$(ls -p /root/src/mgr/localization/ | grep  -oEe "[^/]+/$" | sed -re "s|(.*)/$|\1|g")
 for la in $langs
   do
@@ -275,7 +275,7 @@ for la in $langs
   cp -f /root/src/mgr/localization/$la/License  /usr/share/doc/License.$la
   
   #copiamos el Readme de la firma del cert al directorio, con la extension de su idioma
-  cp -f /root/src/mgr/localization/$la/eLectionLiveCD-README.txt   /usr/share/doc/sslcert-README.txt.$la
+  cp -f /root/src/mgr/localization/$la/sslcsr-README.txt   /usr/share/doc/sslcsr-README.txt.$la
   
 done
 

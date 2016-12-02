@@ -1231,68 +1231,46 @@ fi
 
 
 
-
+#Will write the certificate request and the instructions on the
+#mounted usb drive
 if [ "$1" == "fetchCSR" ] 
 then
-
-
-    #TODO revisar y sacar de aquí los dialog
-
-
-    #$2 -> modo: 'new' o 'renew' # TODO ya no. leer el estado y sacar de ahí new: dummy, renew: renew
+    
+    getVar mem LANGUAGE
+    getVar disk SSLCERTSTATE
+    
     sslpath="$DATAPATH/webserver"
-    if [ "$2" == "renew" ] ; then
+    if [ "$SSLCERTSTATE" == "renew" ] ; then
 	       sslpath="$DATAPATH/webserver/newcsr"	
     fi
     
+    #Bundle (on a zip) the CSR and a README files
+    rm -rf /tmp/server-csr-*.zip  >>$LOGFILE 2>>$LOGFILE
+    mkdir /tmp/server-csr  >>$LOGFILE 2>>$LOGFILE
+    pushd /tmp  >>$LOGFILE 2>>$LOGFILE
     
+    cp -f "$sslpath/server.csr" server-csr/server.csr  >>$LOGFILE 2>>$LOGFILE
+    cp -f /usr/share/doc/sslcsr-README.txt.$LANGUAGE  server-csr/README.txt  >>$LOGFILE 2>>$LOGFILE
     
-	   pk10copied=0
-	   while [ "$pk10copied" -eq 0 ]
-	   do
-
-        #SEGUIR: el usb montado es escribible
-	       
-	       #Es correcta. Escribimos el pk10
-	       $dlg --infobox $"Escribiendo petición de certificado..." 0 0 
-	       tries=10
-	       while  [ $pk10copied -eq 0 ]
-	       do
-	           cp -f "$sslpath/server.csr" /media/usbdrive/server.csr  >>$LOGFILE 2>>$LOGFILE
-	           
-	           #Añadimos, junto a la CSR, un Readme indicando las instrucciones
-	           cp -f /usr/share/doc/eLectionLiveCD-README.txt.$LANGUAGE  /media/usbdrive/VTUJI-README.txt
-	           
-	           if [ -s  "/media/usbdrive/server.csr" ] 
-		          then
-		              :
-	           else 
-		              tries=$(($tries-1))
-		              [ "$tries" -eq 0  ] &&  break
-		              continue
-	           fi
-	           
-	           pk10copied=1
-	           
-	       done
-	       
-	       if [ $pk10copied -eq 0 ]
-	       then
-	           $dlg --msgbox $"Error de escritura. Inserte otro dispositivo" 0 0
-	           continue
-	       fi
-	       
-	       umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-
-	       #TODO get these messages out of here or decide on how to handle i18n
-	       detectUsbExtraction $DEV $"Petición de certificado escrita con éxito.\nRetire el dispositivo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
-
-	   done
-	   rmdir /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
-
-
-
-    exit 0
+    zip server-csr-$(date +%s).zip server-csr/*  >>$LOGFILE 2>>$LOGFILE
+    
+    popd >>$LOGFILE 2>>$LOGFILE
+    rm -rf /tmp/server-csr  >>$LOGFILE 2>>$LOGFILE
+    
+    #Copy the file to the usb
+    bundle=$(ls /tmp/server-csr-*.zip)
+	   cp "$bundle" /media/usbdrive/
+    
+    if (compareFiles "$bundle" /media/usbdrive/$(basename $bundle)) ; then
+        ret=0 #Properly copied
+    else
+        ret=1 #Copy error
+    fi
+    
+	   #Delete the bundle
+	   rm -rf /tmp/server-csr-*.zip  >>$LOGFILE 2>>$LOGFILE
+    
+	   exit $ret
 fi
 
 
@@ -1425,11 +1403,11 @@ then
 	   #Si es renew, sustituye el cert activo por el nuevo.
 	   if [ "$crtstate" == "RENEW" ]
 	   then
-	       mv -f  "$DATAPATH/newcsr/server.csr"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	       mv -f  "$DATAPATH/newcsr/server.crt"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	       mv -f  "$DATAPATH/newcsr/server.key"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	       mv -f  "$DATAPATH/newcsr/ca_chain.pem" "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	       rm -rf "$DATAPATH/newcsr/"                           >>$LOGFILE  2>>$LOGFILE
+	       mv -f  "$DATAPATH/webserver/newcsr/server.csr"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
+	       mv -f  "$DATAPATH/webserver/newcsr/server.crt"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
+	       mv -f  "$DATAPATH/webserver/newcsr/server.key"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
+	       mv -f  "$DATAPATH/webserver/newcsr/ca_chain.pem" "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
+	       rm -rf "$DATAPATH/webserver/newcsr/"                           >>$LOGFILE  2>>$LOGFILE
 	   fi
 
 	   
@@ -1439,7 +1417,7 @@ then
 
 	   #enlazar el csr en el directorio web. (borrar cualquier enlace anterior)
 	   rm /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	   cp -f $DATAPATH/server.csr /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
+	   cp -f $DATAPATH/webserver/server.csr /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
 	   chmod 444 /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
 	   
 	   
@@ -2307,193 +2285,6 @@ fi
 
 
 
-if [ "$1" == "formatearClauer"  -o "$1" == "formatearUSB" ] 
-then
-
-    #1-> el dev
-    createPartitionTable () {
-
-        dev="$1"
-        echo "Dev a formatear: $dev" >>$LOGFILE 2>>$LOGFILE
-        
-
-        if [ "$dev" == "" ]
-	       then
-	           echo $"No existe el dispositivo" >>$LOGFILE 2>>$LOGFILE
-	           return 11
-        fi
-
-
-        #Nos cargamos la tabla de particiones
-        dd if=/dev/zero of=$dev count=10 1>/dev/null 2>/dev/null
-
-        #El algoritmo que calcula la geometría perfecta es erróneo. Fijando los cilindros al máximo (1024), 
-        #itera por todas las combinaciones posibles de número de cabezal (1-255) y sector (1-63) y busca 
-        #que coincida con el num de bytes real del dev. El problema es que no va almacenando el mejor 
-        #resultado parcial y, si no coincide, no saca el óptimo.
-        
-        #Bloques del dev (el kernel lo devuelve en bloques de 1024 bytes)
-        bloques=$[$($fdisk -s $dev 2>>$LOGFILE)]
-        if [ $bloques -eq 0 ]
-	       then
-	           echo $"Error durante el particionado: Dispositivo inválido." >>$LOGFILE 2>>$LOGFILE
-	           return 12
-        fi
-
-        total=$((bloques *1024 )) #tam del disp en bytes 
-        #echo "Tam real en bytes del dev: $total"
-        tamB=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep ", [0-9]* bytes" | sed "s/.*, \([0-9]*\) bytes/\1/g" 2>>$LOGFILE)] #tamaño real en bytes del disco. Como es una flash y la geometría CHS es inventada, puede darse el caso de que C*H*S*Blocksize sea distinto a este. El algoritmo intenta optimizar esto.
-        #echo "tamB: $tamB"
-
-        if [ $tamB -eq 0 ]
-	       then
-	           echo "Error durante el particionado: Dispositivo inválido (2)." >>$LOGFILE 2>>$LOGFILE
-	           return 12
-        fi
-
-
-        tam=$(($tamB/1000/1000))
-        #echo "tam: $tam"
-
-
-        #tam de sector del dev (teóricamente autodetectado por el kernel)
-        BytesPorSector=$[$(LC_ALL=C $fdisk -l $dev 2>>$LOGFILE | grep "\* [0-9]* = [0-9]* bytes" | sed "s/.*\* \([0-9]*\) = [0-9]* bytes/\1/")]
-        #echo "BytesPorSector: $BytesPorSector"
-
-        if [ $BytesPorSector -eq 0 ]
-	       then
-	           echo "Error durante el particionado: Dispositivo inválido (3)." >>$LOGFILE 2>>$LOGFILE
-	           return 12
-        fi
-
-
-        sectors=1
-        headers=1
-        cylinders=1024
-        found=0
-        tt=0
-        to=0
-        
-        while (( $found==0  && $sectors<=64 )); do
-	           headers=1
-            #echo "$BytesPorSector*$headers*$sectors*$cylinders";
-	           while (($found==0 && $headers<=256)); do 
-	               tt=$(($BytesPorSector*$headers*$sectors*$cylinders));
-	               if (( $tt>$to && $tt<=$tamB )); then 
-		                  to=$tt;
-		                  ho=$headers;
-		                  so=$sectors;
-		                  if (( $tt == $tamB )); then
-		                      found=1
-		                  fi
-	               fi
-	               headers=$((headers + 1));
-	           done
-	           sectors=$((sectors + 1));
-        done
-        
-        H=$ho
-        S=$so
-        #echo "C: $cylinders"
-        #echo "H: $H"
-        #echo "S: $S"
-        
-        BytesPorCilindro=$((H*S*$BytesPorSector))
-        #echo "BytesPorCilindro: $BytesPorCilindro"
-        CilindroFinalDatos=$(( $(($total - $cryptosize*1000*1024))/ $BytesPorCilindro ))
-        #echo "CilindroFinalDatos: $CilindroFinalDatos"
-        
-        
-        sync
-        # TODO revisar esta func. Ya no son clauers, ya no hace falta dos aprts. Ve ris merge con la que particiona la unidad de datos
-        
-        cmd="n\np\n1\n\n""$CilindroFinalDatos""\nn\np\n4\n\n\nt\n1\nc\nt\n4\n69\nw\n";
-        echo -ne "$cmd" | $fdisk $dev -C $cylinders -H $H -S $S 1>/dev/null 2>>$LOGFILE
-        
-        sync 
-        umount  ${dev}1 2>/dev/null
-        
-        sleep 1
-        
-
-        x=$(mkfs.vfat -S ${BytesPorSector} ${dev}1 2>&1 )
-
-        if [ $? -ne 0 ]
-	       then
-	           echo $"Error durante el particionado" >>$LOGFILE 2>>$LOGFILE
-	           return 13
-        fi
-        
-        sync
-        sleep 1
-        
-        
-        return
-    }
-
-
-    #1 -> dev
-    #2 -> pwd
-    createCryptoPart () {
-
-        sync
-        sleep 1
-        
-        x=$(clmakefs -d "$1"4  -p "$2" 2>&1 ) 
-
-        if [ $? -ne 0 ] 
-	       then
-	           echo $"Error durante el formateo"  >>$LOGFILE 2>>$LOGFILE
-	           return 14
-        fi
-        
-        #echo "Salida de clmakefs: $x" 
-        
-        sync
-        
-        #echo "Part datos: $total - $cryptosize*1000*1024"
-        totaldatos=$(( $total - $cryptosize*1000*1024 ))
-        #echo "Part datos: $totaldatos"
-
-        return
-    }
-
-
-    checkParameterOrDie DEV "${2}" "0"
-
-
-    if [ "$1" == "formatearUSB" ]
-    then
-        
-        checkParameterOrDie DEVPWD "${3}" "0"
-        
-    fi
-
-
-    createPartitionTable "$2"
-    ret=$?
-
-    if [ "$1" == "formatearUSB" ]
-    then
-        exit $ret;
-    fi
-
-
-    if [ "$ret" -eq 0 ]
-    then
-        
-        #$dlg   --infobox $"Formateando Clauer..." 0 0
-        echo $"Formateando Clauer..."  >>$LOGFILE 2>>$LOGFILE
-        createCryptoPart "$2" "$3"
-        ret=$?
-    else
-	       echo "Error durante el formateo (2)"  >>$LOGFILE 2>>$LOGFILE
-	       exit 14
-    fi
-
-    exit $ret;
-
-fi
 
 
 
@@ -2538,9 +2329,7 @@ exit 42
 
 
 
-#////$DATAPATH/newcsr --> revisar el control de este directiro (cuándo se crea, se borra, etc. Tengo que hacerlo aquí)
-
-#////Todas las apariciones de $DATAPATH/newcsr $DATAPATH/server.* $DATAPATH/ca... cambiarlas a $DATAPATH/webserver
+#////$DATAPATH/webserver/newcsr --> revisar el control de este directiro (cuándo se crea, se borra, etc. Tengo que hacerlo aquí)
 
 
 
