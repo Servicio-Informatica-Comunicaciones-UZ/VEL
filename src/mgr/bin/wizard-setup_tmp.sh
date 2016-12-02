@@ -16,7 +16,7 @@
 	           
 
             #Pedir Clauers con la config y rebuild key
-	           getClauersRebuildKey  b
+	           readUsbsRebuildKey
 	           ret=$?
 
 	           if [ $ret -ne 0 ] 

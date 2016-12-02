@@ -1215,22 +1215,6 @@ fi
 
 
 
-
-
-
-
-
-
-
-
-  
-
-
-
-##### SEGUIR: faltan por revisar
-
-
-
 #Will write the certificate request and the instructions on the
 #mounted usb drive
 if [ "$1" == "fetchCSR" ] 
@@ -1272,6 +1256,21 @@ then
     
 	   exit $ret
 fi
+
+
+
+
+
+
+
+
+
+  
+
+
+
+##### SEGUIR: faltan por revisar
+
 
 
 
@@ -1527,7 +1526,7 @@ then
 	   then
 	       getVar mem CURRENTSLOT
         
-	       checkClearance $CURRENTSLOT #TODO revisar
+	       checkClearance $CURRENTSLOT #TODO revisar y ver dónde se usa 
 	       ret="$?"
 	       
 	       exit $ret
@@ -1819,8 +1818,8 @@ then
         
 	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
 	       lastConfigRead=$((NEXTCONFIGNUM-1))
-	       echo "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
-	       echo "***** #### lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
+	       echo "*****NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
+	       echo "*****lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
         
 	       if [ "$NEXTCONFIGNUM" -eq 0 ]
 	       then
@@ -1934,10 +1933,24 @@ then
 	       exit $ret
     fi
     
+    
+    
+    
+    #Creates and inits a ciphered key store file on the device
+    #3 -> Device path
+    #4 -> New device password
+    if [ "$2" == "formatKeyStore" ] 
+	   then
+        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie DEVPWD "${4}" "0"
 
-
-
-
+        #Write an empty store file on the usb
+        $OPSEXE format -d "$3"  -p "$4" 2>>$LOGFILE
+	       ret=$?
+        
+        exit $ret
+    fi
+    
 
 
 
@@ -1947,6 +1960,12 @@ then
 
     
 # SEGUIR REVISANDO
+
+
+
+
+    
+    
     
     #3-> dev
     #4-> password   
@@ -2033,42 +2052,7 @@ then
 	       exit $ret
     fi
     
-
-
-
-
-    # *-*-
-    #Comprueba si la clave reconstruida en el slot activo es la correcta. # TODO esto no estaba ya más arriba? verificar si ya existem si se llama de otro modo o si es que falta código. --> está checkClearance, pero no sé si el uso de ambas es el mismo. buscar las llamadas a ambas
-    if [ "$2" == "validateKey" ] 
-	then
-	    :
-             getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-    fi
-
-
-
-    # TODO falta operación para cambiar password del store. revisar todas antes a ver
-    # TODO puede faltar tb una func para formatear?
-
-#readConfig(Share) --> devuelve el estado, pero el contenido lo vuelca  en un directorio inaccesible
-
-#readKeyShare --> devuelve el estado, pero el contenido lo vuelca  en un directorio inaccesible
-
-#getConfig  -> Devuelve la cadena de configuración si todas las piezas leídas son coherentes. (las variables críticas no las devuelve? ver dónde las uso y si lo puedo encapsular todo en la parte d eservidor usando ficheros)
-
-
-#//// Hacer interfaz de clops, de gestión de llaves y de gestión de variables.
-
-#//// Cron para el tema de las claves que permanecen: Borrarlas automáticamente no es buena idea, porque a priori no conocemos la duración de las sesiones de mantenimiento. Poner un cron que revise los slots de shares y avise al admin con un e-mail si llevan ahí más de 1 hora. Avisarle cada X horas hasta que se borren. Poner una entrada en el menú de standby que las borre.
-
-#//// El programa de standby se matará y arrancará cada vez, empezando en el punto del menú (establecer las variables que necesite.
-
-
-# //// Construir fichero de persistencia de variables en el tmp del root, para guardar valores entre invocaciones a privOps. El fichero de variables que se guarda en la part cifrada, ponerlo en el dir de root y gestionarlo desde priv ops (no devolver las variables críticas.).
-
-
-fi #End of storops gropu of operations
+fi #End of storops group of operations
 
 
 
@@ -2306,6 +2290,27 @@ exit 42
 
 
 
+    # #Comprueba si la clave reconstruida en el slot activo es la correcta. # TODO esto no estaba ya más arriba? verificar si ya existem si se llama de otro modo o si es que falta código. --> está checkClearance, pero no sé si el uso de ambas es el mismo. buscar las llamadas a ambas -> no se usa en ningún lado, y no creo que tenga razón de ser en ninguna de las op de mant que faltan, creoq que es equivalente al checkclearance
+    # # DENTRO de storops
+    # if [ "$2" == "validateKey" ] 
+	   # then
+	   #     :
+    #     getVar mem CURRENTSLOT
+    #     slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    # fi
+
+
+
+    # TODO falta operación storops para cambiar password del store (opsexe changePassword). Añadir op de mant al respecto.
+    #    3 -> Device path -d 
+    # 4 -> Former device password -p
+    # 5 -> New device password -n
+
+    # TODO opsexe checkdev no usada, usarla?  -d dev and [ -p pwd ] (not eneded, ignored if provided) --> no vale la pena, s ehace un checkdev antes de cada op, y no veo ningún sitio donde convenga usarla por sí sola.
+
+
+
+
 #//// implementar verifycert  SIN VERIF!! (porque se usa para discernir si la instalación del cert requiere autorización o no  ---> Las ops que se ejecutan durante la instal del cert deben hacerse sin verif, pero sólo cuando falle verifycert!!!  --> ver cuáles son.)
 
 
@@ -2322,7 +2327,6 @@ exit 42
 
 #Cuando se invoque a las ops privilegiadas, si existen fragmentos de llave, estos se harán ilegibles poara el no priv.
 
-#Quitar la posibilidad de abrir un terminal de root con el panic? o ponerle comprobación de llave a esta func tb para cuando pase en modo mant?
 
 
 #Decidir dónde activo la verificación de clave (lo más adecuado sería hacerlo en cuanto se crea/monta la partición, pero puede ser molesto verificar en cada op que haga. Mejor lo hago justo cuando el sistema queda en standby.) . El paso de la contraseña/piezas será por fichero/llamada a OP y funcionará como sesión. El cliente será el encargado de invalidar la contraseña (o piezas) cuando acabe de operar (o lo hago al acabar cada operación desde privops? es más seguro pero más molesto. Ver si es factible.)

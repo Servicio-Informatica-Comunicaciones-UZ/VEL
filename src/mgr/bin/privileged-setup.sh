@@ -680,7 +680,7 @@ then
     
     #restore database dump
     mysql -f -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection  <"$ROOTTMP/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
-    [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos."
+    [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos." # TODO extinguir system Panic, al menos en el wizard. cambiar por msgbox y ya
     
     #Delete backup directory # TODO. this may change
     rm -rf "$ROOTTMP/backupRecovery/"

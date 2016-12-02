@@ -622,7 +622,7 @@ obtainClearance () {
     $dlg --msgbox $"Para verificar la autoridad para realizar esta acción, procedemos a pedir los fragmentos de llave." 0 0
  	  
     #Pide reconstruir llave sólo para verificar que se tiene autorización de acceso 
-    getClauersRebuildKey  k
+    readUsbsRebuildKey  keyonly
     ret=$?
       
     if [ "$ret" -ne 0 ]

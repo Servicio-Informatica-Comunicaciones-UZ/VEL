@@ -189,7 +189,7 @@ checkPassword () {
 
 
 #Detects insertion of a device and reads the config/keyshare/both to the current slot 
-#1 -> 'c': read the config olny
+#1 -> 'c': read the config only
 #     'k': read the keyshare only
 #     'b' or '': read both
 #Returns  0: OK
@@ -296,7 +296,7 @@ rebuildKey () {
         $PVOPS storops rebuildKeyAllCombs 2>>$LOGFILE  #0 ok  1 bad pwd
 	       local ret=$?
         local errmsg=''
-        #If rebuild failed again, nothing can be done, back to the menu
+        #If rebuild failed again, nothing can be done, go back
 	       [ "$ret" -eq 10 ] && errmsg=$"Missing configuration parameters."
         [ "$ret" -eq 11 ] && errmsg=$"Not enough shares available."
         [ "$ret" -eq 1  ] && errmsg=$"Some shares may be corrupted. Not enough left."
@@ -308,6 +308,69 @@ rebuildKey () {
     
     return 0
 }
+
+
+
+
+
+
+
+#Will sequentially ask users to insert a usb drive and read the key
+#fragment and configuration (optionally) from it to the active slot
+# 1 -> By default, will read both the key and the configuration
+#        (and settle it to be used)
+#      'keyonly' will only read and rebuild the key
+#Returns: 0 if OK, 1 if failed, 2 if cancelled
+readUsbsRebuildKey () {  # Rename this and all the refs
+    
+    local readMode="b"
+    [ "$1" == "keyonly" ] && readMode="k"
+    
+    while true
+    do
+        #Ask to insert a device and read config (optionally) and key share
+        readNextUSB $readMode
+        ret=$?
+        [ $ret -eq 1 ] && continue   #Read error: ask for another usb
+        [ $ret -eq 2 ] && continue   #Password error: ask for another usb
+        [ $ret -eq 3 ] && continue   #Read config/keyshare error: ask for another usb
+        [ $ret -eq 4 ] && continue   #Config syntax error: ask for another usb
+        
+        #User cancel
+        if [ $ret -eq 9 ] ; then
+            $dlg --yes-label $"Insert another device" --no-label $"Go back" \
+                 --yesno  $"Do you want to insert a new device or cancel the procedure?" 0 0  
+
+            [ $? -eq 1 ] && return 2 #Cancel, go back
+            continue #Go on, ask for another usb
+        fi
+        
+        #Successfully read and removed, ask if any remaining
+        $dlg --yes-label $"Insert another device" --no-label $"No more left" \
+             --yesno  $"Successfully read. Are there any devices left?" 0 0
+        
+        [ $? -eq 1 ] && break #None left, go on
+        continue #Any left, ask for another usb
+    done
+    
+    #If config was read, set it as the one in use
+    if [ "$1" != "keyonly" ] ; then
+        #All devices read, set read config as the working config # On keyonly, do not settle
+        $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
+    fi
+    
+    #Try to rebuild key (first a simple attempt and then an all combinations)
+    $dlg --infobox $"Reconstructing ciphering key..." 0 0
+    rebuildKey
+    [ $? -ne 0 ] && return 1 #Failed
+    
+    $dlg --msgbox $"Key successfully rebuilt." 0 0
+    return 0
+}
+
+
+
+
 
 
 
@@ -1624,74 +1687,87 @@ fetchCSR () {
 
 
 
+
+
 #1->currShare
 #2->numShares
 #3->first clauer? 1 - Si   0 - No
 #4->'config' -> only writes config 'share' -> only writes share  '' -> writes both
-writeNextClauer () {
 
-    member=$(($1+1))
-         
-    success=0
-    while [ "$success" -eq  "0" ]
-      do
-      
-      clauerpos=$"el siguiente"
-      [ "$3" -eq 1 ] && clauerpos=$"el primer"
-      
-      insertUSB $"Inserte $clauerpos Clauer a escribir ($member de $2) y pulse INTRO." "none"
-      # TODO comprobar con nuevo funcionamiento de esta func , entre otras cosas, no hay loop infinito. si ret 1, pedir de nuevo
-     
-      
-      #Pedir pasword nuevo
-      
-      #Acceder  # TODO esto es un mount, checkdev y getpwd (y format usb + format store), además esto coincide con lo visto fuera, seguramente lo pueda meter todo en una func y/o hacer un bucle
-      storeConnect $DEV "newpwd" $"Miembro número $member:\nIntroduzca una contraseña nueva:"
-      ret=$?
-      
-      #Si el acceso se cancela, pedimos que se inserte otro
-      if [ "$ret" -eq 1 ] 
-	  then
-	  $dlg --msgbox $"Ha abortado el formateo del presente Clauer. Inserte otro para continuar" 0 0
-	  continue
-      fi
-      
-      #Formatear y particionar el dev        
-      $dlg   --infobox $"Preparando Clauer..." 0 0
 
-      #formatearClauer "$DEV" "$PASSWD"    # Ya no hago esto. Los usbs, formateaditos y con filesystem válido. Yo escribo el store y au
-      retf="$?"
 
-      if [ "$retf" -ne 0  ]
-	  then
-	  continue
-      fi
 
-      sync
+#Detects insertion of a device and writes the config and keyshare from
+#the current slot there
+#1 -> index
+#2 -> total
+# Return: 1: mount or format error
+#         2: format cancelled
+#         9: insertion cancelled
+writeNextUSB () {
+    
+    #Detect device insertion
+    current=$(($1+1)) #indexes start at zero, add 1 to make it readable
+    insertUSB $"Insert USB key storage device to be written ($current of $2)" $"Cancel"
+    [ $? -eq 1 ] && return 9
+    if [ $? -eq 2 ] ; then
+        #No readable partitions.
+        $dlg --msgbox $"Device contained no writable partitions." 0 0
+        return 1
+    fi
+    
+    #Mount the device (will do on /media/usbdrive)
+    $PVOPS mountUSB mount $USBDEV
+    [ $? -ne 0 ] && return 1 #Mount error
+    
+    #Ask for a new device password (returns password in $PASSWD)
+    getPassword new $"Please, insert a password to protect the connected USB device" 0
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Password insertion cancelled." 0 0
+        $PVOPS mountUSB umount
+        return 2
+    fi
+    
+    $dlg  --infobox $"Writing key secure storage..." 0 0
+    
+    #Initialise the store
+    $PVOPS storops formatKeyStore /media/usbdrive/ "$PASSWD" 2>>$LOGFILE
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Format error." 0 0
+        return 1
+    fi
+    
+    
+    
+
+            # SEGUIR
+    
       
-      #escribir fragmento de llave
-      if [ "$4" == "" -o "$4" == "share" ]
-	  then
 
-	  $dlg   --infobox $"Escribiendo fragmento de llave..." 0 0
-          #0 succesully set  1 write error
-	  $PVOPS storops writeKeyShare "$DEV" "$PASSWD"  "$1"
-	  ret=$?
-	  sync
-	  sleep 1
-	  
-          #Si falla la escritura
-	  if [ $ret -eq 1 ] 
-	      then
-	      $dlg --msgbox $"Ha fallado la escritura del fragmento de llave. Inserte otro Clauer para continuar" 0 0 
-	      continue
-	  fi
-      fi
-      
-      #escribir config
-      if [ "$4" == "" -o "$4" == "config" ]
-	  then
-	  
+
+    #escribir fragmento de llave
+    if [ "$4" == "" -o "$4" == "share" ]
+	   then
+
+	       $dlg   --infobox $"Escribiendo fragmento de llave..." 0 0
+        #0 succesully set  1 write error
+	       $PVOPS storops writeKeyShare "$DEV" "$PASSWD"  "$1"
+	       ret=$?
+	       sync
+	       sleep 1
+	       
+        #Si falla la escritura
+	       if [ $ret -eq 1 ] 
+	       then
+	           $dlg --msgbox $"Ha fallado la escritura del fragmento de llave. Inserte otro Clauer para continuar" 0 0 
+	           continue
+	       fi
+    fi
+    
+    #escribir config
+    if [ "$4" == "" -o "$4" == "config" ]
+	   then
+	       
 	  $dlg   --infobox $"Almacenando la configuración del sistema..." 0 0
 
 	  $PVOPS storops writeConfig "$DEV" "$PASSWD"
@@ -1707,15 +1783,22 @@ writeNextClauer () {
 	  fi
       fi
       
-      success=1
-      
-    done
+   
 
     detectUsbExtraction $DEV $"Clauer escrito con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
 }
 
 
-writeClauers () {
+
+
+
+    
+
+
+#Will sequentially ask users to insert a usb drive and write the key
+#fragment and configuration from the active slot there
+#Returns: 0 if OK, 1 if failed, 2 if cancelled
+writeUsbs () {
   
 
     
@@ -1723,7 +1806,7 @@ writeClauers () {
     firstloop=1
     for i in $(seq 0 $(($SHARES-1)) )
       do
-      writeNextClauer $i $SHARES $firstloop
+      writeNextUSB $i $SHARES $firstloop
       sync
 
       [ "$firstloop" -eq "1" ] && firstloop=0
@@ -1733,17 +1816,3 @@ writeClauers () {
 
 }
 
-
-    
-
-
-#//// revisar el uso correcto en modo mant  --> no veo la diferencia. probarlo en funcionamiento y seguir el proceso.
-#Reconstruye la clave, con fines de comprobar la autorización de realizar acciones 
-# de mantenimiento sin reiniciar el equipo o para recuperar los datos del backup
-
-# 1 -> el modo de readClauer (k, c, o b (ambos))  # Quizá pasar al flujo directo, ver dónde se usa
-getClauersRebuildKey () {  # Rename this and all the refs
-    
-:
-
-}

@@ -96,9 +96,8 @@ chooseMaintenanceAction () {
 	               ;;
 	           
 	           * )
-	               echo "system panic: bad selection"  >>$LOGFILE 2>>$LOGFILE
-	               $dlg --msgbox "THIS SHOULDN'T HAPPEN: BAD SELECTION" 0 0
-	               shutdownServer "h"
+	               echo "main operation selector: bad selection. This must not happen"  >>$LOGFILE 2>>$LOGFILE
+                continue
 	               ;;
 	       esac   
     done
@@ -608,49 +607,19 @@ do
     
     
     
-    ######## Get parameters and key from usb drives ##########  # TODO this block must be put to a common function (getClauersRebuildKey)
+    ######## Get parameters and key from usb drives ##########  # TODO review this block while implementing backup recovery
     if [ "$DOSTART" -eq 1  -o  "$DORESTORE" -eq 1 ] ; then
         #We need to obtain a cipherkey and config parameters from a set of usb stores
         $dlg --msgbox $"We need to rebuild the shared cipher key.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
         
-        while true
-        do
-            #Ask to insert a device and read config and key share
-            readNextUSB
-            ret=$?
-            [ $ret -eq 1 ] && continue   #Read error: ask for another usb
-            [ $ret -eq 2 ] && continue   #Password error: ask for another usb
-            [ $ret -eq 3 ] && continue   #Read config/keyshare error: ask for another usb
-            [ $ret -eq 4 ] && continue   #Config syntax error: ask for another usb
-            
-            #User cancel
-            if [ $ret -eq 9 ] ; then
-                $dlg --yes-label $"Insert another device" --no-label $"Back to the main menu" \
-                     --yesno  $"Do you want to insert a new device or cancel the procedure?" 0 0  
-
-                [ $? -eq 1 ] && continue 2 #Cancel, go back to the menu
-                continue #Go on, ask for another usb
-            fi
-            
-            #Successfully read and removed, ask if any remaining
-            $dlg --yes-label $"Insert another device" --no-label $"No more left" \
-                 --yesno  $"Successfully read. Are there any devices left?" 0 0
-            
-            [ $? -eq 1 ] && break #None left, go on
-            continue #Any left, ask for another usb
-        done
+        #Read all available usbs from the commission and try to
+        #rebuild the shared key
+        readUsbsRebuildKey
+        ret=$?
+        [ $ret -eq 1 ] && continue  #Key rebuild error, go back to the menu
+        [ $ret -eq 2 ] && continue  #USer cancelled, go back to the menu
         
-        #All devices read, set read config as the working config
-        $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
         
-        #Try to rebuild key (first a simple attempt and then an all combinations)
-        $dlg --infobox $"Reconstructing ciphering key..." 0 0
-        rebuildKey
-        [ $? -ne 0 ] && continue #Failed, go back to the menu
-        
-        $dlg --msgbox $"Key successfully rebuilt." 0 0
-
-
         #If this is a simple startup, check whether any share is corrupted
         if [ "$DOSTART" -eq 1 ]
 	       then
@@ -798,8 +767,6 @@ do
     
     
     
-    # REVISAR DESDE AQUÍ 
-
     #Handle SSL certificate
     if [ "$DOINSTALL" -eq 1 ]
     then
@@ -902,7 +869,7 @@ do
         #Share key and basic config on usbs to be kept by the
         #commission (usbs must have avalid data partition)
         $dlg --msgbox $"Now we'll write the key shares on the commission's usb drives. Make sure these drives are cleanly formatted and free of any other key shares currently in use, as they might be overwritten." 0 0
-        writeClauers # TODO SEGUIR mañana revisar y ajustar la parte en que se escriben los clauers. luego poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
+        writeUsbs # TODO SEGUIR mañana revisar y ajustar la parte en que se escriben los clauers. luego poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
     fi
     
     
@@ -953,10 +920,6 @@ exit 42
 # TODO reimplementar backup retrieval    ######## Retrieve backup to restore #########  # TODO revisar y reintegrar todo el sistema de backup y de recuperación
 # TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
 # TODO on a recovery, ask the backup location parameters there, don't expect to read them from the usbs. Also, on the fresh install he will be able to set new ssh bak location (but on restoring, the values on the hard drive will be there. should we overwrite them? should we avoid defining certain things on a fresh install?) --> should we do this instead?: ask for the restoration clauers at the beginning, and ask for the ssh backup location (and provisional ip config). retrieve backup, setup hdd, restoee ******** I'm getting dizzy, think this really carefully. restoration is an emergency procedure and should not mess with the other ones, leave the other ones simple and see later what to do with this, I personally prefer to have the ip and ssh bak config on the hard drive and minimise usb config. if this means making a whole special flow for the restore, then it is. Think carefully what we backup and what we restore.
-
-    
-    
-# TODO extinguir system Panic, al menos en el wizard. cambiar por msgbox y ya
     
 
 # TODO implement a delayed rebuilt key anulation? this way, multiple privileged actions can be performed without bothering the keyholders. think about this calmly. maybe a file with the last action timestamp and a cron? but I think it's too risky...
