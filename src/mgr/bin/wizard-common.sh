@@ -253,7 +253,23 @@ readNextUSB () {
         #Compare last read config with the one currently considered as
         #valid (if no tampering occurred, all should match perfectly)
         #If different, user will be prompted
-	       $PVOPS storops compareConfigs        
+	       differences=$($PVOPS storops compareConfigs)
+        if [ $? -eq 1 ]
+        then
+            $dlg --msgbox $"Found differences between the last configuration file and the previous ones. This is unexpected and should be carefully examined for tampering or corrution" 0 0
+            
+            #Show the differences
+            echo "$differences" | $dlg --programbox 40 80
+
+            #Let the user choose
+            $dlg --yes-label $"Current"  --no-label $"New"  --yesno  $"Do you wish to use the current one or the new one?" 0 0
+            #Decided to use the new one, set it
+            if [ $? -eq  1 ] ; then
+		              echo "Using new config." >>$LOGFILE 2>>$LOGFILE
+                $PVOPS storops resolveConfigConflict
+            fi
+        fi
+        
     fi
     
     #Read keyshare
@@ -1699,8 +1715,8 @@ fetchCSR () {
 
 #Detects insertion of a device and writes the config and keyshare from
 #the current slot there
-#1 -> index
-#2 -> total
+#1 -> index number of the share (on the slot) to be written to the usb
+#2 -> total number of shares
 # Return: 1: mount or format error
 #         2: format cancelled
 #         9: insertion cancelled
@@ -1737,82 +1753,59 @@ writeNextUSB () {
         return 1
     fi
     
-    
-    
-
-            # SEGUIR
-    
-      
-
-
-    #escribir fragmento de llave
-    if [ "$4" == "" -o "$4" == "share" ]
-	   then
-
-	       $dlg   --infobox $"Escribiendo fragmento de llave..." 0 0
-        #0 succesully set  1 write error
-	       $PVOPS storops writeKeyShare "$DEV" "$PASSWD"  "$1"
-	       ret=$?
-	       sync
-	       sleep 1
-	       
-        #Si falla la escritura
-	       if [ $ret -eq 1 ] 
-	       then
-	           $dlg --msgbox $"Ha fallado la escritura del fragmento de llave. Inserte otro Clauer para continuar" 0 0 
-	           continue
-	       fi
+    #Write key fragment
+	   $PVOPS storops writeKeyShare /media/usbdrive/ "$PASSWD"  "$1"
+	   if [ $? -ne 0 ] ; then
+        echo "Error writing key share on store: " >>$LOGFILE 2>>$LOGFILE
+        $dlg --msgbox $"Write error." 0 0
+        $PVOPS mountUSB umount
+        return 1
     fi
     
-    #escribir config
-    if [ "$4" == "" -o "$4" == "config" ]
-	   then
-	       
-	  $dlg   --infobox $"Almacenando la configuración del sistema..." 0 0
-
-	  $PVOPS storops writeConfig "$DEV" "$PASSWD"
-	  ret=$?
-	  sync
-	  sleep 1
-	  
-          #Si falla la escritura
-	  if [ $ret -eq 1 ] 
-	      then
-	      $dlg --msgbox $"Ha fallado la escritura de la configuración. Inserte otro Clauer para continuar" 0 0
-	      continue
-	  fi
-      fi
-      
-   
-
-    detectUsbExtraction $DEV $"Clauer escrito con éxito. Retírelo y pulse INTRO." $"No lo ha retirado. Hágalo y pulse INTRO."
+    #Write configuration block
+    $PVOPS storops writeConfigBlock "$DEV" "$PASSWD"
+	   if [ $? -ne 0 ] ; then
+        echo "Error writing config block on store: " >>$LOGFILE 2>>$LOGFILE
+        $dlg --msgbox $"Write error." 0 0
+        $PVOPS mountUSB umount
+        return 1
+    fi
+    
+    #Ensure write is complete and umount
+	   sync
+	   $PVOPS mountUSB umount
+	   sleep 1
+    
+    #Ask the user to remove the usb device
+    detectUsbExtraction $USBDEV $"USB device successfully written. Remove it and press RETURN." \
+                        $"Didn't remove it. Please, do it and press RETURN."
+    
+    return 0
 }
 
 
 
 
 
-    
-
-
 #Will sequentially ask users to insert a usb drive and write the key
 #fragment and configuration from the active slot there
+#1 -> Total number of usbs to be written
 #Returns: 0 if OK, 1 if failed, 2 if cancelled
 writeUsbs () {
-  
 
+    local i=0
+    local total=$1
     
-    #for i in {0..23} -> no acepta sustitución de variables
-    firstloop=1
-    for i in $(seq 0 $(($SHARES-1)) )
-      do
-      writeNextUSB $i $SHARES $firstloop
-      sync
-
-      [ "$firstloop" -eq "1" ] && firstloop=0
-      
+    #While there are usbs left writing
+    while [ $i -lt $total ]
+    do
+        writeNextUSB $i $total
+        ret=$?
+        [ $ret -eq 1 ] && continue   #Write error: ask for another usb to write the same share
+        [ $ret -eq 2 ] && continue   #Cancelled: ask for another usb to write the same share
+        
+        #If write succeeded, go on to the next usb
+        i=$((i+1))
     done
-
-
 }
 

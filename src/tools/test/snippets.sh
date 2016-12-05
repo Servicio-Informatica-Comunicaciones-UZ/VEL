@@ -38,7 +38,7 @@ mdadm --assemble --scan --no-degraded --config=/tmp/mdadm.conf --auto=yes >>$LOG
 #Create a RAID (create a superblock in each disk)
 mdadm --create /dev/md0 --level=raid1 --raid-devices=2 /dev/hda1 /dev/hdc1
 #Create partition table:
-fdisk /dev/md0  c(dos compatibility off) u(units to sectors) o (new table) n (new partition) w
+fdisk /dev/md0 # c(dos compatibility off) u(units to sectors) o (new table) n (new partition) w
 
 #Check RAID status or of each disk
 mdadm --detail /dev/md0
@@ -288,3 +288,34 @@ rm /tmp/tempdlg /tmp/nodelist 2>/dev/null
 
 #Subject structure (must be this way, with the eMail upfront)
 #"/emailAddress=XXX/C=XX/ST=XXXX/L=XXXXX/O=XXXXXX/OU=XXXX/CN=XX.XX.XX"
+
+
+
+    	   
+#</DEBUG>
+echo "***** Written Share$1 ($(ls -l $shareFilePath | cut -d \" \" -f 5))*****"
+hexdump shareFilePath
+echo "******************************"
+#</DEBUG>
+
+
+#<DEBUG>      
+echo -e "CHECK1: cfg:  --" >>$LOGFILE 2>>$LOGFILE
+cat "$configFilePath" >>$LOGFILE 2>>$LOGFILE
+echo "--" >>$LOGFILE 2>>$LOGFILE
+#</DEBUG>
+
+
+
+
+#Iterate a number sequence
+for i in $(seq 0 $(($1-1)) ) ; do
+    :
+done
+
+
+
+
+#Syntax check all bash scripts
+for s in $(find src/ -iname "*.sh") ; do bash -n $s ; done;
+

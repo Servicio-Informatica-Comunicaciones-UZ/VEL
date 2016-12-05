@@ -1735,8 +1735,10 @@ then
     
     
     
-    #Compare last read config with the one considered the correct one # TODO lock this operation in maintenance? move it to setup? try to remove dialogs?
-    if [ "$2" == "compareConfigs" ]   # TODO cambiar el textbox por un programbox o prgbox? así, la op priv devuelve por stdout el contenido del diff, y al estar piped, nos ahorramos manejar el fichero
+    #Compare last read config with the one considered to be the
+    #correct one
+    #Return: 0 if no conflicts, 1 if conflicts
+    if [ "$2" == "compareConfigs" ]
 	   then
         
         getVar mem CURRENTSLOT
@@ -1746,65 +1748,69 @@ then
 	       lastConfigRead=$((NEXTCONFIGNUM-1))
         echo "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
 	       echo "***** #### lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
-        
-	       keepCurrent=0
-        
+
+        #If none read, no conflicts
 	       if [ "$lastConfigRead" -lt 0 ] ; then
 	           echo "compareConfigs: No config files read yet" >>$LOGFILE 2>>$LOGFILE
-	           exit 1;
+	           exit 0;
 	       fi
         
-        #Only one has been read or this is the first comparison
-	       if [ "$lastConfigRead" -eq 0 -o ! -s $slotPath/config.raw ] ; then
+        #No reference configuration settled (only one has been read or
+        #this is the first comparison)
+	       if [ ! -s $slotPath/config.raw ] ; then
             #Set the first read config as the proper one
             parseConfigFile "$slotPath/config0" 2>>$LOGFILE > $slotPath/config
             #We also store a raw version of the read config block for comparison
 		          cat $slotPath/config0 2>>$LOGFILE > $slotPath/config.raw
 	       fi
         
-        #Get the file differences
-	       df=$( diff $slotPath/config$lastConfigRead  $slotPath/config.raw )
+        #Get the file differences (on the first read, it will compare with itself)
+	       differences=$( diff $slotPath/config$lastConfigRead  $slotPath/config.raw )
         #<DEBUG>
-	       echo "***** diff for config files $lastConfigRead - config: $df" >>$LOGFILE 2>>$LOGFILE
+	       echo "***** diff for config files $lastConfigRead - config: $differences" >>$LOGFILE 2>>$LOGFILE
         #</DEBUG>
-
-        #Show differences to the user and let him decide
-	       if [ "$df" != "" ]
-		      then
-		          echo -ne $"Current configuration:""\n"      > $slotPath/buff
-		          echo -ne $"--------------------- \n\n"      >> $slotPath/buff
-		          cat $slotPath/config.raw                    >> $slotPath/buff
-		          echo -ne "\n\n\n"$"New Configuration:""\n"  >> $slotPath/buff
-		          echo -ne $"--------------------- \n\n"      >> $slotPath/buff
-		          cat  $slotPath/config$lastConfigRead        >> $slotPath/buff
-		          echo -ne "\n\n\n"$"Differences:""\n"        >> $slotPath/buff
-		          echo -ne $"--------------------- \n\n"      >> $slotPath/buff
-            
-		          $dlg --msgbox $"Found differences between the last configuration file and the previous ones. This is unexpected and should be carefully examined for tampering or corrution" 0 0
-            
-            $dlg --textbox $slotPath/buff 0 0
-            
-            $dlg --yes-label $"Current"  --no-label $"New"  --yesno  $"Do you wish to use the current one or the new one?" 0 0
-            
-            #Decide to keep current one
-            [ "$?" -eq  0 ] && keepCurrent=1
-		          echo "Keep current config?: $keepCurrent" >>$LOGFILE 2>>$LOGFILE
-            
-		          rm $slotPath/buff >>$LOGFILE 2>>$LOGFILE
-	       fi
         
-        #If user decided to use new one, update raw and parsed configuration files
-	       if [ "$keepCurrent" -eq 0 ]
-        then
-	           #Store raw block for comparison
-	           cat $slotPath/config$lastConfigRead 2>>$LOGFILE > $slotPath/config.raw
+        #If there are differences, print them to the user and return conflict
+	       if [ "$differences" != "" ]
+		      then
+            #Build the diferences report so the user can decide
+            report=$"Current configuration:""\n"
+		          report="$report""--------------------- \n\n"
+            report="$report"$(cat $slotPath/config.raw)
+            report="$report""\n\n\n"
+            report="$report"$"New Configuration:""\n"
+            report="$report""--------------------- \n\n"
+            report="$report"$(cat $slotPath/config$lastConfigRead)
+            report="$report""\n\n\n"
+            report="$report"$"Differences:""\n"
+            report="$report""--------------------- \n\n"
+            report="$report""$differences"
             
-            #Parse and store the configuration
-	           parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE > $slotPath/config
+            #Send to the user and return 'conflict'
+            echo -ne "$report"
+            return 1
         fi
+        
+        return 0
+		  fi
+    
+    
+    
+    
+    #The user will command, in case of configuration conflict, to use
+    #the last read configuration as the correct one, substituting the
+    #one previously settled as the correct.
+    if [ "$2" == "resolveConfigConflict" ]
+	   then
+        
+	       #Store raw block for comparison
+	       cat $slotPath/config$lastConfigRead 2>>$LOGFILE > $slotPath/config.raw
+        
+        #Parse and store the configuration
+	       parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE > $slotPath/config
+        
         exit 0
     fi
-    
     
     
     
@@ -1951,6 +1957,81 @@ then
         exit $ret
     fi
     
+    
+    
+    
+    #Writes the indicated share on the store at the indicated path
+    #3 -> Device path
+    #4 -> New device password
+    #5 -> The number id of the share to be written (from the ones at the slot)
+    #Return: 0: succesully written,  1: write error
+    if [ "$2" == "writeKeyShare" ] 
+	   then
+	       checkParameterOrDie DEV    "${3}" 0
+        checkParameterOrDie DEVPWD "${4}" 0
+        
+	       getVar usb SHARES
+	       checkParameterOrDie INT    "${5}" 0
+        
+        getVar mem CURRENTSLOT
+        
+	       #Check that the indicated share is in range (0,SHARES-1)
+	       if [ "$5" -lt 0 -o "$5" -ge "$SHARES" ] ; then
+	           echo "writeKeyShare: bad share num $5 (not between 0 and $SHARES)"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
+        
+        #Get the path to the indicated share file
+	       shareFilePath="$ROOTTMP/slot$CURRENTSLOT/keyshare$5"
+        
+	       #Check that file exists and has size
+	       if [ ! -s "$shareFilePath" ] ; then
+	           echo "writeKeyShare: nonexisting or empty share $5 (of $SHARES)"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
+        
+        #Write the share to the store
+	       $OPSEXE writeKeyShare -d "$3"  -p "$4" <"$shareFilePath" 2>>$LOGFILE
+	       ret=$?
+        
+	       exit $ret
+    fi
+    
+    
+    
+    
+    #Writes the usb config file (the one settled and being edited
+    #during operation, not one from a slot) to a device
+    #3 -> Device path
+    #4 -> New device password
+    if [ "$2" == "writeConfigBlock" ] 
+	   then
+        checkParameterOrDie DEV    "${3}" 0
+        checkParameterOrDie DEVPWD "${4}" 0
+        
+        #Get the path to the configuration file
+	       configFilePath="$ROOTTMP/config"	
+        
+        #Check that the file exists and has size
+	       if [ ! -s "$configFilePath" ] ; then
+	           echo "writeConfigBlock: No config file to write!"  >>$LOGFILE 2>>$LOGFILE
+	           exit 1
+	       fi
+        
+	       #Write the config block to the store
+	       cat "$configFilePath" | $OPSEXE writeConfig -d "$3"  -p "$4" 2>>$LOGFILE
+	       ret=$?
+        
+	       exit $ret
+    fi
+    
+    
+fi #End of storops group of operations
+
+
+
+
+    
 
 
 
@@ -1966,150 +2047,58 @@ then
 
     
     
-    
-    #3-> dev
-    #4-> password   
-    # 5 -> El número de share que debe escribir:
-    if [ "$2" == "writeKeyShare" ] 
-	   then
-	       
-	       getVar usb SHARES
-        checkParameterOrDie DEV "${3}" "0"
-        checkParameterOrDie DEVPWD "${4}" "0"
-	       
-	       # $5 debe ser un int
-	       checkParameterOrDie INT "${5}" "0"
-
-
-        getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        
-	       # $5 debe estar entre 0 y SHARES-1
-	       if [ "$5" -lt 0 -o "$5" -ge "$SHARES" ]
-	       then
-	           echo "writeKeyShare: bad share num $5 (not between 0 and $SHARES)"  >>$LOGFILE 2>>$LOGFILE
-	           exit 1
-	       fi
-
-	       shareFileToWrite="$slotPath/keyshare$5"
-
-	       # Si el fichero de esa share existe y tiene tamaño
-	       if [ -s "$shareFileToWrite" ]
-	       then
-	           :
-	       else
-	           echo "writeKeyShare: nonexisting or empty share $5 (of $SHARES)"  >>$LOGFILE 2>>$LOGFILE
-	           exit 1
-	       fi
-    	   
-	       
-        #echo "***** Written Share$1 ($(ls -l $shareFileToWrite | cut -d \" \" -f 5))*****"
-        #hexdump shareFileToWrite
-        #echo "******************************"
-	       $OPSEXE writeKeyShare -d "$3"  -p "$4" <"$shareFileToWrite" 2>>$LOGFILE  #0 succesully set  1 write error
-	       ret=$?
-
-	       exit $ret
-    fi
-
-
-
-
-    # TODO revisar
-    #Writes the usb config file (the one settled and being edited
-    #during operation, not one from a slot) to a device
-    #3-> dev
-    #4-> password      
-    if [ "$2" == "writeConfig" ] 
-	   then
-
-        checkParameterOrDie DEV "${3}" "0"
-        checkParameterOrDie DEVPWD "${4}" "0"
-        
-	       file="$ROOTTMP/config"	
-		      
-	       if [ -s "$file" ]
-	       then
-	           :
-	       else
-	           echo "writeConfig: No config to write!"  >>$LOGFILE 2>>$LOGFILE
-	           exit 1
-	       fi
-
-	       config=$(cat "$file" 2>>$LOGFILE)  ## TODO ???
-
-
-	       echo -e "CHECK1: cfg:  --" >>$LOGFILE 2>>$LOGFILE  # TODO Only in debug
-        #<DEBUG>
-	       cat "$file" >>$LOGFILE 2>>$LOGFILE #*-*- verificar que lo que imprimia era por esto. quitar este cat en prod.
-        #</DEBUG>
-	       echo "--" >>$LOGFILE 2>>$LOGFILE
-
-	       #Escribimos las vars de config que deben guardarse en el clauer
-	       cat "$file" | $OPSEXE writeConfig -d "$3"  -p "$4" 2>>$LOGFILE
-	       ret=$?
-
-	       exit $ret
-    fi
-    
-fi #End of storops group of operations
-
-
-
-
-
 
 
 
 
 
 if [ "$1" == "stats" ] 
-    then
+then
 
 
 
     if [ "$2" == "startLog" ] 
-	then
-	/usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
-	exit 0
+	   then
+	       /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
+	       exit 0
     fi
 
     if [ "$2" == "updateGraphs" ]  #//// No necesita verif de llave
-	then
-	/usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
-	exit 0
+	   then
+	       /usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
+	       exit 0
     fi
 
     if [ "$2" == "installCron" ] 
-	then
-	/usr/local/bin/stats.sh installCron
-	exit 0
+	   then
+	       /usr/local/bin/stats.sh installCron
+	       exit 0
     fi
 
     if [ "$2" == "uninstallCron" ] 
-	then
-	/usr/local/bin/stats.sh uninstallCron
-	exit 0
+	   then
+	       /usr/local/bin/stats.sh uninstallCron
+	       exit 0
     fi
 
     if [ "$2" == "resetLog" ] 
-	then
+	   then
 
-	#Destruimos las RRD anteriores
-	rm -f $DATAPATH/rrds/* >>$LOGFILE 2>>$LOGFILE
+	       #Destruimos las RRD anteriores
+	       rm -f $DATAPATH/rrds/* >>$LOGFILE 2>>$LOGFILE
 
-	/usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
-	
-	/usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
+	       /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
+	       
+	       /usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
 
-	exit 0
+	       exit 0
     fi
 
     #Cuando saca las stats inmediatas en pantalla.  #//// No necesita verif de llave
     if [ "$2" == "" ] 
-	then
-	/usr/local/bin/stats.sh 2>>$LOGFILE
-	exit 0
+	   then
+	       /usr/local/bin/stats.sh 2>>$LOGFILE
+	       exit 0
     fi
 
 

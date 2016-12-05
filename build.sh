@@ -117,7 +117,7 @@ then
     cp -rf doc/*.pdf target/rootfs/root/doc
     
 
-    ######## Process scripts to compy with build mode #######
+    ######## Process scripts to comply with build mode #######
     tell "Process system tools to comply with the build mode"
     #We delete debug blocks when in release mode or release blocks
     #when in debug mode (opposite comments are left behind as they are harmful)
@@ -127,6 +127,15 @@ then
         sed -i -re '/#\s*<RELEASE>/,/#\s*<\/RELEASE>/d' $(find target/rootfs/root/src/ -iname "*.sh")
     fi
     
+
+    #Perform a syntax check of all the scripts (to save time and builds)
+    for scrpt in $(find src/ -iname "*.sh")
+    do
+        bash -n $scrpt
+        if [ $? -ne 0 ] ; then
+            die "Compilation aborted due to syntax errors in bash scripts."
+        fi
+    done
     
     
     ######## Setup APT and network #######

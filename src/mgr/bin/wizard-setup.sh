@@ -869,7 +869,7 @@ do
         #Share key and basic config on usbs to be kept by the
         #commission (usbs must have avalid data partition)
         $dlg --msgbox $"Now we'll write the key shares on the commission's usb drives. Make sure these drives are cleanly formatted and free of any other key shares currently in use, as they might be overwritten." 0 0
-        writeUsbs # TODO SEGUIR mañana revisar y ajustar la parte en que se escriben los clauers. luego poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
+        writeUsbs # TODO SEGUIR  poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
     fi
     
     
