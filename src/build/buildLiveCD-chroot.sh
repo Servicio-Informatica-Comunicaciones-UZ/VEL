@@ -103,7 +103,8 @@ if [ $UPDATEPACKAGES -eq "1" ]
         # TODO maybe, te issue is caused by the strings on the scripts being iso and we selecting UTF  # TODO
         
         #Commented. May be the source of issues for the terminal not showing utf characters # TODO
-        
+
+        # TODO console-setup y kbd-setup, revisar logs de salida, tb prefijar encoding del console a UTF-8, prefijar vtuji secondaryuser info, 
         
         apt-get -f install -y --force-yes ${PCKGS}
         
@@ -690,9 +691,10 @@ apt-get clean
 #Set generic hostname
 echo "vtuji" > /etc/hostname
 
-#Set basic hosts file
+#Set basic hosts file (will also resolve the generic hostname)
 cat > /etc/hosts <<EOF
 127.0.0.1	localhost
+127.0.0.1	vtuji
 
 # The following lines are desirable for IPv6 capable hosts
 ::1     localhost ip6-localhost ip6-loopback

@@ -643,7 +643,7 @@ configureNetwork () {
     #Check Internet connectivity
     $dlg --infobox $"Checking Internet connectivity..." 0 0
 	   ping -w 5 -q 8.8.8.8  >>$LOGFILE 2>>$LOGFILE 
-	   if [ $? -eq 0 ] ; then
+	   if [ $? -ne 0 ] ; then
         return 2
     fi
     return 0

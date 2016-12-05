@@ -41,6 +41,9 @@ getPartitionsForDrive () {
         nparts=$((nparts+1))
     done
     
+    echo "Partitions for drive $1 ($nparts): $parts"   >>$LOGFILE 2>>$LOGFILE
+    
+    #Return
     echo "$parts"
     return $nparts
 }
@@ -148,8 +151,9 @@ listHDDPartitions () {
     
     #Get all RAID devices (in wfs mode, hdds forming a raid array will
     #never be listed, as they cannot be mounted, but on all mode they
-    #must be listed (although the array will be destroyed)
-    for mdid in $(seq 0 99) ; do
+    #must be listed (although the array will be destroyed). Also, 256
+    #is the max range for the minor number
+    for mdid in $(seq 0 256) ; do
 	       drives="$drives /dev/md$mdid"
     done
     

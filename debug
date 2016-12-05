@@ -16,8 +16,11 @@ RUNCHROOT=1
 UPDATEPACKAGES=1
 
 #Generate new DH parameters for the apache SSL
-$GENERATEDHPARAMS=1
-
+#
+#  Currently unsupported by openssl version (<1.0.2). Uncomment
+#  src/sys/config/webserver/default-ssl.conf line to activate if openssl
+#  is updated.
+GENERATEDHPARAMS=0 
 
 #Remove backdoors for a production release
 RELEASE=0

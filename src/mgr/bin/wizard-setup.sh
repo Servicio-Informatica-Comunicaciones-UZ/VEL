@@ -237,7 +237,10 @@ selectTimezone () {
     while true
     do
         local areaOptions=$(ls -F  /usr/share/zoneinfo/right/ | grep / | sed -re "s|/| |g")
-        local tzArea=$($dlg --no-items --cancel-label $"Menu" --default-item $defaultItem --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)        
+        local tzArea=$($dlg --no-items --cancel-label $"Menu" --default-item $defaultItem \
+                            --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)
+        [ $? -ne 0 ] && return 1
+        
         if [ "$tzArea" == ""  ] ; then
 	           $dlg --msgbox $"Please, select a timezone area." 0 0
 	           continue
@@ -419,7 +422,7 @@ do
     #On fresh install, show EULA
     if [ "$DOINSTALL" -eq 1 ] ; then
         $dlg --extra-button --extra-label $"I do not agree" --no-cancel \
-             --ok-label $"I agree"  --textbox /usr/share/doc/License.$LANGUAGE 0 0
+             --ok-label $"I agree"  --textbox /usr/share/doc/License.$LANGUAGE 40 80
         #Does not accept EULA, halt
         [ $? -eq 3 ] && shutdownServer "h"
     fi

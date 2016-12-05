@@ -655,9 +655,9 @@ configureNetwork () {
             /sbin/ifconfig "$interface" "$IPADDR" netmask "$MASK"  >>$LOGFILE 2>>$LOGFILE 
             
             #Set default gateway
-	           echo "/sbin/route add default gw $GATEWAY">>$LOGFILE 2>>$LOGFILE
-            /sbin/route del default
-            /sbin/route add default gw "$GATEWAY"  >>$LOGFILE 2>>$LOGFILE 
+	           echo "/sbin/route add default gw $GATEWAY" >>$LOGFILE 2>>$LOGFILE
+            /sbin/route del default                    >>$LOGFILE 2>>$LOGFILE
+            /sbin/route add default gw "$GATEWAY"      >>$LOGFILE 2>>$LOGFILE 
 	           
             #Set NameServers
 	           echo -e "nameserver $DNS1\nnameserver $DNS2" > /etc/resolv.conf
@@ -698,11 +698,11 @@ configureNetwork () {
     
     #Check gateway connectivity
 	   ping -w 5 -q $GATEWAY  >>$LOGFILE 2>>$LOGFILE 
-	   if [ $? -eq 0 ] ; then
+	   if [ $? -ne 0 ] ; then
     	   echo "Error: couldn't ping gateway ($GATEWAY) through any interface. Check connectivity"  >>$LOGFILE 2>>$LOGFILE
         return 14
     fi
-
+    
     return 0
 }
 

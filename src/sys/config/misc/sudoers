@@ -1,21 +1,20 @@
 # /etc/sudoers
-#
 # This file MUST be edited with the 'visudo' command as root.
+#
+# Please consider adding local content in /etc/sudoers.d/ instead of
+# directly modifying this file.
 #
 # See the man page for details on how to write a sudoers file.
 #
 
-Defaults	env_reset,tty_tickets
 
+Defaults	env_reset,tty_tickets
+Defaults	mail_badpass
+Defaults	secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Defaults:ALL    timestamp_timeout=0
 
 
 # Host alias specification
-
-
-#No longer restrict commmand execution by host because I set it later in system configuration and it would be a pain in the back to rearrange it. External access is already restricted by several measures. No need for an extra one.
-#Host_Alias      LOCH = ubuntu
-
 
 # User alias specification
 
@@ -24,12 +23,17 @@ Defaults:ALL    timestamp_timeout=0
 # User privilege specification
 
 #Root has all privileges
-root	ALL=(ALL) ALL
+root	ALL=(ALL:ALL) ALL
+
+# Allow members of group sudo to execute any command
+#%sudo	ALL=(ALL:ALL) ALL
+
 
 #User can only execute the scripts containing the privileged operations
 vtuji   ALL=(root) NOPASSWD:/usr/local/bin/privileged-ops.sh,/usr/local/bin/privileged-setup.sh
 
 
-# (Note that later entries override this, so you might need to move
-# it further down)
+# See sudoers(5) for more information on "#include" directives:
+
+#includedir /etc/sudoers.d
 
