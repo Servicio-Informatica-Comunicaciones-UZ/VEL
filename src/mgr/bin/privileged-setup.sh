@@ -169,7 +169,7 @@ moveToRAM () {
     
     
     #If not enough free space, return
-    if [ "$aufsSize" -lt $cdfsSize ] ; then
+    if [ "$aufsSize" -lt "$cdfsSize" ] ; then
         setVar copyOnRAM "0" mem
         return 1
     fi

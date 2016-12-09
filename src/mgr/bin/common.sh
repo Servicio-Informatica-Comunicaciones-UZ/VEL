@@ -588,7 +588,8 @@ insertUSB () {  # TODO extinguish usage of $DEV
     while true 
     do
         #Loop until one usb device is connected
-        local usbs=$(listUSBDrives 2>/dev/null)
+        local usbs=''
+        usbs=$(listUSBDrives 2>/dev/null)
         local nusbs=$?
         if [ $nusbs -lt 1 ]
 	       then
@@ -605,7 +606,8 @@ insertUSB () {  # TODO extinguish usage of $DEV
         fi
         
         #Detect all writable partitions
-        local parts=$(listUSBPartitions 2>/dev/null)
+        local parts=''
+        parts=$(listUSBPartitions 2>/dev/null)
         local nparts=$?
         if [ $nparts -le 0 ]
 	       then
@@ -628,7 +630,8 @@ insertUSB () {  # TODO extinguish usage of $DEV
             done
 
             exec 4>&1
-            local part=$($dlg --no-items --cancel-label "$2" --menu $"Choose one partition:" 0 0 3 $options  2>&1 >&4)
+            local part=''
+            part=$($dlg --no-items --cancel-label "$2" --menu $"Choose one partition:" 0 0 3 $options  2>&1 >&4)
             [ $? -ne 0 -o "$part" == ""  ] && break #Cancel
             
             USBDEV=$part
@@ -686,7 +689,7 @@ sshScanAndTrust () {
     #Scan for the server's keys and append them to the user's know hosts file
     #rsa1 disabled for security reasons
     ssh-keyscan -p "$2" -t rsa,ecdsa,ed25519,dsa "$1" >> $HOME/.ssh/known_hosts  2>>$LOGFILE
-    local ret="$?"
+    local ret=$?
     
     return $ret
 }

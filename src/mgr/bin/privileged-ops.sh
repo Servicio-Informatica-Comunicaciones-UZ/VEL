@@ -43,7 +43,7 @@ getPartitionsForDrive () {
     echo "Partitions for drive $1 ($nparts): $parts"   >>$LOGFILE 2>>$LOGFILE
     
     #Return
-    echo "$parts"
+    echo -n "$parts"
     return $nparts
 }
 
@@ -157,19 +157,22 @@ listHDDPartitions () {
     done
     
     echo "ATA Drives found: $drives"  >>$LOGFILE 2>>$LOGFILE
-
-    
+        
     #For each drive
     local partitions=""
     local npartitions=0
+
     for drive in $drives
     do
         echo "Checking: $drive"  >>$LOGFILE 2>>$LOGFILE
         
         #Get this drive's partitions
-        local thisDriveParts=$(getPartitionsForDrive $drive)
+        local thisDriveParts='' # Local declaration sets the $? to 0 always, separate declaration from setting
+        thisDriveParts=$(getPartitionsForDrive $drive)
         local thisDriveNParts=$?
-
+        echo "this drive $drive ($thisDriveNParts): $thisDriveParts"  >>$LOGFILE 2>>$LOGFILE
+        
+        
         #If any partitions found
         if [ "$thisDriveNParts" -gt 0 ] 
 	       then
@@ -177,6 +180,7 @@ listHDDPartitions () {
             if [ "$1" == "all" ] ; then
                 partitions="$partitions $thisDriveParts"
                 npartitions=$((npartitions+thisDriveNParts))
+                echo "Add all. Resulting partitions ($npartitions): $partitions"  >>$LOGFILE 2>>$LOGFILE
                 
             #Show only writable partitions
             elif [ "$1" == "wfs" ] ; then
@@ -186,6 +190,7 @@ listHDDPartitions () {
 		                  then
                         partitions="$partitions $part"
                         npartitions=$((npartitions+1))
+                        echo "Add wfs. Resulting partitions ($npartitions): $partitions"  >>$LOGFILE 2>>$LOGFILE
                     fi
 	               done
 	           else
@@ -204,14 +209,16 @@ listHDDPartitions () {
     
     #For each partition to be returned, get partition info (filesystem, size)
     local partitionsWithInfo=""
+    local thisfs=''
+    local thissize=''
     for part in $partitions
     do
         #Guess filesystem
-	       local thisfs=$(guessFS "$part")
+	       thisfs=$(guessFS "$part")
         [ $? -ne 0 ] && thisfs="?"
         
         #Guess size of partition (and make it readable)
-        local thissize=$(guessPartitionSize "$part")
+        thissize=$(guessPartitionSize "$part")
         if [ $? -ne 0 ] ; then thissize="?"
         else
             thissize=$(humanReadable "$thissize")
@@ -461,6 +468,7 @@ fi
 #Stdout: list of partitions
 if [ "$1" == "listHDDPartitions" ] 
 then
+    echo "called listHDDPartitions '$2' '$3'" >>$LOGFILE 2>>$LOGFILE
     listHDDPartitions "$2" "$3"
     exit $?
 fi

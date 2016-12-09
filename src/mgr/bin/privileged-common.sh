@@ -389,7 +389,7 @@ checkRAIDs () {
     if [ "$(cat /tmp/mdadm.conf)" != "" ] 
 	   then
 	       #Check RAID status
-	       mdadm --detail --scan --config=/tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
+        mdadm --detail --scan --config=/tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
 	       local ret=$?
         if [ "$ret" -ne 0 ] ; then
             #Raid degraded, etc.

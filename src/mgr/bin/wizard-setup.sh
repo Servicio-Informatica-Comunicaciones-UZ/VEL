@@ -233,22 +233,22 @@ getDiskVariables () {
 selectTimezone () {
 
     local defaultItem="Europe"
+    local tzArea=''
+    local tz=''
     exec 4>&1
     while true
     do
         local areaOptions=$(ls -F  /usr/share/zoneinfo/right/ | grep / | sed -re "s|/| |g")
-        local tzArea=$($dlg --no-items --cancel-label $"Menu" --default-item $defaultItem \
-                            --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)
-        #For some reason, the menu always returns 0 regardless of the
-        #pressed button, but on cancel selection is empty
-        [ "$tzArea" == ""  ] && return 1 #Go to the menu
+        tzArea=$($dlg --no-items --cancel-label $"Menu" --default-item $defaultItem \
+                      --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)
+        [ $? -ne 0 -o "$tzArea" == ""  ] && return 1 #Go to the menu
         
         defaultItem=$tzArea
         
         local tzOptions=$(ls /usr/share/zoneinfo/right/$tzArea | sed -re "s|$| |g")
-        local tz=$($dlg --no-items --cancel-label $"Back" --menu $"Choose your timezone" 0 50 15 $tzOptions   2>&1 >&4)
-        [ "$?" -ne 0 -o "$tz" == "" ]  && continue
-                
+        tz=$($dlg --no-items --cancel-label $"Back" --menu $"Choose your timezone" 0 50 15 $tzOptions   2>&1 >&4)
+        [ $? -ne 0 -o "$tz" == "" ]  && continue
+        
         break
     done
     
@@ -263,15 +263,16 @@ selectTimezone () {
 #Will set the global var KEYSIZE
 selectKeySize () {
     KEYSIZE=""
-    exec 4>&1 
-    local choice=$($dlg --cancel-label $"Menu" \
-                   --menu $"Select a size for the RSA keys:" 0 30  5  \
-	                  1024 $"bit" \
-	                  1152 $"bit" \
-	                  1280 $"bit" \
-	                  2>&1 >&4)
+    exec 4>&1
+    local choice=''
+    choice=$($dlg --cancel-label $"Menu" \
+                  --menu $"Select a size for the RSA keys:" 0 30  5  \
+	                 1024 $"bit" \
+	                 1152 $"bit" \
+	                 1280 $"bit" \
+	                 2>&1 >&4)
     #Selected back to the menu
-    [ "$choice" == "" ] && return 1
+    [ $? -ne 0  -o  "$choice" == "" ] && return 1
     
     KEYSIZE="$choice"
     echo "KEYSIZE: $KEYSIZE"   >>$LOGFILE 2>>$LOGFILE

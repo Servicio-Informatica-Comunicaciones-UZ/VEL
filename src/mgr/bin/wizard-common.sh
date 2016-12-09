@@ -114,11 +114,14 @@ getPassword () {
     
     local nocancelbutton=" --no-cancel "    
     [ "$3" == "0" ] && nocancelbutton=""
-    
+
+    local pass=''
+    local pass2=''
+    local errmsg=''
     while true; do
         
-	       local pass=$($dlg $nocancelbutton --max-input 32 --passwordbox "$2" 10 40 2>&1 >&4)
-	       [ "$?" -ne 0 ] && return 1 
+	       pass=$($dlg $nocancelbutton --max-input 32 --passwordbox "$2" 10 40 2>&1 >&4)
+	       [ $? -ne 0 ] && return 1 
 	       
 	       [ "$pass" == "" ] && continue
         
@@ -126,13 +129,13 @@ getPassword () {
         if [ $1 == 'new' ] 
 	       then
             #Check password strength
-            local errmsg=$(checkPassword "$pass")
-            if [ "$?" -ne 0 ] ; then
+            errmsg=$(checkPassword "$pass")
+            if [ $? -ne 0 ] ; then
                 $dlg --msgbox "$errmsg" 0 0
                 continue
             fi
             
-	           local pass2=$($dlg $nocancelbutton  --max-input 32 --passwordbox $"Vuelva a escribir su contraseña." 10 40 2>&1 >&4)
+	           pass2=$($dlg $nocancelbutton  --max-input 32 --passwordbox $"Vuelva a escribir su contraseña." 10 40 2>&1 >&4)
 	           [ $? -ne 0 ] && return 1 
 
             #If not matching, ask again
@@ -308,7 +311,7 @@ rebuildKey () {
     if [ $? -ne 0 ]
     then
         $dlg --msgbox $"Key reconstruction failed. System will try to recover. This might take a while." 0 0 
-        
+
         $PVOPS storops rebuildKeyAllCombs 2>>$LOGFILE  #0 ok  1 bad pwd
 	       local ret=$?
         local errmsg=''
@@ -449,17 +452,19 @@ networkParams () {
                 IPMODE="dhcp"
                 while true ; do
                     local errmsg=""
+                    local hostn=''
+                    local domn=''
                     
-	                   local hostn=$($dlg --cancel-label $"Back"  --inputbox  \
-		                                     $"Hostname:" 0 0 "$HOSTNM"  2>&1 >&4)
+	                   hostn=$($dlg --cancel-label $"Back"  --inputbox  \
+		                               $"Hostname:" 0 0 "$HOSTNM"  2>&1 >&4)
                     #If back, show the mode selector again
                     [ "$?" -ne 0 ] && continue 2
                     
 	                   parseInput hostname "$hostn"
 	                   [ $? -ne 0 ] && errmsg=""$"Hostname not valid."
                     
-	                   local domn=$($dlg --cancel-label $"Back"  --inputbox  \
-		                                    $"Domain name:" 0 0 "$DOMNAME"  2>&1 >&4)
+	                   domn=$($dlg --cancel-label $"Back"  --inputbox  \
+		                              $"Domain name:" 0 0 "$DOMNAME"  2>&1 >&4)
                     #If back, continue to go to the previous prompt
                     [ "$?" -ne 0 ] && continue
                     
@@ -828,7 +833,8 @@ sysAdminParams () {
 #DRIVE: name of the selected partition
 hddPartitionSelector () {
     
-    local partitions=$($PVOPS listHDDPartitions "$1" fsinfo)
+    local partitions=''
+    partitions=$($PVOPS listHDDPartitions "$1" fsinfo)
     local npartitions=$?
     
     #Error
@@ -840,9 +846,10 @@ hddPartitionSelector () {
         $dlg --msgbox $"No drive partitions available. Please check." 0 0
         return 1
     fi
-    local drive=$($dlg --cancel-label $"Cancel"  \
-                       --menu "$2" 0 80 \
-                       $(($npartitions)) $partitions 2>&1 >&4)
+    local drive=''
+    drive=$($dlg --cancel-label $"Cancel"  \
+                 --menu "$2" 0 80 \
+                 $(($npartitions)) $partitions 2>&1 >&4)
 	   #If canceled, go back to the mode selector
 	   [ $? -ne 0 -o "$drive" == "" ]  && return 1;
     
@@ -909,11 +916,10 @@ selectCryptoDriveMode () {
             #Ask additional parameters to create the loopback filesystem
 	           while true
 		          do
-                local fsize=$($dlg --cancel-label $"Back"  --inputbox  \
-		                                 $"Loopback filesystem file size (in MB):" 0 0 "$FILEFILESIZE"  2>&1 >&4)
-
-                #If back, go to the mode selector
-                [ "$?" -ne 0 ] && continue 2
+                local fsize=''
+                fsize=$($dlg --cancel-label $"Back"  --inputbox  \
+		                           $"Loopback filesystem file size (in MB):" 0 0 "$FILEFILESIZE"  2>&1 >&4)
+                [ $? -ne 0 ] && continue 2  #If back, go to the mode selector
                 
 	               parseInput int "$fsize"
                 if [ $? -ne 0 ] ; then
@@ -1075,7 +1081,7 @@ mailerParams () {
 	       [ $? -ne 0 ] &&  return 1
         
 	       #No relay needed, go on
-	       [ "$MAILRELAY" -ne 0== "" ] && return 0
+	       [ "$MAILRELAY" == "" ] && return 0
         
         #Check input value
 	       parseInput ipdn "$MAILRELAY"
@@ -1301,9 +1307,11 @@ sslCertParameters () {
                     ;;
 		              
 		              "6" ) #SERVEREMAIL
-		                  parseInput email "$item"
-                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Contact e-mail not valid."
-  		                else SERVEREMAIL="$item" ; fi
+                    if [ "$item" != "-" ] ; then
+		                      parseInput email "$item"
+                        if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Contact e-mail not valid."
+  		                    else SERVEREMAIL="$item" ; fi
+                    fi
                     ;;
 		              
 		              "7" ) #SERVERCN
