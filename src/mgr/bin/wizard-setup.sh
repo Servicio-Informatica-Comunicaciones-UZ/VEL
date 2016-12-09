@@ -239,12 +239,10 @@ selectTimezone () {
         local areaOptions=$(ls -F  /usr/share/zoneinfo/right/ | grep / | sed -re "s|/| |g")
         local tzArea=$($dlg --no-items --cancel-label $"Menu" --default-item $defaultItem \
                             --menu $"Choose your timezone" 0 50 15 $areaOptions   2>&1 >&4)
-        [ $? -ne 0 ] && return 1
+        #For some reason, the menu always returns 0 regardless of the
+        #pressed button, but on cancel selection is empty
+        [ "$tzArea" == ""  ] && return 1 #Go to the menu
         
-        if [ "$tzArea" == ""  ] ; then
-	           $dlg --msgbox $"Please, select a timezone area." 0 0
-	           continue
-        fi
         defaultItem=$tzArea
         
         local tzOptions=$(ls /usr/share/zoneinfo/right/$tzArea | sed -re "s|$| |g")
@@ -266,18 +264,16 @@ selectTimezone () {
 selectKeySize () {
     KEYSIZE=""
     exec 4>&1 
-    KEYSIZE=$($dlg --cancel-label $"Menu" \
+    local choice=$($dlg --cancel-label $"Menu" \
                    --menu $"Select a size for the RSA keys:" 0 30  5  \
 	                  1024 $"bit" \
 	                  1152 $"bit" \
 	                  1280 $"bit" \
 	                  2>&1 >&4)
     #Selected back to the menu
-    [ "$?" -ne 0 ] && return 1
+    [ "$choice" == "" ] && return 1
     
-    #Just a guard, shouldn't happen
-    [ "$KEYSIZE" == "" ] && KEYSIZE="1280"
-    
+    KEYSIZE="$choice"
     echo "KEYSIZE: $KEYSIZE"   >>$LOGFILE 2>>$LOGFILE
     
     return 0
@@ -353,7 +349,6 @@ if [ $? -ne 0 ] ; then
     $dlg --msgbox $"Error: failed RAID volume due to errors or degradation. Please, solve this issue before going on with the system installation/boot. You will be prompted with a root shell. Reboot when finished." 0 0
     exec $PVOPS rootShell
 fi
-
 
 
 
@@ -474,7 +469,7 @@ do
                 
                 
                 "3" ) #Persistence encrypted data drive 
-                    selectCryptoDriveMode
+                    selectCryptoDriveMode #echo "Press RETURN to continue..." && read # TODO remove
                     action=$?
                     ;;
                 

@@ -638,14 +638,11 @@ configureNetwork () {
     elif [ "$ret" == "14"  ]; then
 	       echo "Error: Gateway connectivity error." >>$LOGFILE 2>>$LOGFILE
         return 1
-    fi
-    
-    #Check Internet connectivity
-    $dlg --infobox $"Checking Internet connectivity..." 0 0
-	   ping -w 5 -q 8.8.8.8  >>$LOGFILE 2>>$LOGFILE 
-	   if [ $? -ne 0 ] ; then
+    elif [ "$ret" == "15"  ]; then
+	       echo "Error: Internet connectivity error." >>$LOGFILE 2>>$LOGFILE
         return 2
     fi
+    
     return 0
 }
 
@@ -847,7 +844,7 @@ hddPartitionSelector () {
                        --menu "$2" 0 80 \
                        $(($npartitions)) $partitions 2>&1 >&4)
 	   #If canceled, go back to the mode selector
-	   [ $? -ne 0 ]  && return 1;
+	   [ $? -ne 0 -o "$drive" == "" ]  && return 1;
     
     DRIVE="$drive"
     return 0

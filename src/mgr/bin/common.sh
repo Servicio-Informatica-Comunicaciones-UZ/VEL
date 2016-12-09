@@ -629,7 +629,7 @@ insertUSB () {  # TODO extinguish usage of $DEV
 
             exec 4>&1
             local part=$($dlg --no-items --cancel-label "$2" --menu $"Choose one partition:" 0 0 3 $options  2>&1 >&4)
-            [ $? -ne 0 ] && break
+            [ $? -ne 0 -o "$part" == ""  ] && break #Cancel
             
             USBDEV=$part
             return 0

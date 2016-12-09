@@ -40,7 +40,6 @@ getPartitionsForDrive () {
     for part in $parts ; do
         nparts=$((nparts+1))
     done
-    
     echo "Partitions for drive $1 ($nparts): $parts"   >>$LOGFILE 2>>$LOGFILE
     
     #Return
@@ -168,8 +167,10 @@ listHDDPartitions () {
         echo "Checking: $drive"  >>$LOGFILE 2>>$LOGFILE
         
         #Get this drive's partitions
-        local thisDriveParts=$(getPartitionsForDrive)
+        local thisDriveParts=$(getPartitionsForDrive $drive)
         local thisDriveNParts=$?
+
+        #If any partitions found
         if [ "$thisDriveNParts" -gt 0 ] 
 	       then
             #If all partitions are to be returned, add them

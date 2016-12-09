@@ -391,8 +391,7 @@ checkRAIDs () {
 	       #Check RAID status
 	       mdadm --detail --scan --config=/tmp/mdadm.conf >>$LOGFILE 2>>$LOGFILE
 	       local ret=$?
-        if ["$ret" -ne 0 ]
-	       then
+        if [ "$ret" -ne 0 ] ; then
             #Raid degraded, etc.
             return $ret
         fi
@@ -692,15 +691,25 @@ configureNetwork () {
 	               echo "Dhclient error."  >>$LOGFILE 2>>$LOGFILE 
 	               return 13
 	           fi
-            GATEWAY=$(/sbin/ip route | awk '/default/ { print $3 }')
         fi
+        
+        #Guess gateway address
+        GATEWAY=$(/sbin/ip route | awk '/default/ { print $3 }')
     fi
     
     #Check gateway connectivity
+    echo "Trying ping on $GATEWAY"  >>$LOGFILE 2>>$LOGFILE 
 	   ping -w 5 -q $GATEWAY  >>$LOGFILE 2>>$LOGFILE 
 	   if [ $? -ne 0 ] ; then
     	   echo "Error: couldn't ping gateway ($GATEWAY) through any interface. Check connectivity"  >>$LOGFILE 2>>$LOGFILE
         return 14
+    fi
+    
+    #Check Internet connectivity
+    echo "Trying ping on 8.8.8.8"  >>$LOGFILE 2>>$LOGFILE 
+	   ping -w 5 -q 8.8.8.8  >>$LOGFILE 2>>$LOGFILE 
+	   if [ $? -ne 0 ] ; then
+        return 15
     fi
     
     return 0
