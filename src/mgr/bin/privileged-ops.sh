@@ -153,7 +153,9 @@ listHDDPartitions () {
     #must be listed (although the array will be destroyed). Also, 256
     #is the max range for the minor number
     for mdid in $(seq 0 256) ; do
-	       drives="$drives /dev/md$mdid"
+        if [ -e /dev/md$mdid ] ; then
+	           drives="$drives /dev/md$mdid"
+        fi
     done
     
     echo "ATA Drives found: $drives"  >>$LOGFILE 2>>$LOGFILE

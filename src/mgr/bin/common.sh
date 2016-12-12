@@ -473,7 +473,7 @@ listUSBDrives () {
     ndevs=$($PVOPS listUSBDrives devs count 2>>$LOGFILE)
     
     echo -n "$devs"
-    return ndevs
+    return $ndevs
 }
 
 #Lists all writable partitions from all connected usb drives
@@ -593,14 +593,16 @@ insertUSB () {  # TODO extinguish usage of $DEV
         local nusbs=$?
         if [ $nusbs -lt 1 ]
 	       then
-            $dlg --no-label "$2" --yesno $"Not inserted. Please, do it and press OK." 0 0
+            $dlg --yes-label $"OK" --no-label "$2" \
+                 --yesno $"Not inserted. Please, do it and press OK." 0 0
             [ $? -ne 0 ]  &&  break
             continue
             
-            #If more than one usb device is detected, ask to leave just one and loop
+        #If more than one usb device is detected, ask to leave just one and loop
         elif [ $nusbs -gt 1 ]
 	       then
-            $dlg --no-label "$2" --yesno $"More than one usb device detected. Please, remove all but one and press OK."  0 0
+            $dlg --yes-label $"OK" --no-label "$2" \
+                 --yesno $"More than one usb device detected. Please, remove all but one and press OK."  0 0
             [ $? -ne 0 ]  &&  break
             continue
         fi
@@ -699,36 +701,17 @@ sshScanAndTrust () {
 #2 -> SSH server port
 #3 -> Username
 #4 -> Remote user password
-#Depends on the $HOME variable
 sshTestConnect () {
-    
     local ret=0
     
-#    local dispbak=$DISPLAY
-#    local sshapbak=$SSH_ASKPASS
-#		  export DISPLAY=none:0.0
-#		  export SSH_ASKPASS=$HOME/askPass.sh
-    
-    #Set password provision script
-#		  echo "echo '$4'" > $HOME/askPass.sh
-#		  chmod u+x  $HOME/askPass.sh >>$LOGFILE 2>>$LOGFILE
-
-    #Do a SSH connection # TODO FAiling terminal allocation, prompts for password. maybe needs an input redirect from dev/null, also check and test the backup script
+    #Do a SSH connection and execute a harmless command
 		  echo "ssh -t -t -n  -p '$2'  '$3'@'$1'" >>$LOGFILE 2>>$LOGFILE
 		  sshpass -p"$4" ssh -n -p "$2"  "$3"@"$1" "ls" >>$LOGFILE 2>>$LOGFILE # Ver si quito o dejo el -t-t y el -n, ver si vuelvo a quitar el ls
 		  ret=$?
 		  if [ $ret  -ne 0 ] ; then
         echo "SSH Connection error: $ret" >>$LOGFILE 2>>$LOGFILE
-        bash  # TODO delete!!!
         ret=1
 		  fi
-    
-    #Erase password provision script
-#		  rm $HOME/askPass.sh >>$LOGFILE 2>>$LOGFILE
-    
-    #Restore environment
-#    export DISPLAY=$dispbak
-#    export SSH_ASKPASS=$sshapbak
     
     return $ret
 }

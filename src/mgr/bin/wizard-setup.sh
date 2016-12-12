@@ -78,9 +78,9 @@ chooseMaintenanceAction () {
 	           "term" )
 	               $dlg --yes-label $"Yes" --no-label $"No"  \
                      --yesno  $"WARNING:\n\nYou chose to open a terminal. This gives free action powers to the administrator. Make sure he does not operate it without proper technical supervision. Do you wish to continue?" 0 0
-	               [ "$?" -eq 1 ] && continue
-	               [ "$?" -eq 0 ] && exec $PVOPS rootShell
-                exec /bin/false
+	               [ "$?" -ne 0 ] && continue
+                $PVOPS rootShell
+                continue
                 ;;
 	           
 	           "reboot" )	
@@ -470,7 +470,7 @@ do
                 
                 
                 "3" ) #Persistence encrypted data drive 
-                    selectCryptoDriveMode #echo "Press RETURN to continue..." && read # TODO remove
+                    selectCryptoDriveMode
                     action=$?
                     ;;
                 
@@ -645,7 +645,7 @@ do
     mode='new'
     [ "$DOINSTALL" -eq 0 ] && mode='reset'
     
-    
+    echo "Press RETURN to continue..." && read #breakpoint # TODO remove 
     #Setup ciphered persistence drive
     configureCryptoPartition "$mode"
     [ $? -ne 0 ] && continue #Failed, go back to the menu
@@ -700,7 +700,7 @@ do
     [ $ret -eq 3 ] && errinfo=$"Error starting database daemon. Please, check."
     [ $ret -eq 4 ] && errinfo=$"Error while changing default passwords. Please, check."
     if [ $ret -ne 0 ] ; then
-        dlg --msgbox $"Error configuring database server."" $errinfo" 0 0
+        $dlg --msgbox $"Error configuring database server."" $errinfo" 0 0
         continue #Failed, go back to the menu
     fi
     
@@ -714,7 +714,7 @@ do
         #Build the database with the base configuration
         $PSETUP populateDB
         if [ $? -ne 0 ] ; then
-            dlg --msgbox $"Error configuring database." 0 0
+            $dlg --msgbox $"Error configuring database." 0 0
             continue #Failed, go back to the menu
         fi
         
@@ -752,7 +752,7 @@ do
         #Set trust on the backup server
 	       $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"
         if [ $? -ne 0 ] ; then
-		          dlg --msgbox $"Error configuring SSH backup service." 0 0
+		          $dlg --msgbox $"Error configuring SSH backup service." 0 0
             continue #Failed, go back to the menu
 	       fi
         
@@ -796,7 +796,7 @@ do
     #Start daemon
     $PVOPS startApache
     if [ $? -ne 0 ] ; then
-        dlg --msgbox $"Error activating web server." 0 0
+        $dlg --msgbox $"Error activating web server." 0 0
         continue #Failed, go back to the menu
     fi
     
@@ -809,7 +809,7 @@ do
     $PVOPS mailServer relay "$MAILRELAY"
     $PVOPS mailServer reload
     if [ $? -ne 0 ] ; then
-        dlg --msgbox $"Error activating mail server." 0 0
+        $dlg --msgbox $"Error activating mail server." 0 0
         continue #Failed, go back to the menu
     fi
     
@@ -833,12 +833,14 @@ do
     
     
     #Reconfigure power management package to fit the specific hardware
+    $dlg --infobox $"Configuring power management..." 0 0
     $PSETUP pmutils
     
     
     
     
     #Final setup steps: initial firewall whitelist, RAID test e-mail
+    $dlg --infobox $"Last configuration steps..." 0 0
     $PSETUP init4
     [ $? -ne 0 ] && $dlg --msgbox $"RAID arrays detected. You will receive an e-mail with the test result." 0 0
     

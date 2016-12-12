@@ -617,6 +617,8 @@ then
     #Set the timezone on the web app
 	   echo "update eVotDat set TZ='$TIMEZONE';" |
         mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+    
+    exit 0
 fi
 
 

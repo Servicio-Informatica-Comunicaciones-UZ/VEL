@@ -8,6 +8,10 @@ DATAPATH="/media/crypStorage"
 VARFILE="$DATAPATH/root/vars.conf"
 
 # TODO load common scripts and try to avoid code multiplicity
+# # TODO use sshpass -p pwd ssh...
+# extinguish askBackupPasswd.sh script
+
+
 
 DBPWD=$(cat $DATAPATH/root/DatabaseRootPassword)
 DATAPWD=$(cat $ROOTTMP/dataBackupPassword)

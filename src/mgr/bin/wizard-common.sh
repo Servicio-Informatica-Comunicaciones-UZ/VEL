@@ -75,8 +75,8 @@ getVar () {
 #     reset: load existing ciphered device
 configureCryptoPartition () {
     
-    if [ "$1" -eq 'new' ] ; then
-	       $dlg --infobox $"Creating ciphered data device..." 0 0
+    if [ "$1" == 'new' ] ; then
+	       $dlg --infobox $"Formatting ciphered data device..." 0 0
     else
 	       $dlg --infobox $"Accessing ciphered data device..." 0 0
     fi
@@ -1640,7 +1640,7 @@ generateCSR () {
     $PVOPS generateCSR "$mode" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
     if [ $? -ne 0 ]
 	   then
-		      dlg --msgbox $"Error generating the SSL certificate request." 0 0
+		      $dlg --msgbox $"Error generating the SSL certificate request." 0 0
 	       return 1
     fi
     
