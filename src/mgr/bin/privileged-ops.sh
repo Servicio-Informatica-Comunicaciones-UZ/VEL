@@ -440,7 +440,7 @@ then
         exit 1
     fi
     
-    usbs=$(listUSBS $mode)
+    usbs=$(listUSBs $mode)
     nusbs=$?
     
     if [ "$3" == "list" ] ; then
@@ -500,7 +500,7 @@ then
         echo "mountUSB: Missing partition path" >>$LOGFILE 2>>$LOGFILE
         exit 1
     fi   
-    usbs=$(listUSBS valid)
+    usbs=$(listUSBs valid)
     found=0
     for part in $usbs ; do
         [ $part == "$3" ] && found=1 && break
@@ -685,8 +685,9 @@ then
     getVar usb FILEPATH    
     getVar usb FILEFILESIZE
     getVar usb CRYPTFILENAME
-    
-    configureCryptoPartition  "$2" "$DRIVEMODE" "$FILEPATH" "$CRYPTFILENAME" "$MOUNTPATH" "$DRIVELOCALPATH" "$MAPNAME" "$DATAPATH" 
+
+    echo "exec config part..  '$2' '$DRIVEMODE' '$FILEPATH' '$CRYPTFILENAME' '$FILEFILESIZE' '$MOUNTPATH' '$DRIVELOCALPATH' '$MAPNAME' '$DATAPATH'"  >>$LOGFILE 2>>$LOGFILE 
+    configureCryptoPartition  "$2" "$DRIVEMODE" "$FILEPATH" "$CRYPTFILENAME" "$FILEFILESIZE" "$MOUNTPATH" "$DRIVELOCALPATH" "$MAPNAME" "$DATAPATH" 
     [ $? -ne 0 ] && exit $?
     
     #If everything went well, store a memory variable referencing the final mounted device
@@ -886,12 +887,12 @@ then
     #contain a ready to use configuration file.
 	
     #Fragment the password
-	   echo -n "$PARTPWD" >$slotPath/key
+    echo "executing: $OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key" >>$LOGFILE 2>>$LOGFILE
+	   echo -ne "$PARTPWD\0" >$slotPath/key #Write the string term to avoid trash input from leaking in
 	   $OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key >>$LOGFILE 2>>$LOGFILE 
 	   ret=$?
-	   echo "$OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key" >>$LOGFILE 2>>$LOGFILE
-	   
-    exit $ret
+    
+	   exit $ret
 fi
 
 

@@ -425,9 +425,9 @@ int doShare(StoreHandler * cl){
   }
   
 
-  //Leemos la share de la stdin
+  //Leemos la contraseña de la stdin
   readStdin(&buff, &buffsize);
-  cerr<<"Buff: "<<buff<<endl;
+  //cerr<<"Buff: "<<buff<<endl;
   cerr<<"size: "<<buffsize<<endl;
   
   //Al leer de stdin, a veces se genera basura al final. AL esribir el secreto, escribir explícitamente un \0  echo -ne "$SECRETO\0" *-*-

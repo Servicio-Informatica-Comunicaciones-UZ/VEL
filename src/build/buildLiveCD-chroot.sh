@@ -156,7 +156,7 @@ cp -rf /root/src/sys/plymouth/vtuji    /usr/share/plymouth/themes/
 update-initramfs -u
 
 
-
+# TODO añadir aquí config del journald si funciona
 
 
 ctell "***** Copying binaries and system configuration files"
@@ -166,6 +166,7 @@ echo $VERSION > /etc/vtUJIversion
 cp -fv /root/src/mgr/bin/*                             $BINDIR/
 cp -fv /root/src/tools/misc/*                          $BINDIR/
 cp -fv /root/src/tools/backup/*                        $BINDIR/
+cp -fv /root/src/tools/statistics/*                    $BINDIR/
 
 cp -fv /root/src/sys/config/webserver/000-default.conf  /etc/apache2/sites-available/
 cp -fv /root/src/sys/config/webserver/default-ssl.conf  /etc/apache2/sites-available/

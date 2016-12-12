@@ -7,10 +7,10 @@
 #  Constants  #
 ###############
 
-OPSEXE=/usr/local/bin/eLectionOps
+OPSEXE=/usr/local/bin/ssOperations
 
 #Temp dirs for the privileged operations
-ROOTTMP="/root/"
+ROOTTMP="/root"
 ROOTFILETMP=$ROOTTMP"/filetmp"
 ROOTSSLTMP=$ROOTTMP"/ssltmp"
 
@@ -171,7 +171,7 @@ getVar () {
     export $destvar=$value
     #TODO Verificar que si no existe, no pasa nada.
     #<DEBUG>
-    echo "****getting var from file '$file': '$2' on var '$3' = $value" >>$LOGFILE 2>>$LOGFILE
+    echo "****getting var '$2' from file '$file': writing on var '$3' = $value" >>$LOGFILE 2>>$LOGFILE
     #</DEBUG>
     return 0 
 }
@@ -474,9 +474,9 @@ configureCryptoPartition () {
     
     local mapperName="$8"
     local exposedpath="$9"    
-    [ "$mountpath" == "" ] &&  echo "No param 2"  >>$LOGFILE 2>>$LOGFILE  && return 1
-    [ "$mapperName" == "" ] &&  echo "No param 3"  >>$LOGFILE 2>>$LOGFILE  && return 1
-    [ "$exposedpath" == "" ] &&  echo "No param 4"  >>$LOGFILE 2>>$LOGFILE  && return 1
+    [ "$mountpath" == "" ] &&  echo "No param 6"  >>$LOGFILE 2>>$LOGFILE  && return 1
+    [ "$mapperName" == "" ] &&  echo "No param 8"  >>$LOGFILE 2>>$LOGFILE  && return 1
+    [ "$exposedpath" == "" ] &&  echo "No param 9"  >>$LOGFILE 2>>$LOGFILE  && return 1
     
     
     #Get the partition encryption password (which is the shared key in the active slot)

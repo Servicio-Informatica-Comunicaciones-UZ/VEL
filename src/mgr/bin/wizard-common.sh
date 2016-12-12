@@ -87,11 +87,11 @@ configureCryptoPartition () {
     local ret=$?
     [ "$ret" -eq 2 ] && $dlg --msgbox  $"Error mounting base drive." 0 0
     [ "$ret" -eq 3 ] && $dlg --msgbox  $"Critical error: no empty loopback device found" 0 0
-    [ "$ret" -ne 4 ] && $dlg --msgbox  $"Unknown data access mode. Configuration is corrupted or tampered." 0 0
-    [ "$ret" -ne 5 ] && $dlg --msgbox  $"Couldn't encrypt the storage area." 0 0
-    [ "$ret" -ne 6 ] && $dlg --msgbox  $"Couldn't access storage area."  0 0
-    [ "$ret" -ne 7 ] && $dlg --msgbox  $"Couldn't format the filesystem." 0 0
-    [ "$ret" -ne 8 ] && $dlg --msgbox  $"Couldn't mount the filesystem." 0 0
+    [ "$ret" -eq 4 ] && $dlg --msgbox  $"Unknown data access mode. Configuration is corrupted or tampered." 0 0
+    [ "$ret" -eq 5 ] && $dlg --msgbox  $"Couldn't encrypt the storage area." 0 0
+    [ "$ret" -eq 6 ] && $dlg --msgbox  $"Couldn't access storage area."  0 0
+    [ "$ret" -eq 7 ] && $dlg --msgbox  $"Couldn't format the filesystem." 0 0
+    [ "$ret" -eq 8 ] && $dlg --msgbox  $"Couldn't mount the filesystem." 0 0
     [ "$ret" -ne 0 -a "$ret" -lt 2 -a "$ret" -gt 8 ] && $dlg --msgbox  $"Error configuring encrypted drive." 0 0
     
     return $ret
@@ -1060,7 +1060,8 @@ checkSSHconnectivity () {
 		  fi
     
     #Perform test connection
-    return sshTestConnect "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"
+    sshTestConnect "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"
+    return $?
 }
 
 

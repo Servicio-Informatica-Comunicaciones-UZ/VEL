@@ -701,31 +701,34 @@ sshScanAndTrust () {
 #4 -> Remote user password
 #Depends on the $HOME variable
 sshTestConnect () {
-
-    local dispbak=$DISPLAY
-    local sshapbak=$SSH_ASKPASS
-		  export DISPLAY=none:0.0
-		  export SSH_ASKPASS=$HOME/askPass.sh
+    
+    local ret=0
+    
+#    local dispbak=$DISPLAY
+#    local sshapbak=$SSH_ASKPASS
+#		  export DISPLAY=none:0.0
+#		  export SSH_ASKPASS=$HOME/askPass.sh
     
     #Set password provision script
-		  echo "echo '$4'" > $HOME/askPass.sh
-		  chmod u+x  $HOME/askPass.sh >>$LOGFILE 2>>$LOGFILE
+#		  echo "echo '$4'" > $HOME/askPass.sh
+#		  chmod u+x  $HOME/askPass.sh >>$LOGFILE 2>>$LOGFILE
 
-    #Do a SSH connection
-		  echo "ssh -n  -p '$2'  '$3'@'$1'" >>$LOGFILE 2>>$LOGFILE
-		  ssh -n  -p "$2"  "$3"@"$1" >>$LOGFILE 2>>$LOGFILE
-		  ret="$?"
-		  if [ "$ret"  -ne 0 ] ; then
+    #Do a SSH connection # TODO FAiling terminal allocation, prompts for password. maybe needs an input redirect from dev/null, also check and test the backup script
+		  echo "ssh -t -t -n  -p '$2'  '$3'@'$1'" >>$LOGFILE 2>>$LOGFILE
+		  sshpass -p"$4" ssh -n -p "$2"  "$3"@"$1" "ls" >>$LOGFILE 2>>$LOGFILE # Ver si quito o dejo el -t-t y el -n, ver si vuelvo a quitar el ls
+		  ret=$?
+		  if [ $ret  -ne 0 ] ; then
         echo "SSH Connection error: $ret" >>$LOGFILE 2>>$LOGFILE
-        return 1
+        bash  # TODO delete!!!
+        ret=1
 		  fi
     
     #Erase password provision script
-		  rm $HOME/askPass.sh >>$LOGFILE 2>>$LOGFILE
+#		  rm $HOME/askPass.sh >>$LOGFILE 2>>$LOGFILE
     
     #Restore environment
-    export DISPLAY=$dispbak
-    export SSH_ASKPASS=$sshapbak
+#    export DISPLAY=$dispbak
+#    export SSH_ASKPASS=$sshapbak
     
-    return 0
+    return $ret
 }

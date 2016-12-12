@@ -103,6 +103,10 @@ privilegedSetupPhase1 () {
     #Reload SMART daemon
     /etc/init.d/smartmontools stop   >>$LOGFILE 2>>$LOGFILE
     /etc/init.d/smartmontools start  >>$LOGFILE 2>>$LOGFILE
+
+
+    #Disable kernel logging to the terminal (to avoid annoying messages between and over dialogs)
+    sysctl -w kernel.printk="1 1 1 1"
     
     
     ##### Prepare display #####
@@ -598,7 +602,7 @@ then
 	   echo "update eVotDat set modU='$modU', expU='$expU', keyyU='$keyyU';"  |
         mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
     
-	   return 0
+	   exit 0
 fi
 
 
@@ -627,7 +631,7 @@ then
     #Run the script (-f to go on despite errors, as the script
     #executes some alters for backwards compatibility)
     mysql -f -u election -p"$DBPWD" eLection  </usr/local/bin/buildDB.sql 2>>$SQLLOGFILE
-    [ $? -ne 0 ] &&  return 1
+    [ $? -ne 0 ] &&  exit 1
     
     exit 0
 fi
