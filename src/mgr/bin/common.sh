@@ -3,7 +3,7 @@
 
 #TODO delete when system is stable enough
 # Debugging tool: Every time a command return value is non-zero, it will stop and show the prompt on stderr
-trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" ERR
+#trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" ERR
 
 
 
@@ -565,7 +565,7 @@ compareFiles () {
 # $1 -> The dev path to oversee
 # $2 -> Message to show
 # $3 -> The "you didn't remove it" message
-detectUsbExtraction (){    
+detectUsbExtraction (){     # TODO SEGUIR ver por qué no pide la extracción aquí (ni en el fetch). creo que es por el trap. compilo y pruebo
     didnt=""
     
     #While dev is on the list of usbs, refresh and wait

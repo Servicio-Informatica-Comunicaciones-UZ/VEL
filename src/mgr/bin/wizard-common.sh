@@ -1780,7 +1780,6 @@ writeNextUSB () {
     #Ensure write is complete and umount
 	   sync
 	   $PVOPS mountUSB umount
-	   sleep 1
     
     #Ask the user to remove the usb device
     detectUsbExtraction $USBDEV $"USB device successfully written. Remove it and press RETURN." \
