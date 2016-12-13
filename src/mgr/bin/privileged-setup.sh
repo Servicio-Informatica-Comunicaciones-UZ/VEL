@@ -439,7 +439,7 @@ fi
 if [ "$1" == "relocateLogs" ]
 then
     if [ "$2" != "new" -a "$2" != "reset" ] ; then
-	       echo "relocateLogs: Bad parameter" >>$LOGFILE 2>>$LOGFILE
+	       log "relocateLogs: Bad parameter"
 	       exit 1
     fi
     relocateLogs "$2"
@@ -516,7 +516,7 @@ fi
 if [ "$1" == "setupDatabase" ] 
 then
     if [ "$2" != 'new' -a "$2" != 'reset' ] ; then 
-	       echo "setupDatabase: param error: $2"   >>$LOGFILE 2>>$LOGFILE
+	       log "setupDatabase: param error: $2"  
 	       exit 1
     fi
     
@@ -705,5 +705,5 @@ fi
 
 
 
-echo "Bad privileged setup operation: $1" >>$LOGFILE  2>>$LOGFILE
+log "Bad privileged setup operation: $1"
 exit 42

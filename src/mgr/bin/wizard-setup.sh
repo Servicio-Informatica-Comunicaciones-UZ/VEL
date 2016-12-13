@@ -31,7 +31,7 @@ export TERM=linux
 
 #Log function
 log () {
-    echo "["$(date --rfc-3339=ns)"][wizard-setup]: "$*  >>$LOGFILE 2>>$LOGFILE
+    echo  "["$(date --rfc-3339=ns)"][wizard-setup]: "$*  >>$LOGFILE 2>>$LOGFILE
 }
 
 
@@ -103,7 +103,7 @@ chooseMaintenanceAction () {
 	               ;;
 	           
 	           * )
-	               echo "main operation selector: bad selection. This must not happen"  >>$LOGFILE 2>>$LOGFILE
+	               log "main operation selector: bad selection. This must not happen" 
                 continue
 	               ;;
 	       esac   
@@ -282,7 +282,7 @@ selectKeySize () {
     [ $? -ne 0  -o  "$choice" == "" ] && return 1
     
     KEYSIZE="$choice"
-    echo "KEYSIZE: $KEYSIZE"   >>$LOGFILE 2>>$LOGFILE
+    log "KEYSIZE: $KEYSIZE"  
     
     return 0
 }
@@ -337,7 +337,7 @@ if [ "$1" == "" ]
 fi
 
 
-echo "Selected language: $LANGUAGE"  >>$LOGFILE 2>>$LOGFILE
+log "Selected language: $LANGUAGE" 
 
 #Keyboard is selected automatically
 case "$LANGUAGE" in     
@@ -652,7 +652,7 @@ do
     mode='new'
     [ "$DOINSTALL" -eq 0 ] && mode='reset'
     
-    echo "Press RETURN to continue..." && read #breakpoint # TODO remove 
+    
     #Setup ciphered persistence drive
     configureCryptoPartition "$mode"
     [ $? -ne 0 ] && continue #Failed, go back to the menu
@@ -730,6 +730,7 @@ do
         $PSETUP generateBallotBoxKeys
         
         #Miscellaneous database options
+        $dlg --infobox $"Configuring web application data..." 0 0
         $PSETUP setWebAppDbConfig
         
         #If anonymity network registration process was performed, insert data
@@ -775,14 +776,14 @@ do
     
     #Handle SSL certificate
     if [ "$DOINSTALL" -eq 1 ]
-    then
+    then        
 	       #Generate the certificate signing request for the SSL connections
 	       generateCSR "new"
 	       [ $? -ne 0 ] && continue #Failed, go back to the menu
-	   
+	       
         #Generate temporary self-signed certificate from the csr.
 	       $PSETUP generateSelfSigned
-    
+        
         #Store the SSL certificate current state
         setVar disk SSLCERTSTATE  "dummy" #Currently running with a self-signed
     fi
@@ -795,7 +796,6 @@ do
     
     #Configure apache web server    
     $dlg --infobox $"Configuring web services..." 0 0
-    sleep 1
     
     #Set configuration variables on the web app's PHP scripts
     $PVOPS processPHPScripts
@@ -858,12 +858,12 @@ do
         #Give privileged access to the webapp to the administrator (temporary)
         grantAdminPrivileges  grant
     else
-        #Explicitly remove privileges to the administrator
+        #Explicitly remove privileges to the administrator on reload
         grantAdminPrivileges  remove
     fi
     
     
-    
+    #echo "Press RETURN to continue..." && read #breakpoint # TODO remove 
     
     if [ "$DOINSTALL" -eq 1 ] ; then
         
@@ -877,7 +877,7 @@ do
         #Share key and basic config on usbs to be kept by the
         #commission (usbs must have avalid data partition)
         $dlg --msgbox $"Now we'll write the key shares on the commission's usb drives. Make sure these drives are cleanly formatted and free of any other key shares currently in use, as they might be overwritten." 0 0
-        writeUsbs # TODO SEGUIR  poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
+        writeUsbs "$SHARES"
     fi
     
     
@@ -910,13 +910,14 @@ do
     
     #Go into the maintenance mode. Process context is overriden with a new
     #one for security reasons
-    exec /bin/bash  /usr/local/bin/wizard-maintenance.sh  
+    # exec /bin/bash  /usr/local/bin/wizard-maintenance.sh  # TODO SEGUIR  poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
+    exec /bin/bash # TODO borrar
     
     
     
     break
 done #Main action loop
-echo "wizard maintenance loop script execution failed." >>$LOGFILE 2>>$LOGFILE
+log "wizard maintenance loop script execution failed."
 exit 42
 
 

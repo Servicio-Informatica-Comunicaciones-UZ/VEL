@@ -497,7 +497,7 @@ a2ensite default-ssl
 
 #Install PHP file and object cache. # TODO proyecto abandonado. MAntener? sustituír? OPCache? https://blogs.oracle.com/opal/entry/using_php_5_5_s
 ctell "****** Setup PHP cache"
-pecl install apc-3.1.9
+echo -ne "\n\n\n\n\n\n" | pecl install apc-3.1.9 # TODO revisar que esto vaya
 echo $'extension=apc.so\napc.rfc1867 = On\n' >/etc/php5/conf.d/apc.ini
 /etc/init.d/apache2 restart
 

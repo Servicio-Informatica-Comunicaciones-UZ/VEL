@@ -28,6 +28,17 @@ log () {
 }
 
 
+
+
+#Make an entry on the operations log (also on the main log)
+opLog () {
+    echo "["$(date --rfc-3339=ns)"] $1." >>$OPLOG 2>>$OPLOG
+    log "$1"
+}
+
+
+
+
 #List all of the partitions for a give device
 #1 -> drive path
 #Stdout: list of partitions
@@ -42,7 +53,7 @@ getPartitionsForDrive () {
     for part in $parts ; do
         nparts=$((nparts+1))
     done
-    echo "Partitions for drive $1 ($nparts): $parts"   >>$LOGFILE 2>>$LOGFILE
+    log "Partitions for drive $1 ($nparts): $parts"  
     
     #Return
     echo -n "$parts"
@@ -160,7 +171,7 @@ listHDDPartitions () {
         fi
     done
     
-    echo "ATA Drives found: $drives"  >>$LOGFILE 2>>$LOGFILE
+    log "ATA Drives found: $drives" 
         
     #For each drive
     local partitions=""
@@ -168,13 +179,13 @@ listHDDPartitions () {
 
     for drive in $drives
     do
-        echo "Checking: $drive"  >>$LOGFILE 2>>$LOGFILE
+        log "Checking: $drive" 
         
         #Get this drive's partitions
         local thisDriveParts='' # Local declaration sets the $? to 0 always, separate declaration from setting
         thisDriveParts=$(getPartitionsForDrive $drive)
         local thisDriveNParts=$?
-        echo "this drive $drive ($thisDriveNParts): $thisDriveParts"  >>$LOGFILE 2>>$LOGFILE
+        log "this drive $drive ($thisDriveNParts): $thisDriveParts" 
         
         
         #If any partitions found
@@ -184,7 +195,7 @@ listHDDPartitions () {
             if [ "$1" == "all" ] ; then
                 partitions="$partitions $thisDriveParts"
                 npartitions=$((npartitions+thisDriveNParts))
-                echo "Add all. Resulting partitions ($npartitions): $partitions"  >>$LOGFILE 2>>$LOGFILE
+                log "Add all. Resulting partitions ($npartitions): $partitions" 
                 
             #Show only writable partitions
             elif [ "$1" == "wfs" ] ; then
@@ -194,16 +205,16 @@ listHDDPartitions () {
 		                  then
                         partitions="$partitions $part"
                         npartitions=$((npartitions+1))
-                        echo "Add wfs. Resulting partitions ($npartitions): $partitions"  >>$LOGFILE 2>>$LOGFILE
+                        log "Add wfs. Resulting partitions ($npartitions): $partitions" 
                     fi
 	               done
 	           else
-                echo "list hdd partitions: Bad parameter $1"  >>$LOGFILE 2>>$LOGFILE
+                log "list hdd partitions: Bad parameter $1" 
                 return 255
 	           fi
         fi
     done
-    echo "Partitions: "$partitions  >>$LOGFILE 2>>$LOGFILE
+    log "Partitions: "$partitions 
     
     #If only the list of partitios was requested, return it now
     if [ "$2" != "fsinfo" ] ; then
@@ -230,7 +241,7 @@ listHDDPartitions () {
         #Add the return line fields: partition and info
         partitionsWithInfo="$partitionsWithInfo $part $thisfs|$thissize"
     done
-    echo "Partitions with info: $partitionsWithInfo"  >>$LOGFILE 2>>$LOGFILE
+    log "Partitions with info: $partitionsWithInfo" 
     
     echo "$partitionsWithInfo"
     return $npartitions
@@ -275,10 +286,6 @@ checkClearance () {
 }
 
 
-#Make an entry on the operations log
-opLog () {
-    echo "["$(date --rfc-3339=ns)"] $1." >>$OPLOG 2>>$OPLOG
-}
 
 
 
@@ -302,7 +309,7 @@ opLog "Called operation $1"
 
 #If lock file does not exist, disallow
 if [ ! -f "$LOCKOPSFILE" ] ; then
-    echo "ERROR: $LOCKOPSFILE file does not exist."   >>$LOGFILE 2>>$LOGFILE
+    log "ERROR: $LOCKOPSFILE file does not exist."  
     exit 1
 fi
 
@@ -320,7 +327,7 @@ else
     # TODO si hay ops que sólo se llaman durante el setup, mover al privileged-setup
 
     # TODO *************** Es emjor hacer esto o llamamos a la verificación concreta antes de cada op? en ese caso, la validación del lock pasaría a la función que comprueba el clearance
-    echo "["$(date --rfc-3339=ns)"] Checking clearance for operation $1." >>$LOGFILE 2>>$LOGFILE
+    log "["$(date --rfc-3339=ns)"] Checking clearance for operation $1."
 fi
 
 
@@ -440,7 +447,7 @@ then
     elif [ "$2" == "parts" ] ; then
         mode='valid'
     else
-        echo "listUSBDrives: bad mode: $2" >>$LOGFILE 2>>$LOGFILE
+        log "listUSBDrives: bad mode: $2"
         exit 1
     fi
     
@@ -452,7 +459,7 @@ then
     elif [ "$3" == "count" ] ; then
         echo $nusbs
     else
-        echo "listUSBDrives: bad op: $3" >>$LOGFILE 2>>$LOGFILE
+        log "listUSBDrives: bad op: $3"
         exit 1
     fi
     
@@ -472,7 +479,7 @@ fi
 #Stdout: list of partitions
 if [ "$1" == "listHDDPartitions" ] 
 then
-    echo "called listHDDPartitions '$2' '$3'" >>$LOGFILE 2>>$LOGFILE
+    log "called listHDDPartitions '$2' '$3'"
     listHDDPartitions "$2" "$3"
     exit $?
 fi
@@ -493,7 +500,7 @@ then
         sync
         umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 	       if [ "$?" -ne "0" ] ; then
-            echo "mountUSB: Partition '$3' umount error" >>$LOGFILE 2>>$LOGFILE
+            log "mountUSB: Partition '$3' umount error"
             exit 1
         fi
         exit 0
@@ -501,7 +508,7 @@ then
     
     #Check if dev to mount is appropiate
     if [ "$3" == "" ] ; then
-        echo "mountUSB: Missing partition path" >>$LOGFILE 2>>$LOGFILE
+        log "mountUSB: Missing partition path"
         exit 1
     fi   
     usbs=$(listUSBs valid)
@@ -510,7 +517,7 @@ then
         [ $part == "$3" ] && found=1 && break
     done
     if [ "$found" -eq 0 ] ; then
-        echo "mountUSB: Partition path '$3' not valid" >>$LOGFILE 2>>$LOGFILE
+        log "mountUSB: Partition path '$3' not valid"
         exit 1
     fi
 
@@ -521,18 +528,18 @@ then
             #Maybe the path is already mounted. Umount and retry
             umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
 	           if [ "$?" -ne "0" ] ; then
-                echo "mountUSB: Partition '$3' preemptive umount error device must be in use" >>$LOGFILE 2>>$LOGFILE
+                log "mountUSB: Partition '$3' preemptive umount error device must be in use"
                 exit 1
             fi
             #Try a second and last mount
             mount  "$3" /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
             if [ "$?" -ne "0" ] ; then
-                echo "mountUSB: Partition '$3' mount error" >>$LOGFILE 2>>$LOGFILE
+                log "mountUSB: Partition '$3' mount error"
                 exit 1
             fi
         fi
     else
-        echo "mountUSB: Bad op code: $2" >>$LOGFILE 2>>$LOGFILE  
+        log "mountUSB: Bad op code: $2"  
         exit 1
     fi
     
@@ -624,7 +631,7 @@ then
     #If not copied on RAM, system could be tampered
     if [ "$copyOnRAM" -eq 0 ]
 	   then
-	       echo "Cannot suspend if disc is not in ram" >>$LOGFILE 2>>$LOGFILE
+	       log "Cannot suspend if disc is not in ram"
 	       exit 1 
     fi
     
@@ -661,7 +668,7 @@ then
     sshScanAndTrust "$2" "$3"
     ret=$?
     
-    echo "Keyscan returned: $ret" >>$LOGFILE 2>>$LOGFILE
+    log "Keyscan returned: $ret"
     exit $ret
 fi
 
@@ -677,7 +684,7 @@ then
     
     if [ "$2" != 'new' -a "$2" != 'reset' ]
     then 
-        echo "configureCryptoPartition: param ERR: 2=$2"   >>$LOGFILE 2>>$LOGFILE
+        log "configureCryptoPartition: param ERR: 2=$2"  
         exit 1
     fi
 
@@ -690,7 +697,7 @@ then
     getVar usb FILEFILESIZE
     getVar usb CRYPTFILENAME
 
-    echo "exec config part..  '$2' '$DRIVEMODE' '$FILEPATH' '$CRYPTFILENAME' '$FILEFILESIZE' '$MOUNTPATH' '$DRIVELOCALPATH' '$MAPNAME' '$DATAPATH'"  >>$LOGFILE 2>>$LOGFILE 
+    log "exec config part..  '$2' '$DRIVEMODE' '$FILEPATH' '$CRYPTFILENAME' '$FILEFILESIZE' '$MOUNTPATH' '$DRIVELOCALPATH' '$MAPNAME' '$DATAPATH'"  
     configureCryptoPartition  "$2" "$DRIVEMODE" "$FILEPATH" "$CRYPTFILENAME" "$FILEFILESIZE" "$MOUNTPATH" "$DRIVELOCALPATH" "$MAPNAME" "$DATAPATH" 
     [ $? -ne 0 ] && exit $?
     
@@ -820,7 +827,7 @@ then
     getVar disk DBPWD
 	   echo "update  eVotDat set backup=0;" | mysql -u election -p"$DBPWD" eLection
 	   if [ $? -ne 0 ] ; then
-        echo "enable backup failed: database server not running." >>$LOGFILE 2>>$LOGFILE
+        log "enable backup failed: database server not running."
         exit 1
     fi
     
@@ -841,7 +848,7 @@ then
     getVar disk DBPWD
 	   echo "update  eVotDat set backup=-1;"| mysql -u election -p"$DBPWD" eLection
 	   if [ $? -ne 0 ] ; then
-        echo "disable backup failed: database server not running." >>$LOGFILE 2>>$LOGFILE
+        log "disable backup failed: database server not running."
         exit 1
     fi
     
@@ -876,7 +883,7 @@ then
     checkParameterOrDie SHARES "$2"
     checkParameterOrDie THRESHOLD "$3"
     if [ "$SHARES" -lt 2 -o "$SHARES" -lt "$THRESHOLD" ] ; then
-        echo "Bad number of shares ($SHARES) or threshold ($THRESHOLD)"  >>$LOGFILE 2>>$LOGFILE
+        log "Bad number of shares ($SHARES) or threshold ($THRESHOLD)" 
         exit 1
     fi
     
@@ -891,7 +898,7 @@ then
     #contain a ready to use configuration file.
 	
     #Fragment the password
-    echo "executing: $OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key" >>$LOGFILE 2>>$LOGFILE
+    log "executing: $OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key"
 	   echo -ne "$PARTPWD\0" >$slotPath/key #Write the string term to avoid trash input from leaking in
 	   $OPSEXE share $SHARES $THRESHOLD  $slotPath <$slotPath/key >>$LOGFILE 2>>$LOGFILE 
 	   ret=$?
@@ -916,7 +923,7 @@ if [ "$1" == "grantAdminPrivileges" ]
         privilege=1
     fi
     
-    echo "giving/removing webapp privileges ($2)."  >>$LOGFILE 2>>$LOGFILE
+    log "giving/removing webapp privileges ($2)." 
     mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE  <<EOF
 update eVotDat set mante=$privilege;
 EOF
@@ -943,7 +950,7 @@ if [ "$1" == "setAdmin" ]
 then
     if [ "$2" != "new" -a "$2" != "reset" ]
     then
-	       echo "setAdmin: Bad operation parameter $2" >>$LOGFILE 2>>$LOGFILE
+	       log "setAdmin: Bad operation parameter $2"
 	       exit 1
     fi
     
@@ -1128,11 +1135,11 @@ then
     
     
     #Generate the request
-    echo "Generating CSR in $OUTFILE with subject: $SUBJECT" >>$LOGFILE 2>>$LOGFILE
+    log "Generating CSR in $OUTFILE with subject: $SUBJECT"
     openssl req -new -sha256 -newkey rsa:2048 -nodes -keyout "${sslpath}/server.key" -out $OUTFILE -subj "$SUBJECT" >>$LOGFILE 2>>$LOGFILE
     ret=$?
     if [ $ret -ne 0 ] ; then
-	       echo  "Error $ret while generating CSR."  >>$LOGFILE 2>>$LOGFILE
+	       log  "Error $ret while generating CSR." 
 	       exit $ret
     fi
     
@@ -1322,7 +1329,7 @@ then
 
 	   if [ "$4" != "serverCert" -a "$4" != "certChain" ]
 	   then
-	       echo "checkCertificate: bad param 4: $4" >>$LOGFILE 2>>$LOGFILE
+	       log "checkCertificate: bad param 4: $4"
 	       exit 1
 	   fi
 
@@ -1392,7 +1399,7 @@ then
 	   if [ "$?" -ne 0 ] 
 	   then
  	      #No ha verificado. Avisamos y salimos (borramos el cert y la chain en temp)
-	       echo "Cert not properly verified against chain"  >>$LOGFILE  2>>$LOGFILE
+	       log "Cert not properly verified against chain" 
 	       rm -rf $ROOTSSLTMP/*  >>$LOGFILE  2>>$LOGFILE
 	       exit 1
 	   fi
@@ -1440,7 +1447,7 @@ then
 	   
 	   /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
 	   if [ "$ret" -ne 0 ]; then
-	       echo "Error restarting web server!"  >>$LOGFILE 2>>$LOGFILE
+	       log "Error restarting web server!" 
 	       exit 2
 	   fi
 	   
@@ -1481,10 +1488,10 @@ if [ "$1" == "storops" ]
 then
 
     if [ "$2" == "" ] ; then
-	       echo "ERROR storops: No op code provided"  >>$LOGFILE 2>>$LOGFILE
+	       log "ERROR storops: No op code provided" 
 	       exit 1
     fi
-    echo "Called store operation $2..." >>$LOGFILE 2>>$LOGFILE
+    log "Called store operation $2..."
     
     
     
@@ -1563,7 +1570,7 @@ then
 	       checkParameterOrDie INT "${3}" "0"
 	       if [ "$3" -gt $SHAREMAXSLOTS -o  "$3" -le 0 ]
 	       then
-	           echo "switchSlot: Bad slot number: $3"  >>$LOGFILE 2>>$LOGFILE
+	           log "switchSlot: Bad slot number: $3" 
 	           exit 1
 	       fi
         
@@ -1607,9 +1614,9 @@ then
         getVar usb THRESHOLD	
 	       numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
         
-        echo "rebuildKeyAllCombs:"  >>$LOGFILE 2>>$LOGFILE
-	       echo "Threshold:     $THRESHOLD"  >>$LOGFILE 2>>$LOGFILE
-	       echo "numreadshares: $numreadshares"  >>$LOGFILE 2>>$LOGFILE
+        log "rebuildKeyAllCombs:" 
+	       log "Threshold:     $THRESHOLD" 
+	       log "numreadshares: $numreadshares" 
 	       
         #If no threshold, something must be very wrong on the cinfig 
         [ "$THRESHOLD" == "" ] && exit 10
@@ -1623,7 +1630,7 @@ then
 	       
 	       #Calculate all possible combinations
 	       combs=$(/usr/local/bin/combs.py $THRESHOLD $numreadshares)
-        echo "Number of combinations: "$(echo $combs | wc -w)  >>$LOGFILE 2>>$LOGFILE
+        log "Number of combinations: "$(echo $combs | wc -w) 
         
         #Try to rebuild with each combination
 	       gotit=0
@@ -1637,7 +1644,7 @@ then
 	           offset=0
 	           for pos in $poslist
 	           do
-                echo "copying keyshare$pos to $slotPath/testcombdir named keyshare$offset"  >>$LOGFILE 2>>$LOGFILE
+                log "copying keyshare$pos to $slotPath/testcombdir named keyshare$offset" 
 	               cp -f $slotPath/keyshare$pos $slotPath/testcombdir/keyshare$offset
 	               offset=$((offset+1))
             done
@@ -1684,13 +1691,13 @@ then
         [ "$CURRENTSLOT" == "" ] && exit 2
         
         #Get list of shares on the active slot
-        echo "testForDeadShares: Available shares: "$(ls -l  $slotPath 2>>$LOGFILE )   >>$LOGFILE 2>>$LOGFILE    
+        log "testForDeadShares: Available shares: "$(ls -l  $slotPath 2>>$LOGFILE )      
         sharefiles=$(ls "$slotPath/" | grep -Ee "^keyshare[0-9]+$")
         numsharefiles=$(echo $sharefiles 2>>$LOGFILE | wc -w)
         
         #If no shares
         if [ "$sharefiles" == ""  ] ; then
-            echo "Error. No shares found" >>$LOGFILE 2>>$LOGFILE
+            log "Error. No shares found"
             exit 1
         fi
         
@@ -1716,24 +1723,24 @@ then
 	               pos=$(( (count+offset)%numsharefiles ))
 
                 #Copy keyshare to the test dir [rename it so they are correlative]
-                echo "copying keyshare$pos to $ROOTTMP/testdir named $ROOTTMP/testdir/keyshare$offset"  >>$LOGFILE 2>>$LOGFILE
+                log "copying keyshare$pos to $ROOTTMP/testdir named $ROOTTMP/testdir/keyshare$offset" 
 	               cp $slotPath/keyshare$pos $ROOTTMP/testdir/keyshare$offset   >>$LOGFILE 2>>$LOGFILE
 	                   
 	               offset=$((offset+1))
             done
-            echo "Shares copied to test directory: "$(ls -l  $ROOTTMP/testdir)   >>$LOGFILE 2>>$LOGFILE
+            log "Shares copied to test directory: "$(ls -l  $ROOTTMP/testdir)  
             
             #Rebuild cipher key and store it on the var. 
             CURRKEY=$($OPSEXE retrieve $THRESHOLD $ROOTTMP/testdir  2>>$LOGFILE)
             #If failed, exit.
             [ $? -ne 0 ] && failed=1 && break
             
-            echo "Could rebuild key"  >>$LOGFILE 2>>$LOGFILE
+            log "Could rebuild key" 
             
             #If key not matching the previous one, exit      
             [ "$LASTKEY" != "" -a "$LASTKEY" != "$CURRKEY"   ] && failed=1 && break
             
-            echo "Matches previous"  >>$LOGFILE 2>>$LOGFILE
+            log "Matches previous" 
             
             #Shift current key
             LASTKEY="$CURRKEY"
@@ -1745,7 +1752,7 @@ then
         #Remove directory, to avoid leaving sensitive data behind
         rm -rf $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
         
-        echo "found deadshares? $failed" >>$LOGFILE 2>>$LOGFILE
+        log "found deadshares? $failed"
         
         exit $failed
     fi
@@ -1764,12 +1771,12 @@ then
         
 	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
 	       lastConfigRead=$((NEXTCONFIGNUM-1))
-        echo "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
-	       echo "***** #### lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
+        log "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM"
+	       log "***** #### lastConfigRead: $lastConfigRead"
 
         #If none read, no conflicts
 	       if [ "$lastConfigRead" -lt 0 ] ; then
-	           echo "compareConfigs: No config files read yet" >>$LOGFILE 2>>$LOGFILE
+	           log "compareConfigs: No config files read yet"
 	           exit 0;
 	       fi
         
@@ -1785,7 +1792,7 @@ then
         #Get the file differences (on the first read, it will compare with itself)
 	       differences=$( diff $slotPath/config$lastConfigRead  $slotPath/config.raw )
         #<DEBUG>
-	       echo "***** diff for config files $lastConfigRead - config: $differences" >>$LOGFILE 2>>$LOGFILE
+	       log "***** diff for config files $lastConfigRead - config: $differences"
         #</DEBUG>
         
         #If there are differences, print them to the user and return conflict
@@ -1842,12 +1849,12 @@ then
         
 	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
 	       lastConfigRead=$((NEXTCONFIGNUM-1))
-	       echo "*****NEXTCONFIGNUM:  $NEXTCONFIGNUM" >>$LOGFILE 2>>$LOGFILE
-	       echo "*****lastConfigRead: $lastConfigRead" >>$LOGFILE 2>>$LOGFILE
+	       log "*****NEXTCONFIGNUM:  $NEXTCONFIGNUM"
+	       log "*****lastConfigRead: $lastConfigRead"
         
 	       if [ "$NEXTCONFIGNUM" -eq 0 ]
 	       then
-	           echo "parseConfig: no configuration file read yet!"  >>$LOGFILE 2>>$LOGFILE
+	           log "parseConfig: no configuration file read yet!" 
 	           exit 1
 	       fi
         
@@ -1855,7 +1862,7 @@ then
 	       
 	       if [ "$config" == "" ]
 	       then
-	           echo "parseConfig: Configuration tampered or corrupted"  >>$LOGFILE 2>>$LOGFILE
+	           log "parseConfig: Configuration tampered or corrupted" 
 	           exit 2
 	       fi
 	       
@@ -1876,7 +1883,7 @@ then
 	       parseConfigFile "$slotPath/config" > $ROOTTMP/config
         
 	       if [ ! -s "$ROOTTMP/config" ] ; then
-	           echo "settleConfig: esurveyconfiguration parse error. Possible tampering or corruption"  >>$LOGFILE 2>>$LOGFILE
+	           log "settleConfig: esurveyconfiguration parse error. Possible tampering or corruption" 
 	           exit 1
 	       fi
         exit 0
@@ -1890,7 +1897,7 @@ then
     #4-> password    
     if [ "$2" == "checkPwd" ] 
 	   then
-        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie PATH   "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"
         
         $OPSEXE checkPwd -d "$3"  -p "$4"    2>>$LOGFILE #0 ok  1 bad pwd
@@ -1905,7 +1912,7 @@ then
     #4-> password    
     if [ "$2" == "readConfigShare" ] 
 	   then
-        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie PATH   "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"              
         
         getVar mem CURRENTSLOT
@@ -1935,7 +1942,7 @@ then
     #4-> password
     if [ "$2" == "readKeyShare" ] 
 	   then
-        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie PATH   "${3}" "0"
         checkParameterOrDie DEVPWD "${4}" "0"
         
         getVar mem CURRENTSLOT
@@ -1965,7 +1972,7 @@ then
     #4 -> New device password
     if [ "$2" == "formatKeyStore" ] 
 	   then
-        checkParameterOrDie DEV "${3}" "0"
+        checkParameterOrDie PATH   "${3}" "0" #Used to be a dev, now it's a mount path
         checkParameterOrDie DEVPWD "${4}" "0"
 
         #Write an empty store file on the usb
@@ -1985,7 +1992,7 @@ then
     #Return: 0: succesully written,  1: write error
     if [ "$2" == "writeKeyShare" ] 
 	   then
-	       checkParameterOrDie DEV    "${3}" 0
+	       checkParameterOrDie PATH   "${3}" 0
         checkParameterOrDie DEVPWD "${4}" 0
         
 	       getVar usb SHARES
@@ -1995,7 +2002,7 @@ then
         
 	       #Check that the indicated share is in range (0,SHARES-1)
 	       if [ "$5" -lt 0 -o "$5" -ge "$SHARES" ] ; then
-	           echo "writeKeyShare: bad share num $5 (not between 0 and $SHARES)"  >>$LOGFILE 2>>$LOGFILE
+	           log "writeKeyShare: bad share num $5 (not between 0 and $SHARES)" 
 	           exit 1
 	       fi
         
@@ -2004,7 +2011,7 @@ then
         
 	       #Check that file exists and has size
 	       if [ ! -s "$shareFilePath" ] ; then
-	           echo "writeKeyShare: nonexisting or empty share $5 (of $SHARES)"  >>$LOGFILE 2>>$LOGFILE
+	           log "writeKeyShare: nonexisting or empty share $5 (of $SHARES)" 
 	           exit 1
 	       fi
         
@@ -2024,7 +2031,7 @@ then
     #4 -> New device password
     if [ "$2" == "writeConfigBlock" ] 
 	   then
-        checkParameterOrDie DEV    "${3}" 0
+        checkParameterOrDie PATH   "${3}" 0
         checkParameterOrDie DEVPWD "${4}" 0
         
         #Get the path to the configuration file
@@ -2032,7 +2039,7 @@ then
         
         #Check that the file exists and has size
 	       if [ ! -s "$configFilePath" ] ; then
-	           echo "writeConfigBlock: No config file to write!"  >>$LOGFILE 2>>$LOGFILE
+	           log "writeConfigBlock: No config file to write!" 
 	           exit 1
 	       fi
         
@@ -2203,7 +2210,7 @@ then
 	       
 	       if [ "$ret" -ne 0 ] 
 	       then
-	           echo "getFile mountDev: El dispositivo no pudo ser accedido."  >>$LOGFILE  2>>$LOGFILE
+	           log "getFile mountDev: El dispositivo no pudo ser accedido." 
 	           umount /media/USB
 	           exit 11
 	       fi
@@ -2262,7 +2269,7 @@ then
 	       exit 0
     fi
     
-    echo "getFile: bad subopcode." >>$LOGFILE 2>>$LOGFILE
+    log "getFile: bad subopcode."
     exit 1
 fi
 
@@ -2290,7 +2297,7 @@ fi
 
 
 
-echo "Operation '$1' not found."  >>$LOGFILE 2>>$LOGFILE 
+log "Operation '$1' not found."  
 exit 42
 
 

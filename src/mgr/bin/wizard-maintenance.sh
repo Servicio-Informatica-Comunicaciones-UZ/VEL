@@ -28,7 +28,7 @@ log () {
 resetLoop () {
     
     #Show error message to the user
-    echo "$1" >>$LOGFILE 2>>$LOGFILE
+    log "$1"
     $dlg --msgbox "$1" 0 0
     
     #Return to the maintenance idle loop
@@ -265,7 +265,7 @@ getEmailList () {
 
         #Comprobamos la lista de correos
 	for eml in $emaillist; do 
-	    echo "$eml"  >>$LOGFILE 2>>$LOGFILE
+	    log "$eml" 
 	    parseInput email "$eml"
 	    if [ $? -ne 0 ] 
 		then
@@ -490,7 +490,7 @@ sslActionMenu () {
         ;;
 		
 	* )
-	echo "Error: bad cert state: $sslCertState."  >>$LOGFILE 2>>$LOGFILE
+	log "Error: bad cert state: $sslCertState." 
 	MAINTACTION=""
 	doLoop
         ;;	
@@ -527,7 +527,7 @@ sslActionMenu () {
         ;;
 		
 	* )
-	echo "Error: bad selection in ssl submenu."  >>$LOGFILE 2>>$LOGFILE
+	log "Error: bad selection in ssl submenu." 
 	#Back
 	MAINTACTION=""
 	doLoop
@@ -589,10 +589,10 @@ executeUnprivilegedAction () {
 	then
 	verifyCert $DATAPATH/webserver/server.crt $DATAPATH/webserver/ca_chain.pem
 	BYPASSAUTHORIZATION=$?
-	echo "BYPASSAUTHORIZATION $MAINTACTION: $BYPASSAUTHORIZATION" >>$LOGFILE  2>>$LOGFILE
+	log "BYPASSAUTHORIZATION $MAINTACTION: $BYPASSAUTHORIZATION"
 	if [ "$BYPASSAUTHORIZATION" -eq 0]
 	    then
-	    echo "La op es verificada (condicionalmente)" >>$LOGFILE 2>>$LOGFILE
+	    log "La op es verificada (condicionalmente)"
 	    return 1
 	fi
     fi
@@ -601,7 +601,7 @@ executeUnprivilegedAction () {
     #Acciones que no requieren autorización nunca
     if [ "$MAINTACTION" != "shutdown" -a "$MAINTACTION" != "monitor" -a "$MAINTACTION" != "suspend" -a "$MAINTACTION" != "sslcert-getnewcsr" ]
 	then
-	echo "La op es verificada" >>$LOGFILE 2>>$LOGFILE
+	log "La op es verificada"
 	return 1
     fi
   
@@ -841,7 +841,7 @@ executeSystemAction (){
       generateCSR "renew"
       ret=$?
 
-      echo "Retorno de generateCSR: $ret"  >>$LOGFILE 2>>$LOGFILE
+      log "Retorno de generateCSR: $ret" 
 
       
       if [ "$ret" -eq 0 ]; then
@@ -869,7 +869,7 @@ executeSystemAction (){
       
       generateCSR "new"	
       ret=$?
-      echo "Retorno de generateCSR: $ret"  >>$LOGFILE 2>>$LOGFILE
+      log "Retorno de generateCSR: $ret" 
       
       if [ "$ret" -eq 0 ]; then
 	  

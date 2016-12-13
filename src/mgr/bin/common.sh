@@ -282,7 +282,7 @@ parseInput () {
 	           ;;
          
         * )
-	           echo "parseInput: Wrong type -$1-"  >>$LOGFILE 2>>$LOGFILE
+	           log "parseInput: Wrong type -$1-" 
 	           return 1
 	           ;;	
     esac
@@ -313,7 +313,7 @@ checkParameter () {
 	               ;;	    
             
 	           * )
-	               echo "Variable $1 does not accept an empty value."  >>$LOGFILE 2>>$LOGFILE
+	               log "Variable $1 does not accept an empty value." 
 	               return 1
 	               ;;
 	       esac	
@@ -359,7 +359,7 @@ checkParameter () {
 	           fi
 	           ;;	
 	       
-	       "DRIVELOCALPATH" | "FILEPATH" )
+	       "DRIVELOCALPATH" | "FILEPATH" | "PATH" )
             parseInput path "$2"
 	           ret=$?
 	           ;;
@@ -457,7 +457,7 @@ checkParameter () {
 	           ;;
         
 	       * )
-	           echo "Not Expected Variable name: $1"  >>$LOGFILE 2>>$LOGFILE
+	           log "Not Expected Variable name: $1" 
 	           return 1
 	           ;;	
 	   esac
@@ -477,6 +477,7 @@ listUSBDrives () {
     local ndevs=0
     devs=$($PVOPS listUSBDrives devs list 2>>$LOGFILE)
     ndevs=$($PVOPS listUSBDrives devs count 2>>$LOGFILE)
+    log "listUSBDrives ($ndevs): $devs"
     
     echo -n "$devs"
     return $ndevs
@@ -490,9 +491,10 @@ listUSBPartitions () {
     local nparts=0
     parts=$($PVOPS listUSBDrives parts list 2>>$LOGFILE)
     nparts=$($PVOPS listUSBDrives parts count 2>>$LOGFILE)
+    log "listUSBPartitions ($nparts): $parts"
     
     echo -n "$parts"
-    return nparts
+    return $nparts
 }
 
 
@@ -711,11 +713,11 @@ sshTestConnect () {
     local ret=0
     
     #Do a SSH connection and execute a harmless command
-		  echo "ssh -t -t -n  -p '$2'  '$3'@'$1'" >>$LOGFILE 2>>$LOGFILE
+		  log "ssh -t -t -n  -p '$2'  '$3'@'$1'"
 		  sshpass -p"$4" ssh -n -p "$2"  "$3"@"$1" "ls" >>$LOGFILE 2>>$LOGFILE # Ver si quito o dejo el -t-t y el -n, ver si vuelvo a quitar el ls
 		  ret=$?
 		  if [ $ret  -ne 0 ] ; then
-        echo "SSH Connection error: $ret" >>$LOGFILE 2>>$LOGFILE
+        log "SSH Connection error: $ret"
         ret=1
 		  fi
     

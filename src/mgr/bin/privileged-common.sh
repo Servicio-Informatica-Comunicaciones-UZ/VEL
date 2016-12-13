@@ -104,9 +104,9 @@ setVar () {
 	       file="$slotPath/config"
     fi
     
-    echo "****setting var on file $file: '$1'" >>$LOGFILE 2>>$LOGFILE
+    log "****setting var on file $file: '$1'"
     #<DEBUG>
-    echo "****setting var on file $file: '$1'='$2'" >>$LOGFILE 2>>$LOGFILE
+    log "****setting var on file $file: '$1'='$2'"
     #</DEBUG>
     touch $file
     chmod 600 $file  >>$LOGFILE 2>>$LOGFILE
@@ -114,7 +114,7 @@ setVar () {
 
     #Check if var is defined in file
     local isvardefined=$(cat $file | grep -Ee "^$1")
-    echo "isvardef: $1? $isvardefined" >>$LOGFILE 2>>$LOGFILE
+    log "isvardef: $1? $isvardefined"
 
     #If not, append
     if [ "$isvardefined" == "" ] ; then
@@ -162,7 +162,7 @@ getVar () {
 	       :
 	   else
         #<DEBUG>
-	       echo "****variable '$2' not found in file '$file'." >>$LOGFILE 2>>$LOGFILE
+	       log "****variable '$2' not found in file '$file'."
         #</DEBUG>
 	       return 1
     fi
@@ -171,7 +171,7 @@ getVar () {
     export $destvar=$value
     #TODO Verificar que si no existe, no pasa nada.
     #<DEBUG>
-    echo "****getting var '$2' from file '$file': writing on var '$3' = $value" >>$LOGFILE 2>>$LOGFILE
+    log "****getting var '$2' from file '$file': writing on var '$3' = $value"
     #</DEBUG>
     return 0 
 }
@@ -198,18 +198,18 @@ checkParameterOrDie () {
     
     if checkParameter "$1" "$val"
 	   then
-        echo "param OK: $1"   >>$LOGFILE 2>>$LOGFILE
+        log "param OK: $1"  
         #<DEBUG>
-	       echo "param OK: $1=$2"   >>$LOGFILE 2>>$LOGFILE
+	       log "param OK: $1=$2"  
         #</DEBUG>
 	       if [ "$3" != "0" ]
 	       then
 	           export "$1"="$val"
 	       fi
     else
-        echo "param ERR (exiting 1): $1"   >>$LOGFILE 2>>$LOGFILE
+        log "param ERR (exiting 1): $1"  
         #<DEBUG>
-	       echo "param ERR (exiting 1): $1=$2"   >>$LOGFILE 2>>$LOGFILE
+	       log "param ERR (exiting 1): $1=$2"  
         #</DEBUG>
 	       exit 1
     fi
@@ -256,13 +256,13 @@ setPerm () {
         
         for pf in $pfiles
 	       do
-	           echo "chmod $2 $direct/$pf"  >>$LOGFILE 2>>$LOGFILE
+	           log "chmod $2 $direct/$pf" 
 	           chmod $2 $direct/$pf  >>$LOGFILE 2>>$LOGFILE
         done
         
         for pd in $pds
 	       do
-	           echo "chmod $3 $direct/$pd"  >>$LOGFILE 2>>$LOGFILE
+	           log "chmod $3 $direct/$pd" 
 	           chmod $3 $direct/$pd  >>$LOGFILE 2>>$LOGFILE
         done
     done
@@ -417,7 +417,7 @@ manageLoopbackFS () {
     #If creating the device, fill FS with zeroes
     if [ "$1" == 'new' ]
 	   then
-	       echo "Preparing storage space..."  >>$LOGFILE 2>>$LOGFILE
+	       log "Preparing storage space..." 
         #Calculate number of 512 byte blocks will the fs have
 	       local FILEBLOCKS=$(($3 * 1024 * 1024 / 512))
 	       dd if=/dev/zero of=$2 bs=512 count=$FILEBLOCKS  >>$LOGFILE 2>>$LOGFILE
@@ -431,14 +431,14 @@ manageLoopbackFS () {
         [ $? -ne 0 ] && LOOPDEV=loop$l && break 
     done
     if [ "$LOOPDEV" == '' ]  ; then
-        echo "Error: no free loopback device"  >>$LOGFILE 2>>$LOGFILE
+        log "Error: no free loopback device" 
         return 1
     fi
     
     #Mount the file
     losetup /dev/${LOOPDEV}  $2  >>$LOGFILE 2>>$LOGFILE
     if [ $? -ne 0 ]  ; then
-        echo "Error: error $? returned while mounting loopback device"  >>$LOGFILE 2>>$LOGFILE
+        log "Error: error $? returned while mounting loopback device" 
         return 1
     fi
     
@@ -477,9 +477,9 @@ configureCryptoPartition () {
     
     local mapperName="$8"
     local exposedpath="$9"    
-    [ "$mountpath" == "" ] &&  echo "No param 6"  >>$LOGFILE 2>>$LOGFILE  && return 1
-    [ "$mapperName" == "" ] &&  echo "No param 8"  >>$LOGFILE 2>>$LOGFILE  && return 1
-    [ "$exposedpath" == "" ] &&  echo "No param 9"  >>$LOGFILE 2>>$LOGFILE  && return 1
+    [ "$mountpath" == "" ] &&  log "No param 6"   && return 1
+    [ "$mapperName" == "" ] &&  log "No param 8"   && return 1
+    [ "$exposedpath" == "" ] &&  log "No param 9"   && return 1
     
     
     #Get the partition encryption password (which is the shared key in the active slot)
@@ -489,7 +489,7 @@ configureCryptoPartition () {
     then
         :
     else
-        echo "Error: No rebuilt key in active slot!! ($CURRENTSLOT)"  >>$LOGFILE 2>>$LOGFILE
+        log "Error: No rebuilt key in active slot!! ($CURRENTSLOT)" 
         return 1
     fi
     local PARTPWD=$(cat "$keyfile")
@@ -522,7 +522,7 @@ configureCryptoPartition () {
     #Once the base partition is available as a dev,we build/mount the encrypted fs
     if [ "$1" == 'new' ]
 	   then
-	       echo "Encrypting storage area..."  >>$LOGFILE 2>>$LOGFILE
+	       log "Encrypting storage area..." 
 	     	 cryptsetup luksFormat $cryptdev   >>$LOGFILE 2>>$LOGFILE  <<-EOF
 $PARTPWD
 EOF
@@ -538,7 +538,7 @@ EOF
     #Setup the filesystem inside the encrypted drive
     if [ "$1" == 'new' ]
 	   then
-	       echo "Creating filesystem..." >>$LOGFILE 2>>$LOGFILE
+	       log "Creating filesystem..."
 	       mkfs.ext4 /dev/mapper/$mapperName >>$LOGFILE 2>>$LOGFILE
 	       [ $? -ne 0 ] &&  return 7
     fi
@@ -605,7 +605,7 @@ configureNetwork () {
     #If parameters are empty, read them from config
     if [ "$IPMODE" == "" ]
 	   then
-	       echo "configureNetwork: Reading params from usb config file..." >>$LOGFILE 2>>$LOGFILE
+	       log "configureNetwork: Reading params from usb config file..."
 	       getVar usb IPMODE
 	       getVar usb IPADDR
 	       getVar usb MASK
@@ -621,12 +621,12 @@ configureNetwork () {
     checkParameterOrDie DNS1    "$DNS1"    "0"
     checkParameterOrDie DNS2    "$DNS2"    "0"
 
-    echo "ipmode: $IPMODE" >>$LOGFILE 2>>$LOGFILE
-    echo "ipad: $IPADDR" >>$LOGFILE 2>>$LOGFILE
-    echo "mask: $MASK" >>$LOGFILE 2>>$LOGFILE
-    echo "gatw: $GATEWAY" >>$LOGFILE 2>>$LOGFILE
-    echo "dns : $DNS1" >>$LOGFILE 2>>$LOGFILE
-    echo "dns2: $DNS2" >>$LOGFILE 2>>$LOGFILE
+    log "ipmode: $IPMODE"
+    log "ipad: $IPADDR"
+    log "mask: $MASK"
+    log "gatw: $GATEWAY"
+    log "dns : $DNS1"
+    log "dns2: $DNS2"
 
     if [ "$IPMODE" == "static" ]
 	   then
@@ -644,7 +644,7 @@ configureNetwork () {
 	       local interfaces=$(/sbin/ifconfig -s  2>>$LOGFILE  | cut -d " " -f1 | grep -oEe "eth[0-9]+")
 	       
 	       if [ "$interfaces" == "" ] ; then
-	           echo "Error: no eth interfaces available."  >>$LOGFILE 2>>$LOGFILE 
+	           log "Error: no eth interfaces available."  
 	           return 11
 	       fi
         
@@ -653,11 +653,11 @@ configureNetwork () {
 	       for interface in $interfaces; do
             
 	           #Set IP and netmask.
-	           echo "/sbin/ifconfig $interface $IPADDR netmask $MASK" >>$LOGFILE 2>>$LOGFILE
+	           log "/sbin/ifconfig $interface $IPADDR netmask $MASK"
             /sbin/ifconfig "$interface" "$IPADDR" netmask "$MASK"  >>$LOGFILE 2>>$LOGFILE 
             
             #Set default gateway
-	           echo "/sbin/route add default gw $GATEWAY" >>$LOGFILE 2>>$LOGFILE
+	           log "/sbin/route add default gw $GATEWAY"
             /sbin/route del default                    >>$LOGFILE 2>>$LOGFILE
             /sbin/route add default gw "$GATEWAY"      >>$LOGFILE 2>>$LOGFILE 
 	           
@@ -665,10 +665,10 @@ configureNetwork () {
 	           echo -e "nameserver $DNS1\nnameserver $DNS2" > /etc/resolv.conf
 	           
 	           #Check interface connectivity. If found, settle
-	           echo "Checking connectivity on $interface..."  >>$LOGFILE 2>>$LOGFILE
+	           log "Checking connectivity on $interface..." 
 	           ping -w 5 -q $GATEWAY  >>$LOGFILE 2>>$LOGFILE 
 	           if [ $? -eq 0 ] ; then
-                echo "found conectivity on interface $interface" >>$LOGFILE 2>>$LOGFILE
+                log "found conectivity on interface $interface"
                 settledaninterface=1
                 break
             fi
@@ -678,7 +678,7 @@ configureNetwork () {
 	       done
 	       
 	       if [ "$settledaninterface" -eq 0 ] ; then
-	           echo "Error: couldn't find any interface with connection to gateway"  >>$LOGFILE 2>>$LOGFILE 
+	           log "Error: couldn't find any interface with connection to gateway"  
 	           return 12
 	       fi
         
@@ -691,7 +691,7 @@ configureNetwork () {
             #Perform DHCP negotiation
             dhclient >>$LOGFILE 2>>$LOGFILE
             if [ "$?" -ne 0 ]  ; then
-	               echo "Dhclient error."  >>$LOGFILE 2>>$LOGFILE 
+	               log "Dhclient error."  
 	               return 13
 	           fi
         fi
@@ -701,15 +701,15 @@ configureNetwork () {
     fi
     
     #Check gateway connectivity
-    echo "Trying ping on $GATEWAY"  >>$LOGFILE 2>>$LOGFILE 
+    log "Trying ping on $GATEWAY"  
 	   ping -w 5 -q $GATEWAY  >>$LOGFILE 2>>$LOGFILE 
 	   if [ $? -ne 0 ] ; then
-    	   echo "Error: couldn't ping gateway ($GATEWAY) through any interface. Check connectivity"  >>$LOGFILE 2>>$LOGFILE
+    	   log "Error: couldn't ping gateway ($GATEWAY) through any interface. Check connectivity" 
         return 14
     fi
     
     #Check Internet connectivity
-    echo "Trying ping on 8.8.8.8"  >>$LOGFILE 2>>$LOGFILE 
+    log "Trying ping on 8.8.8.8"  
 	   ping -w 5 -q 8.8.8.8  >>$LOGFILE 2>>$LOGFILE 
 	   if [ $? -ne 0 ] ; then
         return 15
@@ -731,7 +731,7 @@ configureHostDomain () {
     #If parameters are empty, read them from config
     if [ "$HOSTNM" == "" ]
 	   then
-	       echo "configureHostDomain: Reading params from usb config file..." >>$LOGFILE 2>>$LOGFILE
+	       log "configureHostDomain: Reading params from usb config file..."
 	       getVar usb IPADDR
 	       getVar usb HOSTNM
  	      getVar usb DOMNAME
@@ -748,9 +748,9 @@ configureHostDomain () {
                         | grep -oEe "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}")
     fi
     
-    echo "ipadd:  $IPADDR" >>$LOGFILE 2>>$LOGFILE
-    echo "host:   $HOSTNM" >>$LOGFILE 2>>$LOGFILE
-    echo "domain: $DOMNAME" >>$LOGFILE 2>>$LOGFILE
+    log "ipadd:  $IPADDR"
+    log "host:   $HOSTNM"
+    log "domain: $DOMNAME"
     
     
     #Set the static, transient and pretty hostname
@@ -808,16 +808,16 @@ configureHostDomain () {
 #3 -> path to the private key (in serverCert mode)
 checkCertificate () {
 
-    [ "$1" == "" ] && echo "checkCertificate: no param 1" >>$LOGFILE  2>>$LOGFILE  && return 11
-    [ "$2" == "" ] && echo "checkCertificate: no param 2" >>$LOGFILE  2>>$LOGFILE  && return 12
-    [ "$2" == "serverCert" -a "$3" == "" ] && echo "checkCertificate: no param 3 at mode serverCert" >>$LOGFILE  2>>$LOGFILE  && return 13
+    [ "$1" == "" ] && log "checkCertificate: no param 1"  && return 11
+    [ "$2" == "" ] && log "checkCertificate: no param 2"  && return 12
+    [ "$2" == "serverCert" -a "$3" == "" ] && log "checkCertificate: no param 3 at mode serverCert"  && return 13
 
     #Validate non-empty file
     if [ -s "$1" ] 
 	   then
 	       :
     else
-	       echo "Error: empty file." >>$LOGFILE  2>>$LOGFILE 
+	       log "Error: empty file." 
 	       return 14
     fi
     
@@ -827,17 +827,17 @@ checkCertificate () {
 	   
     if [ "$ret" -eq 3 ] 
 	   then
-	       echo "Read error." >>$LOGFILE  2>>$LOGFILE 
+	       log "Read error." 
 	       return 15
     fi
     if [ "$ret" -eq 5 ]  
 	   then
-	       echo "Error: file contains no PEM certificates." >>$LOGFILE  2>>$LOGFILE 
+	       log "Error: file contains no PEM certificates." 
 	       return 16
     fi
     if [ "$ret" -ne 0 ]  
 	   then
-	       echo "Error processing cert file." >>$LOGFILE  2>>$LOGFILE 
+	       log "Error processing cert file." 
 	       return 17
     fi
     
@@ -847,7 +847,7 @@ checkCertificate () {
     #If processing a server cert file, it must be alone
     if [ "$2" == "serverCert" -a  "$certlistlen" -ne 1 ]
 	   then
-	       echo "File should contain server cert only." >>$LOGFILE  2>>$LOGFILE 
+	       log "File should contain server cert only." 
 	       return 18
     fi
     
@@ -859,7 +859,7 @@ checkCertificate () {
         ret=$?
         if [ "$ret" -ne 0  ] 
 	       then 
-	           echo "Error: certificate not valid." >>$LOGFILE  2>>$LOGFILE
+	           log "Error: certificate not valid."
 	           return 19
         fi
         
@@ -872,7 +872,7 @@ checkCertificate () {
 	           #If not matching, the cert doesn't belong to the priv key
 	           if [ "$aa" != "$bb" ]
 	           then
-	               echo "Error: no cert-key match." >>$LOGFILE  2>>$LOGFILE
+	               log "Error: no cert-key match."
 	               return 20
 	           fi
         fi
@@ -900,7 +900,7 @@ verifyCert () {
     
     iserror=$(openssl verify -purpose sslserver -CApath /etc/ssl/certs/ $chain  "$1" 2>&1  | grep -ie "error")
     
-    echo "verify cert error? "$iserror  >>$LOGFILE 2>>$LOGFILE
+    log "verify cert error? "$iserror 
     
     #If no error string, validated
     [ "$iserror" != ""  ] && return 1

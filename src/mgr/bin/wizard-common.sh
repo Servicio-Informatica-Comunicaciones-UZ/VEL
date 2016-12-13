@@ -30,7 +30,7 @@ relocateLogs () {
 #Grant admin user a privileged admin status on the web app
 #1-> 'grant' or 'remove'
 grantAdminPrivileges () {
-    echo "Setting web app privileged admin status to: $1 on "$(date)  >>$LOGFILE 2>>$LOGFILE
+    log "Setting web app privileged admin status to: $1 on "$(date) 
 	   $PVOPS  grantAdminPrivileges "$1"	
 }
 
@@ -268,7 +268,7 @@ readNextUSB () {
             $dlg --yes-label $"Current"  --no-label $"New"  --yesno  $"Do you wish to use the current one or the new one?" 0 0
             #Decided to use the new one, set it
             if [ $? -eq  1 ] ; then
-		              echo "Using new config." >>$LOGFILE 2>>$LOGFILE
+		              log "Using new config."
                 $PVOPS storops resolveConfigConflict
             fi
         fi
@@ -594,14 +594,14 @@ networkParams () {
     local ret=$?
     
     #<DEBUG>
-	   echo "IPMODE: "$IPMODE  >>$LOGFILE 2>>$LOGFILE  # TODO guess where these vars are passed to the privileged part and stored on the config (either drive or usbdevs)
-	   echo "IP:   "$IPADDR >>$LOGFILE 2>>$LOGFILE
-	   echo "MASK: "$MASK >>$LOGFILE 2>>$LOGFILE
-	   echo "GATE: "$GATEWAY >>$LOGFILE 2>>$LOGFILE
-	   echo "DNS1: "$DNS1 >>$LOGFILE 2>>$LOGFILE
-	   echo "DNS2: "$DNS2 >>$LOGFILE 2>>$LOGFILE
-	   echo "HOSTNM: "$HOSTNM >>$LOGFILE 2>>$LOGFILE
- 	  echo "DOMNAME: "$DOMNAME >>$LOGFILE 2>>$LOGFILE
+	   log "IPMODE: "$IPMODE   # TODO guess where these vars are passed to the privileged part and stored on the config (either drive or usbdevs)
+	   log "IP:   "$IPADDR
+	   log "MASK: "$MASK
+	   log "GATE: "$GATEWAY
+	   log "DNS1: "$DNS1
+	   log "DNS2: "$DNS2
+	   log "HOSTNM: "$HOSTNM
+ 	  log "DOMNAME: "$DOMNAME
    #</DEBUG>
     
     return $ret
@@ -624,7 +624,7 @@ networkParams () {
 # DNS1
 # DNS2
 configureNetwork () {
-    echo "Configuring network: $PVOPS configureNetwork $IPMODE $IPADDR $MASK $GATEWAY $DNS1 $DNS2" >>$LOGFILE 2>>$LOGFILE
+    log "Configuring network: $PVOPS configureNetwork $IPMODE $IPADDR $MASK $GATEWAY $DNS1 $DNS2"
     $dlg --infobox $"Configuring network connection..." 0 0
     
     #On reset, paremetrs will be empty, but will be read from the config fiile
@@ -632,19 +632,19 @@ configureNetwork () {
     local ret="$?"
     
     if [ "$ret" == "11"  ]; then
-	       echo "Error: no accessible ethernet interfaces found."  >>$LOGFILE 2>>$LOGFILE
+	       log "Error: no accessible ethernet interfaces found." 
 	       return 1
     elif [ "$ret" == "12"  ]; then
-	       echo "Error: No destination reach from any interface." >>$LOGFILE 2>>$LOGFILE
+	       log "Error: No destination reach from any interface."
         return 1
     elif [ "$ret" == "13"  ]; then
-	       echo "Error: DHCP client error." >>$LOGFILE 2>>$LOGFILE
+	       log "Error: DHCP client error."
         return 1
     elif [ "$ret" == "14"  ]; then
-	       echo "Error: Gateway connectivity error." >>$LOGFILE 2>>$LOGFILE
+	       log "Error: Gateway connectivity error."
         return 1
     elif [ "$ret" == "15"  ]; then
-	       echo "Error: Internet connectivity error." >>$LOGFILE 2>>$LOGFILE
+	       log "Error: Internet connectivity error."
         return 2
     fi
     
@@ -808,13 +808,13 @@ sysAdminParams () {
     done
     
     #<DEBUG>
-    echo "ADMINNAME:   $ADMINNAME" >>$LOGFILE 2>>$LOGFILE
-    echo "MGRPWD:      $MGRPWD" >>$LOGFILE 2>>$LOGFILE
-    echo "LOCALPWD:    $LOCALPWD" >>$LOGFILE 2>>$LOGFILE
-    echo "ADMIDNUM:    $ADMIDNUM" >>$LOGFILE 2>>$LOGFILE
-    echo "MGREMAIL:    $MGREMAIL" >>$LOGFILE 2>>$LOGFILE
-    echo "ADMREALNAME: $ADMREALNAME" >>$LOGFILE 2>>$LOGFILE
-    echo "ADMINIP:     $ADMINIP" >>$LOGFILE 2>>$LOGFILE
+    log "ADMINNAME:   $ADMINNAME"
+    log "MGRPWD:      $MGRPWD"
+    log "LOCALPWD:    $LOCALPWD"
+    log "ADMIDNUM:    $ADMIDNUM"
+    log "MGREMAIL:    $MGREMAIL"
+    log "ADMREALNAME: $ADMREALNAME"
+    log "ADMINIP:     $ADMINIP"
     #</DEBUG>
     
     return 0
@@ -937,11 +937,11 @@ selectCryptoDriveMode () {
         break
 	   done
     #<DEBUG>
-    echo "Crypto drive mode: $DRIVEMODE"  >>$LOGFILE 2>>$LOGFILE
-    echo "Local path:        $DRIVELOCALPATH"  >>$LOGFILE 2>>$LOGFILE
-	   echo "Local file:        $FILEPATH" >>$LOGFILE 2>>$LOGFILE
-	   echo "File system size:  $FILEFILESIZE" >>$LOGFILE 2>>$LOGFILE
-		  echo "Filename:          $CRYPTFILENAME" >>$LOGFILE 2>>$LOGFILE
+    log "Crypto drive mode: $DRIVEMODE" 
+    log "Local path:        $DRIVELOCALPATH" 
+	   log "Local file:        $FILEPATH"
+	   log "File system size:  $FILEFILESIZE"
+		  log "Filename:          $CRYPTFILENAME"
     #</DEBUG>
     
     return 0
@@ -1035,10 +1035,10 @@ sshBackupParameters () {
         break
     done
     #<DEBUG>
-    echo "SSH Server:        $SSHBAKSERVER" >>$LOGFILE 2>>$LOGFILE
-	   echo "SSH port:          $SSHBAKPORT" >>$LOGFILE 2>>$LOGFILE
-	   echo "SSH User:          $SSHBAKUSER" >>$LOGFILE 2>>$LOGFILE
-	   echo "SSH pwd:           $SSHBAKPASSWD" >>$LOGFILE 2>>$LOGFILE
+    log "SSH Server:        $SSHBAKSERVER"
+	   log "SSH port:          $SSHBAKPORT"
+	   log "SSH User:          $SSHBAKUSER"
+	   log "SSH pwd:           $SSHBAKPASSWD"
     #</DEBUG>
     
     return 0
@@ -1055,7 +1055,7 @@ checkSSHconnectivity () {
 		  #Set trust on the server
     sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
     if [ $? -ne 0 ] ; then
-        echo "SSH Keyscan error." >>$LOGFILE 2>>$LOGFILE
+        log "SSH Keyscan error."
         return 1
 		  fi
     
@@ -1094,7 +1094,7 @@ mailerParams () {
 	   done
     
     #<DEBUG>
-    echo "Mail relay: $MAILRELAY" >>$LOGFILE 2>>$LOGFILE
+    log "Mail relay: $MAILRELAY"
     #</DEBUG>
     
     return 0
@@ -1198,8 +1198,8 @@ selectSharingParams () {
 	   done
     
     #<DEBUG>
-    echo "SHARES: $SHARES" >>$LOGFILE 2>>$LOGFILE
-    echo "THRESHOLD: $THRESHOLD" >>$LOGFILE 2>>$LOGFILE
+    log "SHARES: $SHARES"
+    log "THRESHOLD: $THRESHOLD"
     #</DEBUG>
 
     return 0
@@ -1341,13 +1341,13 @@ sslCertParameters () {
     [ "$SERVEREMAIL" == "-" ] && SERVEREMAIL=""
     
     #<DEBUG>
-    echo "COMPANY: $COMPANY" >>$LOGFILE 2>>$LOGFILE
-    echo "DEPARTMENT: $DEPARTMENT" >>$LOGFILE 2>>$LOGFILE
-    echo "COUNTRY: $COUNTRY" >>$LOGFILE 2>>$LOGFILE
-    echo "STATE: $STATE" >>$LOGFILE 2>>$LOGFILE
-    echo "LOC: $LOC" >>$LOGFILE 2>>$LOGFILE
-    echo "SERVEREMAIL: $SERVEREMAIL" >>$LOGFILE 2>>$LOGFILE
-    echo "SERVERCN: $SERVERCN" >>$LOGFILE 2>>$LOGFILE
+    log "COMPANY: $COMPANY"
+    log "DEPARTMENT: $DEPARTMENT"
+    log "COUNTRY: $COUNTRY"
+    log "STATE: $STATE"
+    log "LOC: $LOC"
+    log "SERVEREMAIL: $SERVEREMAIL"
+    log "SERVERCN: $SERVERCN"
     #</DEBUG>
     
     return 0
@@ -1467,11 +1467,11 @@ lcnRegisterParams () {
         
     
     #<DEBUG>
-    echo "SITESEMAIL: $SITESEMAIL" >>$LOGFILE 2>>$LOGFILE
-	   echo "SITESPWD: $SITESPWD" >>$LOGFILE 2>>$LOGFILE
-	   echo "SITESORGSERV: $SITESORGSERV" >>$LOGFILE 2>>$LOGFILE
-	   echo "SITESNAMEPURP: $SITESNAMEPURP" >>$LOGFILE 2>>$LOGFILE
-	   echo "SITESCOUNTRY: $SITESCOUNTRY" >>$LOGFILE 2>>$LOGFILE
+    log "SITESEMAIL: $SITESEMAIL"
+	   log "SITESPWD: $SITESPWD"
+	   log "SITESORGSERV: $SITESORGSERV"
+	   log "SITESNAMEPURP: $SITESNAMEPURP"
+	   log "SITESCOUNTRY: $SITESCOUNTRY"
     #</DEBUG>
     
     return 0
@@ -1539,7 +1539,7 @@ esurveyRegisterReq () {
 	   #anonimity network access on a critical moment (like during an
 	   #election)
 	   local result=$(wget  -O - -o /dev/null "https://esurvey.nisu.org/sites?mailR=$mail&pwdR=$pwd&req=$certReq&lg=es&once=1")
-    echo "Anonimity central authority response: $result"   >>$LOGFILE 2>>$LOGFILE
+    log "Anonimity central authority response: $result"  
     
 	   if [ "$result" == "" ] ; then
 		      $dlg --msgbox $"Error connecting with the Anonimity Network Central Authority." 0 0
@@ -1591,11 +1591,11 @@ esurveyRegisterReq () {
     fi
     
     #<DEBUG>
-	   echo "SITESTOKEN: $SITESTOKEN"   >>$LOGFILE 2>>$LOGFILE
-	   echo "SITESPRIVK: $SITESPRIVK"   >>$LOGFILE 2>>$LOGFILE
-	   echo "SITESCERT: $SITESCERT"   >>$LOGFILE 2>>$LOGFILE
-	   echo "SITESEXP: $SITESEXP"   >>$LOGFILE 2>>$LOGFILE
-	   echo "SITESMOD: $SITESMOD"   >>$LOGFILE 2>>$LOGFILE
+	   log "SITESTOKEN: $SITESTOKEN"  
+	   log "SITESPRIVK: $SITESPRIVK"  
+	   log "SITESCERT: $SITESCERT"  
+	   log "SITESEXP: $SITESEXP"  
+	   log "SITESMOD: $SITESMOD"  
     #</DEBUG>
     
     return 0
@@ -1635,7 +1635,7 @@ testForDeadShares () {
 generateCSR () {
     
     $dlg --infobox $"Generating SSL certificate request..." 0 0
-    echo "$PVOPS generateCSR '$mode' '$SERVERCN' '$COMPANY' '$DEPARTMENT' '$COUNTRY' '$STATE' '$LOC' '$SERVEREMAIL'"  >>$LOGFILE 2>>$LOGFILE
+    log "$PVOPS generateCSR '$mode' '$SERVERCN' '$COMPANY' '$DEPARTMENT' '$COUNTRY' '$STATE' '$LOC' '$SERVEREMAIL'" 
     
     $PVOPS generateCSR "$mode" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
     if [ $? -ne 0 ]
@@ -1762,16 +1762,16 @@ writeNextUSB () {
     #Write key fragment
 	   $PVOPS storops writeKeyShare /media/usbdrive/ "$PASSWD"  "$1"
 	   if [ $? -ne 0 ] ; then
-        echo "Error writing key share on store: " >>$LOGFILE 2>>$LOGFILE
+        log "Error writing key share on store: "
         $dlg --msgbox $"Write error." 0 0
         $PVOPS mountUSB umount
         return 1
     fi
     
     #Write configuration block
-    $PVOPS storops writeConfigBlock "$DEV" "$PASSWD"
+    $PVOPS storops writeConfigBlock /media/usbdrive/ "$PASSWD"
 	   if [ $? -ne 0 ] ; then
-        echo "Error writing config block on store: " >>$LOGFILE 2>>$LOGFILE
+        log "Error writing config block on store: "
         $dlg --msgbox $"Write error." 0 0
         $PVOPS mountUSB umount
         return 1
