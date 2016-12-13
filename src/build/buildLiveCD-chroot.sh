@@ -382,6 +382,7 @@ export \$TERM
 /bin/bash -i </dev/tty2 >/dev/tty2 2>&1 &
 /bin/bash -i </dev/tty3 >/dev/tty3 2>&1 &
 /bin/bash -i </dev/tty4 >/dev/tty4 2>&1 &
+disown -h -ar #Detach all processes from the terminal # TODO check that this works
 
 #/sbin/getty -a root tty5 9600 linux &
 

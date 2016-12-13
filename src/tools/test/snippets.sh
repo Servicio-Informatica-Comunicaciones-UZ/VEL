@@ -319,3 +319,8 @@ done
 #Syntax check all bash scripts
 for s in $(find src/ -iname "*.sh") ; do bash -n $s ; done;
 
+
+
+#To detach a process from its terminal (for example, a bash launched on a tty, to prevent it from hanging up)
+disown -h PID # Will ignore HANGUP signal
+disown -h -ar # Do as above, but to all running jobs belonging to ths terminal

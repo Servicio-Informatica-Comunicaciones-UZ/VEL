@@ -240,16 +240,19 @@ parseConfigFile () {
 setPerm () {
     local directorios="$1 "$(ls -R $1/* | grep -oEe "^.*:$" | sed -re "s/^(.*):$/\1/")
     
-    echo -e "Directories:\n $directorios"  >>$LOGFILE 2>>$LOGFILE
-
+    log "Directories:"
+    log "$directorios"
+    
     for direct in $directorios
     do
         
         local pfiles=$(ls -p $direct | grep -oEe "^.*[^/]$")
         local pds=$(ls -p $direct | grep -oEe "^.*[/]$")
         
-        echo -e "=== Dir $direct files: ===\n$pfiles"  >>$LOGFILE 2>>$LOGFILE
-        echo -e "=== Dir $direct dirs : ===\n$pds"  >>$LOGFILE 2>>$LOGFILE
+        log "=== Dir $direct files: ==="
+        log "$pfiles"
+        log "=== Dir $direct dirs : ==="
+        log "$pds"
         
         for pf in $pfiles
 	       do
@@ -897,7 +900,7 @@ verifyCert () {
     
     iserror=$(openssl verify -purpose sslserver -CApath /etc/ssl/certs/ $chain  "$1" 2>&1  | grep -ie "error")
     
-    echo $iserror  >>$LOGFILE 2>>$LOGFILE
+    echo "verify cert error? "$iserror  >>$LOGFILE 2>>$LOGFILE
     
     #If no error string, validated
     [ "$iserror" != ""  ] && return 1

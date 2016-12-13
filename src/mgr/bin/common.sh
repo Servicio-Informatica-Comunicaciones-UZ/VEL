@@ -103,6 +103,12 @@ export DIALOG_ITEM_HELP=1
 ###############
 
 
+#Base log function. May be redefined on each script
+log () {
+    echo "["$(date --rfc-3339=ns)"][common]: "$*  >>$LOGFILE 2>>$LOGFILE
+}
+
+
 #Send a mail to the root user (which will be forwarded to the
 #administrator's e-mail address)
 # 1-> subject

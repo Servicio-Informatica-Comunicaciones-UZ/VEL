@@ -22,8 +22,10 @@
 
 
 
-
-
+#Log function
+log () {
+    echo "["$(date --rfc-3339=ns)"][privileged-ops]: "$*  >>$LOGFILE 2>>$LOGFILE
+}
 
 
 #List all of the partitions for a give device
@@ -435,7 +437,7 @@ then
     
     if [ "$2" == "devs" ] ; then
         mode='devs'
-    elif [ "$3" == "parts" ] ; then
+    elif [ "$2" == "parts" ] ; then
         mode='valid'
     else
         echo "listUSBDrives: bad mode: $2" >>$LOGFILE 2>>$LOGFILE
@@ -818,7 +820,7 @@ then
     getVar disk DBPWD
 	   echo "update  eVotDat set backup=0;" | mysql -u election -p"$DBPWD" eLection
 	   if [ $? -ne 0 ] ; then
-        echo "enable backup failed: database server not running." >>$LOGFILE
+        echo "enable backup failed: database server not running." >>$LOGFILE 2>>$LOGFILE
         exit 1
     fi
     
@@ -839,7 +841,7 @@ then
     getVar disk DBPWD
 	   echo "update  eVotDat set backup=-1;"| mysql -u election -p"$DBPWD" eLection
 	   if [ $? -ne 0 ] ; then
-        echo "disable backup failed: database server not running." >>$LOGFILE
+        echo "disable backup failed: database server not running." >>$LOGFILE 2>>$LOGFILE
         exit 1
     fi
     

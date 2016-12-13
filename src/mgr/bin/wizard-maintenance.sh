@@ -17,6 +17,11 @@
 #    $PVOPS  stopServers
 
 
+#Log function
+log () {
+    echo "["$(date --rfc-3339=ns)"][wizard-maintenance]: "$*  >>$LOGFILE 2>>$LOGFILE
+}
+
 
 #Fatal error function. Will reset the maintenance application # TODO Call this everywhere there's an error that needs to go back to the loop
 #$1 -> error message

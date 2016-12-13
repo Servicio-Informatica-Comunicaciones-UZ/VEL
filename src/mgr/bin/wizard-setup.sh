@@ -29,6 +29,13 @@ export TERM=linux
 
 
 
+#Log function
+log () {
+    echo "["$(date --rfc-3339=ns)"][wizard-setup]: "$*  >>$LOGFILE 2>>$LOGFILE
+}
+
+
+
 #Main setup menu
 chooseMaintenanceAction () {
     

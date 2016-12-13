@@ -25,6 +25,11 @@
 
 
 
+#Log function
+log () {
+    echo "["$(date --rfc-3339=ns)"][privileged-setup]: "$*  >>$LOGFILE 2>>$LOGFILE
+}
+
 
 #Move logs to the encrypted persistent drive
 # $1 -> 'new' o 'reset'
