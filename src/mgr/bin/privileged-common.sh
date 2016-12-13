@@ -304,8 +304,20 @@ forceTimeAdjust () {
 #      'valid' : show partitions from usb devices that can be mounted and written
 listUSBs  () {
     
+    #List all usb drives
+    # Sometimes, the device link on the 'by-id' can be left behind
+    # after disconection. Double check if the device still exists on
+    # the main path
+    local devs1=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
+    local devs=''
+    for f in $devs1 ; do
+        if [ -e $f ] ; then
+            devs="$devs $f"
+        fi
+    done
+    
+    #If we only want valid partitions
     local USBDEVS=""
-    local devs=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
     local count=0
     if [ "$1" == 'valid' ] ; then
         #Check all devices and partitions to be mountable
