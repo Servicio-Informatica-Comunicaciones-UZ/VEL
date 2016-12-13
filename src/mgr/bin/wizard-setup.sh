@@ -636,7 +636,7 @@ do
 	               $dlg --msgbox $"Corrupt key shares detected. Please, generate and share a new key as soon as possible." 0 0 
 	           fi
         fi
-        
+        echo "Press RETURN to continue..." && read #breakpoint # TODO remove # TODO SEGUIR imprime valores de variables y temo que no se estén seteando. Revisar bien
         #Read (as globals) the configuration variables needed on the setup
         getUsbVariables
     fi
@@ -863,7 +863,7 @@ do
     fi
     
     
-    #echo "Press RETURN to continue..." && read #breakpoint # TODO remove 
+    
     
     if [ "$DOINSTALL" -eq 1 ] ; then
         

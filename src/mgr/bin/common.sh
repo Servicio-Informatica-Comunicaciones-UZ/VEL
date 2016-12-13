@@ -483,6 +483,56 @@ listUSBDrives () {
     return $ndevs
 }
 
+
+
+
+#Lists all the partitions for a given drive
+#1 -> drive path
+#Return value: number of partitions
+#Prints: list of partitions
+getPartitionsForDrive () {
+    local parts=$(ls $1* 2>>$LOGFILE | grep -vEe "${1}$" 2>>$LOGFILE)
+    local nparts=0
+    
+    if [ "$parts" != "" ] ; then
+        for part in $parts ; do
+            nparts=$((nparts+1))
+        done
+    fi
+    
+    echo -n $parts
+    return $nparts
+}
+
+
+
+
+#Lists all connected usb drives and its partitions (either writable or
+#not, just need it to be quicker than the other function)
+#Return value: number of drives and partitions
+#Prints: list of drives and its partitions
+listUSBDrivesPartitions () {   
+    local devparts=""
+    local ndevparts=0
+    
+    local devs=$(listUSBDrives)
+    local parts=''
+    for dev in $devs ; do
+        parts=$(getPartitionsForDrive $dev)
+        local nparts=$?
+        
+        devparts="$devparts $parts"
+        ndevparts=$(( ndevparts + nparts ))
+    done
+    log "listUSBDrivesPartitions ($ndevparts): $devparts"
+    
+    echo -n $devparts
+    return $ndevparts
+}
+
+
+
+
 #Lists all writable partitions from all connected usb drives
 #Return value: number of writable partitions
 #Prints: list of mountable partitions
@@ -566,14 +616,14 @@ compareFiles () {
 # $2 -> Message to show
 # $3 -> The "you didn't remove it" message
 detectUsbExtraction (){     # TODO SEGUIR ver por qué no pide la extracción aquí (ni en el fetch). creo que es por el trap. compilo y pruebo
-    didnt=""
+    local didnt=""
     
     #While dev is on the list of usbs, refresh and wait
-    locdev=$( listUSBDrives | grep -o "$1" )
+    local locdev=$( listUSBDrivesPartitions | grep -o "$1" )
     while [ "$locdev" != "" ] ; do
         $dlg --msgbox "$2""\n$didnt"  0 0
         
-        locdev=$( listUSBDrives | grep -o "$1" )
+        locdev=$( listUSBDrivesPartitions | grep -o "$1" )
         didnt="$3"
     done
 }

@@ -607,11 +607,11 @@ then
     
     if [ "$2" == "h" ] ; then
 	       halt
-	       return 1 #Should not reach
+	       exit 1 #Should not reach
         
     elif [ "$2" == "r" ] ; then
 	       reboot
-	       return 1 #Should not reach
+	       exit 1 #Should not reach
     fi
     
     halt  #Should not reach
@@ -1664,9 +1664,9 @@ then
 	       rm -rf  $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
 	       
         #If no combination was successful, return error.
-        [ $gotit -ne 1 ] && return 1
+        [ $gotit -ne 1 ] && exit 1
         
-	       return 0	
+	       exit 0	
     fi
     
     
@@ -1813,10 +1813,10 @@ then
             
             #Send to the user and return 'conflict'
             echo -ne "$report"
-            return 1
+            exit 1
         fi
         
-        return 0
+        exit 0
 		  fi
     
     

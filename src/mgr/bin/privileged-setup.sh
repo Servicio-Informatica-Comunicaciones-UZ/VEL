@@ -298,7 +298,7 @@ recoverSSHBackupFileOp () {
         ret="$?"
         if [ "$ret" -ne 0 ] 
         then
-            exit $ret
+            exit $ret  #TODO exit o return?
         fi
 
         #Recover backup files. It is important to do this before
