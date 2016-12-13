@@ -1230,7 +1230,7 @@ sslCertParameters () {
     #As this might be called during maintenance, we read the default
     #values if not set yet
     [ "$HOSTNM" == "" ] && HOSTNM=$(getVar disk HOSTNM)
-    [ "$DOMNAME" == "" ] && DOMNAME=$(getVar disk DOMNAME) # TODO revisar todos los getvar y setvar, que el origne esté bien. cambiar origen para minimizar usb
+    [ "$DOMNAME" == "" ] && DOMNAME=$(getVar disk DOMNAME)
     
     #Default values
     [ "$DEPARTMENT" == "" ] && DEPARTMENT="-"
@@ -1694,27 +1694,6 @@ fetchCSR () {
     done
 }
 
-
-
-
-
-
-
-
-
-
-#SEGUIR
-
-
-
-
-
-
-
-#1->currShare
-#2->numShares
-#3->first clauer? 1 - Si   0 - No
-#4->'config' -> only writes config 'share' -> only writes share  '' -> writes both
 
 
 

@@ -309,12 +309,16 @@ listUSBs  () {
     # after disconection. Double check if the device still exists on
     # the main path
     local devs1=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
-    local devs=''
+    local devs2=''
     for f in $devs1 ; do
-        if [ -e $f ] ; then
-            devs="$devs $f"
+        if [ -e $(realpath /dev/disk/by-id/$f) ] ; then
+            devs2="$devs2\n$f"
         fi
     done
+    
+    #Also, these broken links may point to the same dev and generate
+    #duplicates, so we delete them
+    local devs=$(echo -e $devs2 | sort | uniq | tr "\n" " ")
     
     #If we only want valid partitions
     local USBDEVS=""

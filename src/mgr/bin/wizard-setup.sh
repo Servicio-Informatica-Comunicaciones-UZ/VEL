@@ -188,49 +188,49 @@ setDiskVariables () {
 #Reads needed variables from the usb config file
 getUsbVariables () {
     
-    getVar usb DRIVEMODE
-    getVar usb DRIVELOCALPATH
-	   getVar usb FILEPATH
-	   getVar usb FILEFILESIZE
-    getVar usb CRYPTFILENAME
+    DRIVEMODE=$(getVar usb DRIVEMODE)
+    DRIVELOCALPATH=$(getVar usb DRIVELOCALPATH)
+	   FILEPATH=$(getVar usb FILEPATH)
+	   FILEFILESIZE=$(getVar usb FILEFILESIZE)
+    CRYPTFILENAME=$(getVar usb CRYPTFILENAME)
     
-    getVar usb SHARES
-    getVar usb THRESHOLD
+    SHARES=$(getVar usb SHARES)
+    THRESHOLD=$(getVar usb THRESHOLD)
 }
 
 #Reads needed variables from the disk config file
 getDiskVariables () {
 
-    getVar disk IPMODE
-	   getVar disk HOSTNM
-    getVar disk DOMNAME
-    getVar disk IPADDR
-	   getVar disk MASK
-	   getVar disk GATEWAY
-	   getVar disk DNS1
-	   getVar disk DNS2
+    IPMODE=$(getVar disk IPMODE)
+	   HOSTNM=$(getVar disk HOSTNM)
+    DOMNAME=$(getVar disk DOMNAME)
+    IPADDR=$(getVar disk IPADDR)
+	   MASK=$(getVar disk MASK)
+	   GATEWAY=$(getVar disk GATEWAY)
+	   DNS1=$(getVar disk DNS1)
+	   DNS2=$(getVar disk DNS2)
     
-    getVar disk TIMEZONE
+    TIMEZONE=$(getVar disk TIMEZONE)
     
-    getVar disk SSHBAKSERVER
-	   getVar disk SSHBAKPORT
-	   getVar disk SSHBAKUSER
-	   getVar disk SSHBAKPASSWD
+    SSHBAKSERVER=$(getVar disk SSHBAKSERVER)
+	   SSHBAKPORT=$(getVar disk SSHBAKPORT)
+	   SSHBAKUSER=$(getVar disk SSHBAKUSER)
+	   SSHBAKPASSWD=$(getVar disk SSHBAKPASSWD)
 
-    getVar disk MAILRELAY
+    MAILRELAY=$(getVar disk MAILRELAY)
 
-    getVar disk ADMINNAME
-    getVar disk ADMIDNUM
-    getVar disk ADMREALNAME
-	   getVar disk MGREMAIL
-    getVar disk ADMINIP
-	   getVar disk LOCALPWDSUM # TODO decide how we use this password for semi-priv op verification and if it must be loaded here (maybe, an op to check it)
+    ADMINNAME=$(getVar disk ADMINNAME)
+    ADMIDNUM=$(getVar disk ADMIDNUM)
+    ADMREALNAME=$(getVar disk ADMREALNAME)
+	   MGREMAIL=$(getVar disk MGREMAIL)
+    ADMINIP=$(getVar disk ADMINIP)
+	   LOCALPWDSUM=$(getVar disk LOCALPWDSUM) # TODO decide how we use this password for semi-priv op verification and if it must be loaded here (maybe, an op to check it)
     
-    getVar disk KEYSIZE
+    KEYSIZE=$(getVar disk KEYSIZE)
     
-    getVar disk SITESORGSERV
-	   getVar disk SITESNAMEPURP
-    getVar disk SITESTOKEN
+    SITESORGSERV=$(getVar disk SITESORGSERV)
+	   SITESNAMEPURP=$(getVar disk SITESNAMEPURP)
+    SITESTOKEN=$(getVar disk SITESTOKEN)
 }
 
 
@@ -318,7 +318,8 @@ if [ "$1" == "" ]
         lan=""
         while [ "$lan" == "" ]
         do
-            lan=$($dlg --no-cancel  --menu "Select Language:" 0 40  3  \
+            lan=$($dlg --no-cancel --no-tags \
+                       --menu "Select Language:" 0 40  3  \
 	                      "es_ES" "Español" \
 	                      "ca_ES" "Català" \
 	                      "en_US" "English" \
@@ -636,7 +637,7 @@ do
 	               $dlg --msgbox $"Corrupt key shares detected. Please, generate and share a new key as soon as possible." 0 0 
 	           fi
         fi
-        echo "Press RETURN to continue..." && read #breakpoint # TODO remove # TODO SEGUIR imprime valores de variables y temo que no se estén seteando. Revisar bien
+        #echo "Press RETURN to continue..." && read #breakpoint # TODO remove # TODO SEGUIR imprime valores de variables y temo que no se estén seteando. Revisar bien
         #Read (as globals) the configuration variables needed on the setup
         getUsbVariables
     fi
