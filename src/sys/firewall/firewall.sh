@@ -3,6 +3,7 @@
 
 
 setupFirewall () {
+    
     # Flush all chains
     iptables -F
     iptables -t filter -F
