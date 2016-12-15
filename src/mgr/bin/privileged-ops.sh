@@ -906,10 +906,15 @@ fi
 
 
 #Check the current status of admin privileges # TODO make this a free-access op
+#Return : 0 if privileges are disabled, 1 otherwise
 if [ "$1" == "adminPrivilegeStatus" ] 
 then
+    mante=$(dbQuery "select mante from eVotDat;" | cut -f "1" | tr -d "\n")
+    #If error, return no-privilege
+    [ $? -ne 0 ] && return 0
     
-    
+    #Else, return retrioeved value
+    return $mante
 fi
 
 

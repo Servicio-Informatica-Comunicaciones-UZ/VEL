@@ -54,6 +54,21 @@ doLoop () {
 
 
 
+#Get the current status of the admin privileges
+#STDOUT: echoes the human localised readable status string
+#RETURN: the privilege status code
+getAdminPrivilegeStatus () {
+    
+    if ($PVOPS adminPrivilegeStatus) ; then #if zero, no privilege
+        echo -n $"None"
+        return 0
+    else
+        echo -n $"Active"
+        return 1
+    fi
+}
+
+
 
 
 #Main maintenance menu
@@ -62,31 +77,28 @@ doLoop () {
 #CLEARANCEMODE: how authorisation must be seeked
 chooseMaintenanceAction () {
     
+    #Get the privilege status for the admin
+    local adminprivileges=$(getAdminPrivilegeStatus)
+    
     exec 4>&1
     while true; do
         MAINTACTION=''
         
-        
-        adminprivileges=$"YES"
-        sslstate=$"OK"
-        
-        
         local title=''
         title=$title$"Maintenance operations categories""\n"
         title=$title"===============================\n"
-        title=$title"  * ""\Zb"$"Administrator has privileges"": \Z5""$adminprivileges""\ZN\Z0""\n"
-        title=$title"  * ""\Zb"$"SSL certificate status"":       \Z5""$sslstate""\ZN"
+        title=$title"  * ""\Zb"$"Administrator privileges"": \Z5""$adminprivileges""\ZN\Z0""\n"
         
-        selec=$($dlg --no-cancel --no-tags --colors \
-                     --menu "$title" 0 60  9  \
-	                      admin-group   $"Administrator operations." \
-                       key-group     $"Shared key management." \
-	                      ssl-group     $"SSL certificate management." \
-	                      backup-group  $"Backup system management." \
-                       config-group  $"System configuration." \
-	                      monitor-group $"Monitoring operations." \
-                       misc-group    $"Other operations." \
-	                    2>&1 >&4)
+        local selec=$($dlg --no-cancel --no-tags --colors \
+                           --menu "$title" 0 60  9  \
+	                             admin-group   $"Administrator operations." \
+                              key-group     $"Shared key management." \
+	                             ssl-group     $"SSL certificate management." \
+	                             backup-group  $"Backup system management." \
+                              config-group  $"System configuration." \
+	                             monitor-group $"Monitoring operations." \
+                              misc-group    $"Other operations." \
+	                          2>&1 >&4)
         
         case "$selec" in
 	           "admin-group" )
@@ -125,11 +137,10 @@ chooseMaintenanceAction () {
                 ;;            
 	           
 	           * )
-	               log "main operation selector: bad selection. This must not happen" 
+	               log "Main operation selector: bad selection. This must not happen"
                 continue
 	               ;;
 	       esac
-        
         break
     done
     
@@ -140,49 +151,102 @@ chooseMaintenanceAction () {
 
 
 chooseAdminOperation () {
-    :
+    
+    #Get the privilege status for the admin (0: no privilege)
+    
+    #If the user has privileges, show remove operation and viceversa
+    if (getAdminPrivilegeStatus >>$LOGFILE 2>>$LOGFILE) ; then
+        grantRemovePrivilegesLineTag=admin-priv-grant
+        grantRemovePrivilegesLineItem=$"Grant privileges to the administrator."
+    else
+        grantRemovePrivilegesLineTag=admin-priv-remove
+        grantRemovePrivilegesLineItem=$"Remove privileges for the administrator."
+    fi
+    
+    
+    local selec=''
+    selec=$($dlg --cancel-label $"Back" --no-tags --colors \
+                 --menu $"Administrator operations" 0 60  9  \
+                    $grantRemovePrivilegesLineTag $grantRemovePrivilegesLineItem \
+                    admin-auth    $"Administrator local authentication." \
+                    admin-update  $"Update administrator credentials and info." \ # TODO Esta op, leer los datos de la bd, borrar vars
+                    admin-new     $"Set new administrator user." \
+                    admin-usrpwd  $"Set password for another user." \
+	                2>&1 >&4)
+    
+    #Chose to go back
+    [ $? -ne 0 -o "$selec" == ""  ] && return 1
+    
+    
+    #Set clearance requirements based on the operation
+    case "$selec" in
+	       "admin-group" )
+            
+        ;;
+        
+        
+	       
+	       * )
+            #No selection, back
+            return 1
+	           ;;
+	   esac
+    
+    #Set the operation code
+    MAINTACTION="$selec"
+    
+    return 0
 }
 
 
 
 
 chooseKeyOperation () {
-    :
+    
+    return 1
 }
 
 
 
 
 chooseSSLOperation () {
-    :
+        sslstate=$"OK"
+
+    title=$title"  * ""\Zb"$"SSL certificate status"":       \Z5""$sslstate""\ZN"
+    
+    return 1
 }
 
 
 
 
 chooseBackupOperation () {
-    :
+    
+    return 1
 }
 
 
 
 
 chooseConfigOperation () {
-    :
+    
+    return 1
 }
 
 
 
 
 chooseMonitorOperation () {
-    :
+    
+    return 1
 }
 
 
 
 
 chooseMiscOperation () {
-    :
+    
+    return 1
 }
 
 
