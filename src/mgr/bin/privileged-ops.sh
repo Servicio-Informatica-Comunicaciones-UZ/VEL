@@ -402,29 +402,6 @@ fi
 
 
 
-#Start the entropy daemon
-if [ "$1" == "randomSoundStart" ] 
-    then
-    /etc/init.d/randomsound start >>$LOGFILE 2>>$LOGFILE
-    exit 0
-fi
-
-
-
-
-
-
-#Stop the entropy daemon [if left on, it generates quite a bit of CPU load]
-if [ "$1" == "randomSoundStop" ] 
-    then
-    /etc/init.d/randomsound stop >>$LOGFILE 2>>$LOGFILE
-    exit 0
-fi
-
-
-
-
-
 #Get size of a certain filesystem
 #2 -> name of the FS
 #STDOUT: size of the filesystem (in MB)
