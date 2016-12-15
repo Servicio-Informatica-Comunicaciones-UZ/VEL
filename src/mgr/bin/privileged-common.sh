@@ -35,6 +35,56 @@ stopServers () {
 }
 
 
+#Performs a database query
+#1 -> The query line
+# Will read the DBPWD config variable
+#STDOUT: If select, will print the results
+#         * one row per line (so it always ends in \n)
+#         * fields separated with tabs (\t)
+#To separate fields (and remove terminator newlines) | cut -f "1" | tr -d "\n"
+#Return 1 if error, 0 if OK
+dbQuery () {
+    
+    
+    if [ $# -le 0 -o "$1" == "" ] ; then
+        log "dbQuery ERROR: empty query"
+        return 1
+    fi
+    
+    #Get the database password
+    getVar disk DBPWD
+    if [ "$DBPWD" == "" ] ; then
+        log "dbQuery ERROR: empty database password"
+        return 1
+    fi
+    
+    #Clean the output and error buffers
+    local response=''
+    rm -f /root/dbQueryError   >>$LOGFILE 2>>$LOGFILE
+    
+    #Execute the query
+    response=$(echo "$*" | mysql -f -u election -p"$DBPWD" eLection 2>/root/dbQueryError)
+    local ret=$?
+    
+    #If there is error output, log it and mark error return
+    local err=$(cat /root/dbQueryError)
+    rm -f /root/dbQueryError   >>$LOGFILE 2>>$LOGFILE
+    if [ "$err" != "" ] ; then
+        log "Database Query error: $err"
+        ret=1
+    fi
+    
+    #<DEBUG>
+    log "Query: $*"
+    log "Response: $response"
+    log "Return code: $ret"
+    #</DEBUG>
+    
+    #Return result (delete the column headers line)
+    echo "$response" | tail -n +2
+    return $ret
+}
+
 
 
 

@@ -586,8 +586,6 @@ fi
 # Generates ballot box RSA keys and stores them on the database
 if [ "$1" == "generateBallotBoxKeys" ]
 then
-    #Get database password
-    getVar disk DBPWD
     getVar disk KEYSIZE
     
     #Generate RSA keys
@@ -604,10 +602,8 @@ then
     # modU -> bb module (B64)
     # expU -> bb public exponent (B64)
     # keyyU -> bb private key. (PEM)
-	   echo "update eVotDat set modU='$modU', expU='$expU', keyyU='$keyyU';"  |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-    
-	   exit 0
+	   dbQuery "update eVotDat set modU='$modU', expU='$expU', keyyU='$keyyU';"
+    exit $?
 fi
 
 
@@ -616,14 +612,11 @@ fi
 #Sets other web application configurations
 if [ "$1" == "setWebAppDbConfig" ]
 then
-    getVar disk DBPWD
     getVar disk TIMEZONE
     
     #Set the timezone on the web app
-	   echo "update eVotDat set TZ='$TIMEZONE';" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-    
-    exit 0
+	   dbQuery "update eVotDat set TZ='$TIMEZONE';"
+    exit $?
 fi
 
 
@@ -633,14 +626,10 @@ fi
 #the web app database
 if [ "$1" == "populateDB" ]
 then
-    getVar disk DBPWD
-    
     #Run the script (-f to go on despite errors, as the script
     #executes some alters for backwards compatibility)
-    mysql -f -u election -p"$DBPWD" eLection  </usr/local/bin/buildDB.sql 2>>$SQLLOGFILE
-    [ $? -ne 0 ] &&  exit 1
-    
-    exit 0
+    dbQuery  $(cat /usr/local/bin/buildDB.sql 2>>$SQLLOGFILE)
+    exit $?
 fi
 
 

@@ -801,8 +801,7 @@ then
     fi
     
     #Set base backup value on the database
-    getVar disk DBPWD
-	   echo "update  eVotDat set backup=0;" | mysql -u election -p"$DBPWD" eLection
+	   dbQuery "update  eVotDat set backup=0;"
 	   if [ $? -ne 0 ] ; then
         log "enable backup failed: database server not running."
         exit 1
@@ -822,8 +821,7 @@ then
     sed -i -re "/backup.sh/d" /etc/crontab
     
     #Indicate to the webapp that backups are not being used
-    getVar disk DBPWD
-	   echo "update  eVotDat set backup=-1;"| mysql -u election -p"$DBPWD" eLection
+	   dbQuery "update  eVotDat set backup=-1;"
 	   if [ $? -ne 0 ] ; then
         log "disable backup failed: database server not running."
         exit 1
@@ -840,9 +838,8 @@ fi
 if [ "$1" == "forceBackup" ]
 then
     #Backup cron reads database for next backup date. Set date to now.
-    echo "update eVotDat set backup="$(date +%s) |
-        mysql -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection
-    exit 0
+    dbQuery "update eVotDat set backup="$(date +%s)";"
+    exit $?
 fi    
     
 
@@ -890,22 +887,29 @@ fi
 #Grant or remove privileged admin access to webapp
 #2-> 'grant' or 'remove'
 if [ "$1" == "grantAdminPrivileges" ] 
-    then
+then
     
-    getVar disk DBPWD
-
     privilege=0 
     if [ "$2" == "grant" ] ; then
         # TODO el grant Con verificación de llave
         privilege=1
     fi
     
-    log "giving/removing webapp privileges ($2)." 
-    mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE  <<EOF
-update eVotDat set mante=$privilege;
-EOF
+    log "giving/removing webapp privileges ($2)."
     
-    exit 0
+    dbQuery "update eVotDat set mante=$privilege;"
+    exit $?
+fi
+
+
+
+
+
+#Check the current status of admin privileges # TODO make this a free-access op
+if [ "$1" == "adminPrivilegeStatus" ] 
+then
+    
+    
 fi
 
 
@@ -939,9 +943,6 @@ then
     checkParameterOrDie MGREMAIL    "${8}"
     checkParameterOrDie LOCALPWD    "${9}"
     
-    #Get database password
-    getVar disk DBPWD
-    
     #Get stored value for the admin username
     getVar disk ADMINNAME
     oldADMINNAME="$ADMINNAME"
@@ -970,9 +971,8 @@ then
     #Reset credentials of current admin (web app password and IP address)
     if [ "$2" == "reset" ]
 	   then
-	       echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM' where us='$oldAdmName';" |
-            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-        exit 0
+	       dbQuery "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM' where us='$oldAdmName';"
+        exit $?
     fi        
     
     ### If adding a new admin (or replacing a former one)
@@ -984,27 +984,23 @@ then
 	   mgremail=$($addslashes "$MGREMAIL" 2>>$LOGFILE)
 	       
 	   #Insert new admin user (if existing, will fail)
-	   echo "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo)" \
-         "values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,$newIP,'$mgremail');" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+	   dbQuery "insert into eVotPob (us,DNI,nom,rol,pwd,clId,oIP,correo)" \
+            "values ('$adminname','$admidnum','$adminrealname',3,'$MGRPWDSUM',-1,$newIP,'$mgremail');"
 	   
 	   #Update new admin user (if already existing, insert will have
 	   #failed and this will update some parameters plus role)
-	   echo "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM',"\
-         "nom='$adminrealname',correo='$mgremail',rol=3 where us='$adminname';" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
-
+	   dbQuery "update eVotPob set clId=-1,oIP=$newIP,pwd='$MGRPWDSUM',"\
+            "nom='$adminrealname',correo='$mgremail',rol=3 where us='$adminname';"
+    
     
     #If there was a previous admin name and it is different from the new one
     if [ "$oldADMINNAME" != "" -a "$oldADMINNAME" != "$ADMINNAME" ] ; then
         
         #Reduce role for the former admin
-        echo "update eVotPob set rol=0 where us='$oldAdmName';" |
-            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+        dbQuery "update eVotPob set rol=0 where us='$oldAdmName';"
         
         #New admin's e-mail will be the new notification e-mail recipient
-	       echo "update eVotDat set email='$mgremail';"  |
-            mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE        
+	       dbQuery "update eVotDat set email='$mgremail';"        
         
         #Also, update mail aliases
         setNotifcationEmail "$MGREMAIL"
@@ -1045,20 +1041,16 @@ then
     checkParameterOrDie SITESMOD "${6}"
     
     
-    getVar disk DBPWD
-    
-    
     #Insert keys and the self-signed certificate sent to eSurveySites.
     # keyyS -> service private ley (PEM)
     # certS -> self-signed service certificate (B64)
     # expS  -> public exponent of the certificate (B64)
     # modS  -> modulus of the certificate (B64)
-	   echo "update eVotDat set keyyS='$SITESPRIVK', certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+	   dbQuery "update eVotDat set keyyS='$SITESPRIVK', "\
+            "certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';"
 	   
     #Insert authentication token used to communicate with eSurveySites
-	   echo "update eVotDat set tkD='$SITESTOKEN';" |
-        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+	   dbQuery "update eVotDat set tkD='$SITESTOKEN';"
 fi
 
 
