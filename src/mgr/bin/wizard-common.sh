@@ -38,38 +38,6 @@ grantAdminPrivileges () {
 
 
 
-#Wrapper for the privileged operation to set a variable
-# $1 -> Destination: 'disk' persistent disk;
-#                    'mem'  (default) or nothing if we want it in ram;
-#                    'usb'  if we want it on the usb config file;
-#                    'slot' in the active slot configuration
-# $2 -> variable
-# $3 -> value
-setVar () {    
-    $PVOPS setVar "$1" "$2" "$3"
-}
-
-
-
-#Wrapper for the privileged operation to get a variable value	
-# $1 -> Where to read the var from 'disk' disk;
-#                                  'mem' or nothing if we want it from volatile memory;
-#                                  'usb' if we want it from the usb config file;
-#                                  'slot' from the active slot's configuration
-# $2 -> var name (to be read)
-#STDOUT: the value of the read variable, empty string if not found
-#Returns: 0 if it could find the variable, 1 otherwise.
-getVar () {
-    $PVOPS getVar $1 $2
-    return $?
-}
-
-
-
-
-
-
-
 #Configure access to ciphered data
 #1 -> 'new': setup new ciphered device
 #     reset: load existing ciphered device
@@ -105,15 +73,15 @@ configureCryptoPartition () {
 #Get a password from user
 #1 -> mode:  (auth) will ask once, (new) will ask twice and check for equality
 #2 -> message to be shown
-#3 -> cancel button? 0 no, 1 yes
+#3 -> cancel button? 0 no, 1 yes (default)
 # Return 0 if ok, 1 if cancelled
 # $PASSWD : inserted password (due to dialog handling the stdout)
 getPassword () {
     
     exec 4>&1
     
-    local nocancelbutton=" --no-cancel "    
-    [ "$3" == "0" ] && nocancelbutton=""
+    local nocancelbutton=""    
+    [ "$3" == "0" ] && nocancelbutton=" --no-cancel "
 
     local pass=''
     local pass2=''
@@ -217,7 +185,7 @@ readNextUSB () {
     #Ask for device password
     while true ; do
         #Returns passowrd in $PASSWD
-        getPassword auth $"Please, insert the password for the connected USB device" 0
+        getPassword auth $"Please, insert the password for the connected USB device" 1
         if [ $? -ne 0 ] ; then
             $dlg --msgbox $"Password insertion cancelled." 0 0
             $PVOPS mountUSB umount
@@ -1722,7 +1690,7 @@ writeNextUSB () {
     [ $? -ne 0 ] && return 1 #Mount error
     
     #Ask for a new device password (returns password in $PASSWD)
-    getPassword new $"Please, insert a password to protect the connected USB device" 0
+    getPassword new $"Please, insert a password to protect the connected USB device" 1
     if [ $? -ne 0 ] ; then
         $dlg --msgbox $"Password insertion cancelled." 0 0
         $PVOPS mountUSB umount

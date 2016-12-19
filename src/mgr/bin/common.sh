@@ -109,6 +109,28 @@ log () {
 }
 
 
+#Check if an element is in a list
+#1 -> list [Don't forget to pass it between double quotes]
+#2 -> search element
+#RETURN 0:found, 1: Not found
+contains() {
+
+    #If no list, return no
+    [ "$1" == "" ] && return 1
+    
+    #If no item, return no
+    [ "$2" == "" ] && return 1
+
+    #For each element in list, if match, return yes
+    for i in $1 ; do
+        [ "$i" == "$2" ] && return 0
+    done
+    
+    #Not found
+    return 1
+}
+
+
 #Send a mail to the root user (which will be forwarded to the
 #administrator's e-mail address)
 # 1-> subject

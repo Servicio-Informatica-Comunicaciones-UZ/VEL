@@ -324,3 +324,37 @@ for s in $(find src/ -iname "*.sh") ; do bash -n $s ; done;
 #To detach a process from its terminal (for example, a bash launched on a tty, to prevent it from hanging up)
 disown -h PID # Will ignore HANGUP signal
 disown -h -ar # Do as above, but to all running jobs belonging to ths terminal
+
+
+
+
+#Dialog:
+# --no-collapse
+
+# Normally dialog converts tabs to spaces and reduces multiple spaces
+# to a single space for text which is displayed in a message boxes,
+# etc.  Use this option to disable that feature.  Note that dialog
+# will still wrap text, subject to the "--cr-wrap" and "--trim"
+# options.
+
+
+# --trim
+
+# Eliminate leading blanks, trim literal newlines and repeated blanks
+# from message text. See also the "--cr-wrap" and "--no-collapse"
+# options.
+
+
+# --cr-wrap
+
+# Interpret embedded newlines in the dialog text as a newline on the
+# screen.  Otherwise, dialog will only wrap lines where needed to fit
+# inside the text box.
+
+# Even though you can control line breaks with this, Dialog will still
+# wrap any lines that are too long for the width of the box.  Without
+# cr-wrap, the layout of your text may be formatted to look nice in
+# the source code of your script without affecting the way it will
+# look in the dialog.
+
+# See also the "--no-collapse" and "--trim" options.

@@ -251,40 +251,39 @@ listHDDPartitions () {
 
 
 
-
-
-
-
-# TODO review clearance system. now we have also the password only ops
-#Comprueba si la llave en el slot coincide con la de cifrado de la part.
-# 1-> Slot en el que buscar
-# Ret: 0: Llave correcta !0 -> Error 1(no se pudo reconstruir) 2(llave vacia) 3 (llave incorrecta)
+#Checks that there is a rebuilt key in the slot and checks if it
+#matches the one used to cipher the disk drive
+#1 -> Slot to check
+#RETURN:  0: Key is valid
+#         1: Key is non-existing or non-valid
 checkClearance () {
     
+    #Get the known key
     local base=$(cat $ROOTTMP/dataBackupPassword 2>>$LOGFILE)
     
-    if [ -s $ROOTTMP/slot$1/key ]
-	then
-	:
-    else
-	return 1
+    
+    #Get the challenging key
+    if [ ! -s $ROOTTMP/slot$1/key ] ; then
+        log "checkClearance: No rebuilt key in slot"
+	       return 1
     fi
     
     local chal=$(cat $ROOTTMP/slot$1/key 2>>$LOGFILE)
-
-    if [ "$chal" == ""  ]
-    	then
-	return 2
+    
+    if [ "$chal" == ""  ] ; then
+        log "checkClearance: Empty key in slot"
+	       return 1
     fi
     
-    if [ "$chal" != "$base"  ]
-	then
-	return 3
+    #Compare keys with the actual one
+    if [ "$chal" != "$base"  ] ; then
+        log "checkClearance: slot doesn't match actual key"
+	       return 1
     fi
     
     return 0
 }
-
+# TODO see if it can be the same as verifykey, I guess on the other one we need to do a check all shares, like on the startup.
 
 
 
@@ -348,21 +347,28 @@ fi
 
 
 
-
-
-
-#Set the value of the variable on the specified variable storage.
+#Set the value of the variable on the specified variable storage. Only
+#some variables are allowed, the rest are for internal privileged
+#script use only.
 # $2 -> Destination: 'disk' persistent disk;
 #                    'mem'  (default) or nothing if we want it in ram;
 #                    'usb'  if we want it on the usb config file;
 #                    'slot' in the active slot configuration
 # $3 -> variable
 # $4 -> value
-if [ "$1" == "setVar" ] 
+if [ "$1" == "setVarSafe" ] 
 then
-    # TODO Define a list of variables that won't be writable once system is locked (despite having clearance to execute the operation)
     
     checkParameterOrDie "$3" "$4" 0  # TODO make sure that in all calls to this op, the var is in checkParameter.
+    
+    allowedVars=""     # TODO Define a list of variables that will be writable, once clearance is obtained
+    
+    if (! contains "$allowedVars" "$3") ; then
+        log "Set access denied to variable $3. Not during operation, even with clearance"
+        exit 1
+    fi
+    
+    
     setVar "$3" "$4" "$2"
     exit 0
 fi
@@ -371,20 +377,56 @@ fi
 
 
 
-#Get the value of the variable on the specified variable storage.
+#Get the value of the variable on the specified variable storage. Only
+#some variables are allowed, the rest are for internal privileged
+#script use only.
 # $2 -> Destination: 'disk' persistent disk;
 #                    'mem'  (default) or nothing if we want it in ram;
 #                    'usb'  if we want it on the usb config file;
 #                    'slot' in the active slot configuration
 # $3 -> variable
-if [ "$1" == "getVar" ]
+if [ "$1" == "getVarSafe" ]
 then
-    # TODO Define a list of variables that won't be writable once system is locked (despite having clearance to execute the operation)
+    
+    allowedVars=""     # TODO Define a list of variables that will be writable, once clearance is obtained
+    
+    if (! contains "$allowedVars" "$3") ; then
+        log "Get access denied to variable $3. Not during operation, even with clearance"
+        exit 1
+    fi
+    
     
     getVar "$2" "$3" aux
     echo -n $aux
     exit 0
 fi
+
+
+
+
+
+#Get the value of the variable on the specified variable storage, but
+#only for a closed list of variables that can be read on
+#unprivileged situations.
+# $2 -> Destination: 'disk' persistent disk;
+#                    'mem'  (default) or nothing if we want it in ram;
+#                    'usb'  if we want it on the usb config file;
+#                    'slot' in the active slot configuration
+# $3 -> variable
+if [ "$1" == "getPubVar" ]
+then
+    # TODO Define list of public variables
+    allowedVars="SSLCERTSTATE "
+    
+    if (! contains "$allowedVars" "$3") ; then
+        log "Access denied to variable $3. Clearance needed."
+        exit 1
+    fi
+    
+    getVar "$2" "$3" aux
+    echo -n $aux
+    exit 0
+fi  # TODO make this a free-op # TODO do we need a setPubVar? # TODO remember to implement the locking mechanism and the clearance mech.
 
 
 
@@ -834,11 +876,48 @@ fi
 
 
 
+#Checks if backup is enabled or not         #TODO make this a free-op
+#RETURN 0: enabled, 1: disabled or error
+if [ "$1" == "isBackupEnabled" ]
+then
+    backupState=$(dbQuery "select backup from eVotDat;")
+    if [ $? != 0 ] ; then
+        log "isBackupEnabled: database access error"
+        exit 1
+    fi
+    
+    #If enabled (not -1), return 0
+    if [ "$backupState" -ge 0 ] ; then
+        log "backup is enabled"
+        exit 0
+    fi
+    
+    #Disabled
+    log "backup is disabled"
+    exit 1
+fi
+
+
+
+
+
 #Mark system to force a backup
 if [ "$1" == "forceBackup" ]
 then
+
+    #If backup is not enabled, error
+    backupState=$(dbQuery "select backup from eVotDat;")
+    [ $? != 0 ] && exit 1
+    if [ "$backupState" -lt 0 ] ; then
+        log "backup is disabled, cannot force."
+        exit 1
+    fi
+    
+    
     #Backup cron reads database for next backup date. Set date to now.
     dbQuery "update eVotDat set backup="$(date +%s)";"
+    
+    # TODO launch the bak script here or wait for the cron?
     exit $?
 fi    
     
@@ -915,6 +994,37 @@ then
     
     #Else, return retrioeved value
     return $mante
+fi
+
+
+
+
+
+#Authenticate administrator locally against the stored password
+#2 -> challenge password
+#RETURN 0: successful authentication 1: authentication failed
+if [ "$1" == "authAdmin" ] 
+then
+    
+    #Syntax check challenge password and calculate the sum
+    checkParameterOrDie LOCALPWD "${2}" 0
+    chalPwdSum=$(/usr/local/bin/genPwd.php "${2}" 2>>$LOGFILE)
+    [ "$chalPwdSum" == "" ] && return 1
+    
+    
+    #Get the actual admin local password sum
+    getVar disk LOCALPWDSUM
+    [ "$LOCALPWDSUM" == "" ] && return 1
+    
+    
+    #If password sums coincide
+    if [ "$chalPwdSum" == "$LOCALPWDSUM" ] ; then
+        log "Successful admin local authentication"
+        return 0
+    fi
+    
+    log "Failed admin local authentication"
+    return 1
 fi
 
 
@@ -1288,8 +1398,14 @@ fi
  
 
 
+### TODO respecto a la gestión de cert ssl:
+# TODO op de releer el csr, siempre activa, si dummy o ok, lee la actual, si renew, lee la candidata
+# TODO op de instalar cert. recibe un cert. si dummy/renew, mira si el actual/candidato son autofirmados, si el nuevo valida y si coincide con la llave. si ok (se habrá renovado el cert sin cambiar la llave, luego se habrá refirmado la csr que ya tenemos), mirar que el actual valida, que le falta menos de X para caducar (o dejamos siempre y punto?), que el nuevo valida y si coincide con la llave.
+# TODO op que lance un proceso de renew de clave (si en modo ok). genera csr nuevo, etc [hacer además que esté disponible siempre, sin tener en cuenta el modo y se pueda machacar el renew con otro? MEjor que sea machacable, así si hubiese algún error que requirese reiniciar el proceso antes de instalar un cert firmado, se podría hacer]
 
+# TODO Reiniciar apache y postfix, ambos lo usan
 
+#TODO añadir cron que avise por e-mail cuando falte X para caducar el cert
 
 	
      
@@ -1525,7 +1641,7 @@ then
 	   then
 	       getVar mem CURRENTSLOT
         
-	       checkClearance $CURRENTSLOT #TODO revisar y ver dónde se usa 
+	       checkClearance $CURRENTSLOT
 	       ret="$?"
 	       
 	       exit $ret
@@ -2030,7 +2146,29 @@ fi #End of storops group of operations
 
 
 
-    
+
+
+#  TODO implement
+if [ "$1" == "freezeSystem" ] 
+then
+
+
+    # TODO disbale servers (well, the web server, others are hidden), for security reasons, or disable the apps only and put a static front page?
+
+    # inform of the remaining downtime and schedule the unfreeze op (if not executed by the user before)
+
+    exit 0
+fi
+
+if [ "$1" == "unfreezeSystem" ] 
+then
+
+
+
+
+    exit 0
+fi
+
 
 
 
@@ -2277,8 +2415,8 @@ exit 42
 
 
 
-
-    # #Comprueba si la clave reconstruida en el slot activo es la correcta. # TODO esto no estaba ya más arriba? verificar si ya existem si se llama de otro modo o si es que falta código. --> está checkClearance, pero no sé si el uso de ambas es el mismo. buscar las llamadas a ambas -> no se usa en ningún lado, y no creo que tenga razón de ser en ninguna de las op de mant que faltan, creoq que es equivalente al checkclearance
+# TODO !
+    # #Comprueba si la clave reconstruida en el slot activo es la correcta. # TODO esto no estaba ya más arriba? verificar si ya existem si se llama de otro modo o si es que falta código. --> está checkClearance, pero no sé si el uso de ambas es el mismo. buscar las llamadas a ambas -> no se usa en ningún lado, y no creo que tenga razón de ser en ninguna de las op de mant que faltan, creoq que es equivalente al checkclearance --> creo que es la op de mantenimiento de verifiar la llave actual, luego es equivalente. Quizá cambiarnombre del checkclearance para que se vea más genérico y usar en ambos sitios --> quizá no sean compatibles. una mira si hay llave y si coincide. la otra además ha de verificar todas las shares. OJO!! --> se puede implementar con llamadas a varias pvops, no implementar
     # # DENTRO de storops
     # if [ "$2" == "validateKey" ] 
 	   # then

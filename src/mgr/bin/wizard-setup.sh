@@ -35,6 +35,32 @@ log () {
 }
 
 
+#Wrapper for the privileged operation to set a variable
+# $1 -> Destination: 'disk' persistent disk;
+#                    'mem'  (default) or nothing if we want it in ram;
+#                    'usb'  if we want it on the usb config file;
+#                    'slot' in the active slot configuration
+# $2 -> variable
+# $3 -> value
+setVar () {    
+    $PSETUP setVar "$1" "$2" "$3"
+}
+
+
+
+#Wrapper for the privileged operation to get a variable value	
+# $1 -> Where to read the var from 'disk' disk;
+#                                  'mem' or nothing if we want it from volatile memory;
+#                                  'usb' if we want it from the usb config file;
+#                                  'slot' from the active slot's configuration
+# $2 -> var name (to be read)
+#STDOUT: the value of the read variable, empty string if not found
+#Returns: 0 if it could find the variable, 1 otherwise.
+getVar () {
+    $PSETUP getVar $1 $2
+    return $?
+}
+
 
 #Main setup menu
 chooseMaintenanceAction () {
@@ -889,7 +915,7 @@ do
     
     
     #Lock privileged operations. Any privileged action invoked from
-    #now will need a key reconstruction
+    #now on will need a key reconstruction
     $PSETUP lockOperations
     
     

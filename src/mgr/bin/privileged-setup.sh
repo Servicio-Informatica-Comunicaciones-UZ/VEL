@@ -508,6 +508,43 @@ fi
 
 
 
+#Set the value of the variable on the specified variable storage.
+# $2 -> Destination: 'disk' persistent disk;
+#                    'mem'  (default) or nothing if we want it in ram;
+#                    'usb'  if we want it on the usb config file;
+#                    'slot' in the active slot configuration
+# $3 -> variable
+# $4 -> value
+if [ "$1" == "setVar" ] 
+then
+    # TODO Define a list of variables that won't be writable once system is locked (despite having clearance to execute the operation)
+    
+    checkParameterOrDie "$3" "$4" 0  # TODO make sure that in all calls to this op, the var is in checkParameter.
+    setVar "$3" "$4" "$2"
+    exit 0
+fi
+
+
+
+
+
+#Get the value of the variable on the specified variable storage.
+# $2 -> Destination: 'disk' persistent disk;
+#                    'mem'  (default) or nothing if we want it in ram;
+#                    'usb'  if we want it on the usb config file;
+#                    'slot' in the active slot configuration
+# $3 -> variable
+if [ "$1" == "getVar" ]
+then
+    getVar "$2" "$3" aux
+    echo -n $aux
+    exit 0
+fi
+
+
+
+
+
 #Prepares the database to be loaded from the ciphered partition ( on
 #install it will generate passwords and move the database to the
 #ciphered partition)
