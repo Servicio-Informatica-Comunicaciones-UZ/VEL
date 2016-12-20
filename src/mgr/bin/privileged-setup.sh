@@ -200,7 +200,7 @@ moveToRAM () {
 	   
     #Copy the filesystem to RAM
 	   find /  -xdev -type f -print0 | xargs -0 touch
-
+    
     #Mark that it was copied
     setVar copyOnRAM "1" mem
     
@@ -397,7 +397,7 @@ fi
 if [ "$1" == "moveToRAM" ]
 then
     moveToRAM "$2"
-    exit 0
+    exit $?
 fi
 
 

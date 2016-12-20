@@ -116,7 +116,7 @@ getAdminPrivilegeStatus () {
 #RETURN: the privilege status code
 getSSLCertificateStatus () {
     
-    local status=$($PVOPS getPubVar SSLCERTSTATE) #dummy, renew, ok
+    local status=$($PVOPS getPubVar disk  SSLCERTSTATE) #dummy, renew, ok
     
     if [ "$status" == "ok" ] ; then
         echo -n $"Running on proper certificate"
