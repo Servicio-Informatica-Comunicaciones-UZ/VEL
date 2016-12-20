@@ -1759,7 +1759,10 @@ then
 	       rm -rf  $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
 	       
         #If no combination was successful, return error.
-        if [ $gotit -ne 1 ] && exit 1
+        if [ $gotit -ne 1 ] ; then
+            log "no combination was successful. Error"
+            exit 1
+        fi
         
 	       exit 0	
     fi

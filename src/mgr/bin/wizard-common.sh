@@ -325,11 +325,11 @@ readUsbsRebuildKey () {  # Rename this and all the refs
         
         #User cancel
         if [ $ret -eq 9 ] ; then
-            $dlg --yes-label $"Insert another device" --no-label $"Go back" \
-                 --yesno  $"Do you want to insert a new device or cancel the procedure?" 0 0  
+            $dlg --yes-label $"Go on" --no-label $"Back to the menu" \
+                 --yesno  $"Do you want to go on or cancel the procedure and go back to the menu?" 0 0  
 
             [ $? -eq 1 ] && return 2 #Cancel, go back
-            #Go on, ask for another usb or end  # TODO removed the continue, check that goes well
+            #Go on, ask for another usb or start rebuilding  # TODO removed the continue, check that goes well
         fi
         
         #Successfully read and removed, ask if any remaining
