@@ -937,9 +937,7 @@ do
     
     #Go into the maintenance mode. Process context is overriden with a new
     #one for security reasons
-    # exec /bin/bash  /usr/local/bin/wizard-maintenance.sh  # TODO SEGUIR  poner que el wizard-maintenance saque un terminal directo y compilar para primeras pruebas.
-    exec /bin/bash # TODO borrar
-    
+    exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
     
     
     break

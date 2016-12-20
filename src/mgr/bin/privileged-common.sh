@@ -114,9 +114,11 @@ getFilesystemSize () {
 #1 -> slot number
 resetSlot () {
     
+    log "Resetting slot $1"
+    
     [ "$1" -lt 1 -o "$1" -gt $SHAREMAXSLOTS ] && return 1
     
-    rm -rf "$ROOTTMP/slot$1/*"  >>$LOGFILE 2>>$LOGFILE
+    rm -rf $ROOTTMP/slot$1/*  >>$LOGFILE 2>>$LOGFILE  # TODO check that unquoting the path worked
 	   echo -n "0" > "$ROOTTMP/slot$1/NEXTSHARENUM"
 	   echo -n "0" > "$ROOTTMP/slot$1/NEXTCONFIGNUM"
     
@@ -361,13 +363,19 @@ listUSBs  () {
     local devs1=$(ls /dev/disk/by-id/ | grep usb 2>>$LOGFILE)
     local devs2=''
     for f in $devs1 ; do
-        if [ -e $(realpath /dev/disk/by-id/$f) ] ; then
-            devs2="$devs2\n$f"
+        #Get the device indicator
+        local dv=$(realpath /dev/disk/by-id/$f)
+
+        #If the device still exists [sometimes the ID links are
+        #broken]
+        if [ -e "$dv" ] ; then
+            devs2="$devs2\n$dv"
         fi
     done
     
-    #Also, these broken links may point to the same dev and generate
-    #duplicates, so we delete them
+    #Also, two of these ID links may point to the same dev (the
+    #formerly connected one and the current one) and generate
+    #duplicates, so we delete them.
     local devs=$(echo -e $devs2 | sort | uniq | tr "\n" " ")
     
     #If we only want valid partitions
@@ -375,13 +383,12 @@ listUSBs  () {
     local count=0
     if [ "$1" == 'valid' ] ; then
         #Check all devices and partitions to be mountable
-        for f in $devs
+        for currdev in $devs
         do
             #Umount previous
             umount /mnt >>$LOGFILE 2>>$LOGFILE
 
             #Try to mount
-            local currdev=$(realpath /dev/disk/by-id/$f)
             mount $currdev /mnt  >>$LOGFILE 2>>$LOGFILE
             [ $? -ne 0 ] && continue # Can't be mounted
             
@@ -401,9 +408,8 @@ listUSBs  () {
         
     else
         #Show only the devices, not partitions
-        for f in $devs
+        for currdev in $devs
         do
-            local currdev=$(realpath /dev/disk/by-id/$f)
             if [ $(echo "$currdev" | grep -Ee "/dev/[a-z]+[0-9]+") ] ; then :
             else
                 USBDEVS="$USBDEVS $currdev"

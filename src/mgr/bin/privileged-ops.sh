@@ -299,7 +299,7 @@ checkClearance () {
 ##   Main program   ##
 ######################
 
-opLog "Called operation $1"
+opLog "Called operation $*"
 
 
 
@@ -1623,7 +1623,7 @@ then
 	   then
         for i in $(seq $SHAREMAXSLOTS)
 	       do
-	          resetSlot "$i"
+	           resetSlot "$i"
 	       done
 	       
 	       exit 0
