@@ -1708,7 +1708,7 @@ then
 	       log "Threshold:     $THRESHOLD" 
 	       log "numreadshares: $numreadshares" 
 	       
-        #If no threshold, something must be very wrong on the cinfig 
+        #If no threshold, something must be very wrong on the config 
         [ "$THRESHOLD" == "" ] && exit 10
         
         #If not enough read shares, can't go on
@@ -1726,7 +1726,7 @@ then
 	       gotit=0
 	       for comb in $combs
 	       do
-            
+            log "** Testing combination: $comb"
             #The rebuild tool needs the shares to be named
             #sequentially, so we copy each share of the combination to
             #a temp location and name them as needed
@@ -1742,19 +1742,24 @@ then
             #Try to rebuild key and store it
 	           $OPSEXE retrieve $THRESHOLD $slotPath/testcombdir  2>>$LOGFILE > $slotPath/key
 	           stat=$? 
-	           
+            log "op retrieve returned $stat"  # TODO test this, load usb 1,2,3,1 and see if this works
+            
 	           #Clean temp dir
 	           rm -f $slotPath/testcombdir/*  >>$LOGFILE 2>>$LOGFILE
 	           
             #If successful, we are done
-	           [ $stat -eq 0 ] && gotit=1 && break 
+	           if [ $stat -eq 0 ] ; then
+                log "combination successful. Exiting"
+                gotit=1
+                break
+            fi
 	       done
         
         #Delete temp dir
 	       rm -rf  $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
 	       
         #If no combination was successful, return error.
-        [ $gotit -ne 1 ] && exit 1
+        if [ $gotit -ne 1 ] && exit 1
         
 	       exit 0	
     fi

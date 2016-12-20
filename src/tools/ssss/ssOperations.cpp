@@ -659,13 +659,13 @@ int main(int argc, char ** argv) {
     //cerr<<"Opcode: "<<_args.operation<<endl;
   }
   
-  if(cl != NULL && cl->isLogged()) //Also true on format
+  if(cl != NULL && cl->isLogged()) //Also true on format, but not on share/retrieve
     stcode = cl->logout(); //Will write store file
   
   if(stcode == _OK)
     ret = 0;
   
-  return ret;
+  return ret; // 0 if OK, 1 if ERR
 }
 
 

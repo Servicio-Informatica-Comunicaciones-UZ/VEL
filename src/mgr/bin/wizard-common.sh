@@ -284,10 +284,10 @@ rebuildKey () {
 	       local ret=$?
         local errmsg=''
         #If rebuild failed again, nothing can be done, go back
-	       [ "$ret" -eq 10 ] && errmsg=$"Missing configuration parameters."
-        [ "$ret" -eq 11 ] && errmsg=$"Not enough shares available."
-        [ "$ret" -eq 1  ] && errmsg=$"Some shares may be corrupted. Not enough left."
-        if [ $? -ne 0 ] ; then
+	       [ $ret -eq 10 ] && errmsg=$"Missing configuration parameters."
+        [ $ret -eq 11 ] && errmsg=$"Not enough shares available."
+        [ $ret -eq 1  ] && errmsg=$"Some shares may be corrupted. Not enough left."
+        if [ $ret -ne 0 ] ; then
             $dlg --msgbox $"Key couldn't be reconstructed. $errmsg" 0 0 
             return 1
 	       fi
@@ -329,12 +329,12 @@ readUsbsRebuildKey () {  # Rename this and all the refs
                  --yesno  $"Do you want to insert a new device or cancel the procedure?" 0 0  
 
             [ $? -eq 1 ] && return 2 #Cancel, go back
-            continue #Go on, ask for another usb
+            #Go on, ask for another usb or end  # TODO removed the continue, check that goes well
         fi
         
         #Successfully read and removed, ask if any remaining
         $dlg --yes-label $"Insert another device" --no-label $"No more left" \
-             --yesno  $"Successfully read. Are there any devices left?" 0 0
+             --yesno  $"Are there any devices left?" 0 0
         
         [ $? -eq 1 ] && break #None left, go on
         continue #Any left, ask for another usb
