@@ -118,15 +118,15 @@ getSSLCertificateStatus () {
     
     local status=$($PVOPS getPubVar SSLCERTSTATE) #dummy, renew, ok
     
-    if [ "$status" == "dummy" ] ; then
-        echo -n $"Running on test certificate"
-        return 1
+    if [ "$status" == "ok" ] ; then
+        echo -n $"Running on proper certificate"
+        return 0
     elif [ "$status" == "renew" ] ; then
         echo -n $"Expecting certificate for the new key"
         return 2
-    else # "ok"
-        echo -n $"Running on proper certificate"
-        return 0
+    else # "dummy"
+        echo -n $"Running on test certificate"
+        return 1
     fi
 }
 

@@ -812,7 +812,7 @@ do
 	       $PSETUP generateSelfSigned
         
         #Store the SSL certificate current state
-        setVar disk SSLCERTSTATE  "dummy" #Currently running with a self-signed
+        setVar disk SSLCERTSTATE "dummy"  #Currently running with a self-signed
     fi
     
     #Set the certificate and key on the route expected by apache and postfix 

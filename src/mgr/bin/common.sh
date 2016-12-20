@@ -367,7 +367,7 @@ checkParameter () {
 	           ret=$?
 	           ;;
 	       
-	       "TRUEFALSE" )  #This is no variable
+	       "TRUEFALSE" | "SYSFROZEN" )
             #Closed set value
 	           if [ "$2" != "0" -a "$2" != "1" ] ; then
                 ret=1
@@ -448,6 +448,13 @@ checkParameter () {
         
 	       "KEYSIZE" )
 	           if [ "$2" -ne "1024"   -a   "$2" -ne "1152"  -a   "$2" -ne "1280" ]
+	           then
+	               ret=1
+	           fi
+	           ;;
+
+        "SSLCERTSTATE" )
+	           if [ "$2" -ne "dummy"   -a   "$2" -ne "ok"  -a   "$2" -ne "renew" ]
 	           then
 	               ret=1
 	           fi
