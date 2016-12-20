@@ -416,7 +416,7 @@ fi
 if [ "$1" == "getPubVar" ]
 then
     # TODO Define list of public variables
-    allowedVars="SSLCERTSTATE "
+    allowedVars="SSLCERTSTATE SYSFROZEN "
     
     if (! contains "$allowedVars" "$3") ; then
         log "Access denied to variable $3. Clearance needed."
@@ -990,10 +990,10 @@ if [ "$1" == "adminPrivilegeStatus" ]
 then
     mante=$(dbQuery "select mante from eVotDat;" | cut -f "1" | tr -d "\n")
     #If error, return no-privilege
-    [ $? -ne 0 ] && return 0
+    [ $? -ne 0 ] && exit 0
     
     #Else, return retrioeved value
-    return $mante
+    exit $mante
 fi
 
 
@@ -1009,22 +1009,22 @@ then
     #Syntax check challenge password and calculate the sum
     checkParameterOrDie LOCALPWD "${2}" 0
     chalPwdSum=$(/usr/local/bin/genPwd.php "${2}" 2>>$LOGFILE)
-    [ "$chalPwdSum" == "" ] && return 1
+    [ "$chalPwdSum" == "" ] && exit 1
     
     
     #Get the actual admin local password sum
     getVar disk LOCALPWDSUM
-    [ "$LOCALPWDSUM" == "" ] && return 1
+    [ "$LOCALPWDSUM" == "" ] && exit 1
     
     
     #If password sums coincide
     if [ "$chalPwdSum" == "$LOCALPWDSUM" ] ; then
         log "Successful admin local authentication"
-        return 0
+        exit 0
     fi
     
     log "Failed admin local authentication"
-    return 1
+    exit 1
 fi
 
 

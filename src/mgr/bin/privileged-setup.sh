@@ -195,12 +195,14 @@ moveToRAM () {
             return 2
         fi
         
-        #If forced, do it
-        setVar copyOnRAM "1" mem
+        #If forced, go on
     fi
 	   
     #Copy the filesystem to RAM
 	   find /  -xdev -type f -print0 | xargs -0 touch
+
+    #Mark that it was copied
+    setVar copyOnRAM "1" mem
     
     return 0
 }
@@ -233,7 +235,12 @@ privilegedSetupPhase4 () {
         # Not an error, just to tell that the user must be warned of
         # the incoming e-mail
 	       return 1
-    fi   
+    fi
+
+    #Initialise variable that marks that services are being offered,
+    #so no maintetance under progress
+	   setVar SYSFROZEN "0" mem
+    
     return 0
 }
 

@@ -329,7 +329,7 @@ readUsbsRebuildKey () {  # Rename this and all the refs
                  --yesno  $"Do you want to go on or cancel the procedure and go back to the menu?" 0 0  
 
             [ $? -eq 1 ] && return 2 #Cancel, go back
-            #Go on, ask for another usb or start rebuilding  # TODO removed the continue, check that goes well
+            #Go on, ask for another usb or start rebuilding
         fi
         
         #Successfully read and removed, ask if any remaining

@@ -229,7 +229,7 @@ chooseAdminOperation () {
     local selec=''
     selec=$($dlg --cancel-label $"Back" --no-tags --colors \
                  --menu $"Administrator operations" 0 60  7  \
-                    $grantRemovePrivilegesLineTag $grantRemovePrivilegesLineItem \
+                    "$grantRemovePrivilegesLineTag" "$grantRemovePrivilegesLineItem" \
                     admin-auth    $"Administrator local authentication." \
                     admin-update  $"Update administrator credentials and info." \
                     admin-new     $"Set new administrator user." \
@@ -351,10 +351,10 @@ chooseBackupOperation () {
     local selec=''
     selec=$($dlg --cancel-label $"Back" --no-tags --colors \
                  --menu $"Backup system management." 0 60  6  \
-                    $backupEnableTag  $backupEnableItem \
-                    $freezeTag        $freezeItem \
-                    $backupForceTag   $backupForceItem \
-                    $backupConfigTag  $backupConfigItem \
+                    "$backupEnableTag"  "$backupEnableItem" \
+                    "$freezeTag"        "$freezeItem" \
+                    "$backupForceTag"   "$backupForceItem" \
+                    "$backupConfigTag"  "$backupConfigItem" \
 	                2>&1 >&4)
     
     #Chose to go back
