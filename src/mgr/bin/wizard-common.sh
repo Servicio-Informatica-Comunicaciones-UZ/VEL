@@ -27,17 +27,6 @@ relocateLogs () {
 
 
 
-#Grant admin user a privileged admin status on the web app
-#1-> 'grant' or 'remove'
-grantAdminPrivileges () {
-    log "Setting web app privileged admin status to: $1 on "$(date) 
-	   $PVOPS  grantAdminPrivileges "$1"	
-}
-
-
-
-
-
 #Configure access to ciphered data
 #1 -> 'new': setup new ciphered device
 #     reset: load existing ciphered device
@@ -194,7 +183,7 @@ readNextUSB () {
 	       
         #Access the store on the mounted path and check password
         #(store name is a constant expected by the store handler)
-        $PVOPS storops checkPwd /media/usbdrive/ "$PASSWD" 2>>$LOGFILE
+        $PVOPS storops-checkPwd /media/usbdrive/ "$PASSWD" 2>>$LOGFILE
         if [ $? -ne 0 ] ; then
             #Keep asking until cancellation or success
             $dlg --msgbox $"Password not correct." 0 0
@@ -205,7 +194,7 @@ readNextUSB () {
     
     #Read config
     if [ "$1" != "k" ] ; then
-	       $PVOPS storops readConfigShare /media/usbdrive/ "$PASSWD" >>$LOGFILE 2>>$LOGFILE
+	       $PVOPS storops-readConfigShare /media/usbdrive/ "$PASSWD" >>$LOGFILE 2>>$LOGFILE
         ret=$?
 	       if [ $ret -ne 0 ] ; then
 	           $dlg --msgbox $"Error ($ret) while reading configuration from USB." 0 0
@@ -214,7 +203,7 @@ readNextUSB () {
 	       fi
 
         #Check config syntax
-        $PVOPS storops parseConfig  >>$LOGFILE 2>>$LOGFILE
+        $PVOPS storops-parseConfig  >>$LOGFILE 2>>$LOGFILE
         if [ $? -ne 0 ] ; then
             $dlg --msgbox $"Configuration file tampered or corrupted." 0 0
             $PVOPS mountUSB umount
@@ -224,7 +213,7 @@ readNextUSB () {
         #Compare last read config with the one currently considered as
         #valid (if no tampering occurred, all should match perfectly)
         #If different, user will be prompted
-	       differences=$($PVOPS storops compareConfigs)
+	       differences=$($PVOPS storops-compareConfigs)
         if [ $? -eq 1 ]
         then
             $dlg --msgbox $"Found differences between the last configuration file and the previous ones. This is unexpected and should be carefully examined for tampering or corrution" 0 0
@@ -237,7 +226,7 @@ readNextUSB () {
             #Decided to use the new one, set it
             if [ $? -eq  1 ] ; then
 		              log "Using new config."
-                $PVOPS storops resolveConfigConflict
+                $PVOPS storops-resolveConfigConflict
             fi
         fi
         
@@ -245,7 +234,7 @@ readNextUSB () {
     
     #Read keyshare
     if [ "$1" != "c" ] ; then
-       	$PVOPS storops readKeyShare /media/usbdrive/ "$PASSWD" >>$LOGFILE 2>>$LOGFILE
+       	$PVOPS storops-readKeyShare /media/usbdrive/ "$PASSWD" >>$LOGFILE 2>>$LOGFILE
 	       ret=$?
        	if [ $ret -ne 0 ] ; then
 	           $dlg --msgbox $"Error ($ret) while reading keyshare from USB." 0 0
@@ -273,14 +262,14 @@ readNextUSB () {
 #Will try to rebuild the key using the shares on the active slot
 rebuildKey () {
     
-    $PVOPS storops rebuildKey
+    $PVOPS storops-rebuildKey
     
     #If rebuild failed, try a lengthier approach
     if [ $? -ne 0 ]
     then
         $dlg --msgbox $"Key reconstruction failed. System will try to recover. This might take a while." 0 0 
 
-        $PVOPS storops rebuildKeyAllCombs 2>>$LOGFILE  #0 ok  1 bad pwd
+        $PVOPS storops-rebuildKeyAllCombs 2>>$LOGFILE  #0 ok  1 bad pwd
 	       local ret=$?
         local errmsg=''
         #If rebuild failed again, nothing can be done, go back
@@ -343,7 +332,7 @@ readUsbsRebuildKey () {  # Rename this and all the refs
     #If config was read, set it as the one in use
     if [ "$1" != "keyonly" ] ; then
         #All devices read, set read config as the working config # On keyonly, do not settle
-        $PVOPS storops settleConfig  >>$LOGFILE 2>>$LOGFILE
+        $PVOPS storops-settleConfig  >>$LOGFILE 2>>$LOGFILE
     fi
     
     #Try to rebuild key (first a simple attempt and then an all combinations)
@@ -630,7 +619,7 @@ configureHostDomain () {
     
     $PVOPS configureHostDomain "$IPADDR" "$HOSTNM" "$DOMNAME"
     
-    $PVOPS mailServer domain "$HOSTNM" "$DOMNAME"
+    $PVOPS mailServer-domain "$HOSTNM" "$DOMNAME"
 }
 
 
@@ -1575,7 +1564,7 @@ esurveyRegisterReq () {
 #Checks all existing shares on the active slot
 testForDeadShares () {
     
-    $PVOPS storops testForDeadShares
+    $PVOPS storops-testForDeadShares
     local ret="$?"
     
     [ "$ret" -eq 2 ] && $dlg --msgbox $"Internal error. Lacking needed configuration." 0 0
@@ -1700,14 +1689,14 @@ writeNextUSB () {
     $dlg  --infobox $"Writing key secure storage..." 0 0
     
     #Initialise the store
-    $PVOPS storops formatKeyStore /media/usbdrive/ "$PASSWD" 2>>$LOGFILE
+    $PVOPS storops-formatKeyStore /media/usbdrive/ "$PASSWD" 2>>$LOGFILE
     if [ $? -ne 0 ] ; then
         $dlg --msgbox $"Format error." 0 0
         return 1
     fi
     
     #Write key fragment
-	   $PVOPS storops writeKeyShare /media/usbdrive/ "$PASSWD"  "$1"
+	   $PVOPS storops-writeKeyShare /media/usbdrive/ "$PASSWD"  "$1"
 	   if [ $? -ne 0 ] ; then
         log "Error writing key share on store: "
         $dlg --msgbox $"Write error." 0 0
@@ -1716,7 +1705,7 @@ writeNextUSB () {
     fi
     
     #Write configuration block
-    $PVOPS storops writeConfigBlock /media/usbdrive/ "$PASSWD"
+    $PVOPS storops-writeConfigBlock /media/usbdrive/ "$PASSWD"
 	   if [ $? -ne 0 ] ; then
         log "Error writing config block on store: "
         $dlg --msgbox $"Write error." 0 0

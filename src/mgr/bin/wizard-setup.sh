@@ -427,7 +427,7 @@ done
 
 
 #Init usb and slot system management
-$PVOPS storops init
+$PVOPS storops-init
 
 #Store the chosen language as a memory variable
 setVar mem LANGUAGE "$LANGUAGE"
@@ -439,7 +439,7 @@ while true
 do
     
     #Clean active slot, to avoid inconsistencies
-    $PVOPS storops resetAllSlots
+    $PVOPS storops-resetAllSlots
     
     
     
@@ -840,8 +840,8 @@ do
     #Configure postfix mail server
     $dlg --infobox $"Configuring mail server..." 0 0
     
-    $PVOPS mailServer relay "$MAILRELAY"
-    $PVOPS mailServer reload
+    $PVOPS mailServer-relay "$MAILRELAY"
+    $PVOPS mailServer-reload
     if [ $? -ne 0 ] ; then
         $dlg --msgbox $"Error activating mail server." 0 0
         continue #Failed, go back to the menu
@@ -883,10 +883,10 @@ do
     
     if [ "$DOINSTALL" -eq 1 ] ; then
         #Give privileged access to the webapp to the administrator (temporary)
-        grantAdminPrivileges  grant
+        $PVOPS  grantAdminPrivileges
     else
         #Explicitly remove privileges to the administrator on reload
-        grantAdminPrivileges  remove
+        $PVOPS  removeAdminPrivileges
     fi
     
     
@@ -914,13 +914,17 @@ do
     $PVOPS forceBackup
     
     
+    #Init the value of the local authentication state to non-authenticated
+    setVar mem LOCALAUTH "0"
+    
+    
     #Lock privileged operations. Any privileged action invoked from
     #now on will need a key reconstruction
     $PSETUP lockOperations
     
     
     #Clean any remaining rebuilt keys.
-    $PVOPS storops resetAllSlots
+    $PVOPS storops-resetAllSlots
     
     
     #Send test e-mails and do the final security adjustments to lock down

@@ -641,7 +641,7 @@ obtainClearance () {
 	doLoop
     fi
 
-    $PVOPS storops checkClearance
+    $PVOPS storops-checkKeyClearance
     ret=$?    
 
 
@@ -677,7 +677,7 @@ executeSystemAction (){
       "grantadminprivs" )
         
 
-        grantAdminPrivileges grant
+$PVOPS  grantAdminPrivileges
 	
 	while true; do
 	    
@@ -688,7 +688,7 @@ executeSystemAction (){
 	done
 	
 
-        grantAdminPrivileges remove
+$PVOPS  removeAdminPrivileges
         
       ;;
 
@@ -715,7 +715,7 @@ executeSystemAction (){
       $PVOPS setAdmin reset "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD" # TODO make sure the ip and two passwords are set here, (and the username) the rest are useless
       
       #Además, da privilegios al administrador
-      grantAdminPrivileges grant
+$PVOPS  grantAdminPrivileges
       
       $dlg --msgbox $"Adicionalmente, el sistema ha otorgado privilegios para el administrador. Estos se invalidarán en cuanto realice alguna otra operación de mantenimiento." 0 0
       
@@ -741,7 +741,7 @@ executeSystemAction (){
 
       
       #Además, da privilegios al administrador
-      grantAdminPrivileges grant
+$PVOPS  grantAdminPrivileges
       
       $dlg --msgbox $"Adicionalmente, el sistema ha otorgado privilegios para el administrador. Estos se invalidarán en cuanto realice alguna otra operación de mantenimiento." 0 0
       
@@ -1072,7 +1072,7 @@ sslCertState=$($PVOPS getSslCertState) # TODO use getVar
 $PVOPS randomSoundStop
 
 #Revocamos el permiso para ejecutar ops privilegiadas.
-$PVOPS storops resetAllSlots
+$PVOPS storops-resetAllSlots
 
 
 
@@ -1083,7 +1083,7 @@ standBy
 
 
 #De forma preventiva, anulamos los privilegios de admin. (Si se han elegido en el menu, lo hace en executesystemaction)
-grantAdminPrivileges remove
+$PVOPS  removeAdminPrivileges
 
 
 #Reactivamos el daemonde entropía, por si hace falta
@@ -1107,7 +1107,7 @@ executeSystemAction "running"
 
 
 #Revocamos el permiso para ejecutar ops privilegiadas (por paranoia).
-$PVOPS storops resetAllSlots
+$PVOPS storops-resetAllSlots
 
 #Relanzamos el bucle.
 doLoop

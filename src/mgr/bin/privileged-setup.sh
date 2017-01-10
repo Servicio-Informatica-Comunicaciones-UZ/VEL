@@ -61,7 +61,7 @@ relocateLogs () {
 	       mv /var/log /var/currbootlogs >>$LOGFILE 2>>$LOGFILE 
     fi
     #Substitute them with the ones on the ciphered partition
-    ln -s $DATAPATH/log/ /var/log >>$LOGFILE 2>>$LOGFILE 
+    ln -s $DATAPATH/log /var/log >>$LOGFILE 2>>$LOGFILE 
     
     #Restore stopped services
     /etc/init.d/rsyslog start >>$LOGFILE 2>>$LOGFILE 
@@ -136,7 +136,7 @@ privilegedSetupPhase1 () {
     
     #Prepare root user tmp dir
     chmod 700 $ROOTTMP/ >>$LOGFILE 2>>$LOGFILE
-    $PVOPS storops init
+    $PVOPS storops-init
     
     #Unlock privileged operations during setup
     echo -n "0" > $LOCKOPSFILE
@@ -238,7 +238,7 @@ privilegedSetupPhase4 () {
     fi
 
     #Initialise variable that marks that services are being offered,
-    #so no maintetance under progress
+    #so no maintenance under progress
 	   setVar SYSFROZEN "0" mem
     
     return 0
@@ -422,8 +422,9 @@ fi
 
 
 
-#Activate privileged operations execution lock. Any op invoked
-#from now on will first check for a valid rebuilt cipherkey  
+#Activate privileged operations execution lock. Any op invoked from
+#now on will first check for a valid rebuilt cipherkey or for admin
+#password
 if [ "$1" == "lockOperations" ]
 then
     echo -n "1" > $LOCKOPSFILE

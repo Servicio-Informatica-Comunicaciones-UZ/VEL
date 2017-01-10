@@ -367,7 +367,7 @@ checkParameter () {
 	           ret=$?
 	           ;;
 	       
-	       "TRUEFALSE" | "SYSFROZEN" )
+	       "TRUEFALSE" | "SYSFROZEN" | "LOCALAUTH" )
             #Closed set value
 	           if [ "$2" != "0" -a "$2" != "1" ] ; then
                 ret=1
@@ -426,7 +426,7 @@ checkParameter () {
 	           ret=$?
 	           ;;
         
-	       "SITESORGSERV" | "SITESNAMEPURP" )
+	       "SITESORGSERV" | "SITESNAMEPURP" | "LANGUAGE" )
             parseInput freetext "$2"
 	           ret=$?
 	           ;;

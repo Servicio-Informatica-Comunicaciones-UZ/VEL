@@ -256,7 +256,7 @@ listHDDPartitions () {
 #1 -> Slot to check
 #RETURN:  0: Key is valid
 #         1: Key is non-existing or non-valid
-checkClearance () {
+checkKeyMatch () {
     
     #Get the known key
     local base=$(cat $ROOTTMP/dataBackupPassword 2>>$LOGFILE)
@@ -264,26 +264,126 @@ checkClearance () {
     
     #Get the challenging key
     if [ ! -s $ROOTTMP/slot$1/key ] ; then
-        log "checkClearance: No rebuilt key in slot"
+        log "checkKeyMatch: No rebuilt key in slot"
 	       return 1
     fi
     
     local chal=$(cat $ROOTTMP/slot$1/key 2>>$LOGFILE)
     
     if [ "$chal" == ""  ] ; then
-        log "checkClearance: Empty key in slot"
+        log "checkKeyMatch: Empty key in slot"
 	       return 1
     fi
     
     #Compare keys with the actual one
     if [ "$chal" != "$base"  ] ; then
-        log "checkClearance: slot doesn't match actual key"
+        log "checkKeyMatch: slot doesn't match actual key"
 	       return 1
     fi
     
     return 0
 }
-# TODO see if it can be the same as verifykey, I guess on the other one we need to do a check all shares, like on the startup.
+
+
+
+
+
+#Decide, based on the given operation code, which method is required
+#to guess if the operation can be executed or not, and try to acquire
+#clearance
+#There are 3 kinds of operations:
+#   free: No authorisation is needed. Can always be executed
+#    pwd: Admin's local password will be requested
+#    key: The rebuilt shared data ciphering key will be required
+#1 -> operation code
+#RETURN: 0: if got clearance 1: if not allowed
+getClearance () { # TODO fill the lists
+    
+    #List of operations that can be executed without any authorisation
+    local freeOps="getPubVar isBackupEnabled
+                   authAdmin  clearAuthAdmin
+                   removeAdminPrivileges    adminPrivilegeStatus
+                   suspend"
+    
+    #List of operations requiring admin password check only
+    local pwdOps="raiseAdminAuth
+                   "
+    
+    
+    #If no operation code, then reject
+    if [ "$1" == "" ] ; then
+        log "getClearance: No operation code"
+        return 1
+    fi
+    
+    
+    
+    #If lock file does not exist, disallow
+    if [ ! -f "$LOCKOPSFILE" ] ; then
+        log "ERROR: $LOCKOPSFILE file does not exist."  
+        return 1
+    fi
+    
+    #If operations are not currently locked, allow
+    lockvalue=$(cat "$LOCKOPSFILE")
+    if [ "$lockvalue" -eq 0 ] 2>>$LOGFILE ; then
+        opLog "Ops unlocked. Executing operation $1 without verification."
+        return 0
+    fi
+    
+    
+    #Operations are locked, checking clearance
+    log "Checking clearance for operation $1."
+    
+    
+    #If operation needs no authorisation, go on
+    if (contains "$freeOps" "$1") ; then
+        
+        log "getClearance: Operation $1 needs no authorisation. Go on"
+        return 0
+    fi
+    
+    
+    #If operation needs password authorisation
+    if (contains "$pwdOps" "$1") ; then
+        
+        log "Admin password clearance needed for operation $1"
+        
+        #Check if the administrator is currently authenticated
+        getVar mem LOCALAUTH
+        if [ "$LOCALAUTH" -eq 1 ] ; then
+            #Authentication successful
+            log "Password clearance obtained. Go on."
+            return 0
+        fi
+        
+        #Not authenticated
+	       log "No password clearance obtained. Aborting."
+        return 1
+    fi
+    
+    
+    
+    #Else, any other operation (by default), will require the highest
+    #clearance: the shared ciphering key
+    log "Key clearance needed for operation $1"
+    getVar mem CURRENTSLOT
+    checkKeyMatch $CURRENTSLOT
+    if [ $? -ne 0 ] ; then
+	       log "No key clearance obtained. Aborting."
+        return 1
+	   fi
+    
+    #Key is valid
+    log "Key clearance obtained. Go on."
+    return 0
+    
+fi
+
+
+
+    
+}
 
 
 
@@ -302,44 +402,17 @@ checkClearance () {
 opLog "Called operation $*"
 
 
-
-
-##### Check if operations are locked or not #####
-
-#If lock file does not exist, disallow
-if [ ! -f "$LOCKOPSFILE" ] ; then
-    log "ERROR: $LOCKOPSFILE file does not exist."  
+#Guess if the operation can be executed, based on the operation code
+#and the current status of locking, rebuilt keys and admin authentication
+getClearance "$1"
+if [ $? -ne 0 ] ; then
+    opLog "No clearance to execute operation $1."
     exit 1
 fi
-
-lockvalue=$(cat "$LOCKOPSFILE")
-if [ "$lockvalue" -eq 0 ] 2>>$LOGFILE ; then
-    opLog "Executing operation $1 without verification."
-else
-    
-    #TODO Aquí implementar verificación de clauer. (llamar a checkClearance. cuando ejecute una innerkey reset es posible que deba comprobar ambos slots. implementar entonces si eso)  Si no existe un fichero que contenga la llave reconstruida (verificar llave frente a la part? puede ser muy costoso. en la func que la reconstruye, probarla, y si falla borrar el fichero).
-
-    # TODO implementar tb la verificación de ops por passwd local del admin
-
-    #TODO hay ops que nunca necesian verificación. listarlas y saltarse la comprobación.
-
-    # TODO si hay ops que sólo se llaman durante el setup, mover al privileged-setup
-
-    # TODO *************** Es emjor hacer esto o llamamos a la verificación concreta antes de cada op? en ese caso, la validación del lock pasaría a la función que comprueba el clearance
-    log "["$(date --rfc-3339=ns)"] Checking clearance for operation $1."
-fi
+opLog "Executing operation $1 after clearance verification."
 
 
-
-
-
-
-
-
-
-
-
-
+# TODO si hay ops que sólo se llaman durante el setup, mover al privileged-setup
 
 
 
@@ -426,7 +499,7 @@ then
     getVar "$2" "$3" aux
     echo -n $aux
     exit 0
-fi  # TODO make this a free-op # TODO do we need a setPubVar? # TODO remember to implement the locking mechanism and the clearance mech.
+fi   # TODO do we need a setPubVar?
 
 
 
@@ -641,7 +714,6 @@ fi
 
 
 
-#TODO Esta No debe necesitar verif llave
 #Suspend machine
 if [ "$1" == "suspend" ]
 then
@@ -775,58 +847,56 @@ fi # TODO I think this op was meant for the inner key change, since we are dropp
 
 
 
-#Operations regarding the mail service
-if [ "$1" == "mailServer" ] 
+###### Operations regarding the mail service ######
+
+#Configure the local domain
+#2 -> Host name
+#3 -> Domain name 
+if [ "$1" == "mailServer-domain" ] 
 then
+    checkParameterOrDie HOSTNM "${2}"
+    checkParameterOrDie DOMNAME "${3}"
     
-    #Configure the local domain
-    #3 -> Host name
-    #4 -> Domain name 
-    if [ "$2" == "domain" ] 
-    then
-        checkParameterOrDie HOSTNM "${3}"
-        checkParameterOrDie DOMNAME "${4}"
-        
-        #Join the parameters to form the fully qualified domain name
-        FQDN="$HOSTNM.$DOMNAME"
-        
-        #Set and substitute any previous value
-	       sed -i -re "s|^(myhostname = ).*$|\1$FQDN|g" /etc/postfix/main.cf
-        
-        exit 0
-    fi
+    #Join the parameters to form the fully qualified domain name
+    FQDN="$HOSTNM.$DOMNAME"
     
+    #Set and substitute any previous value
+	   sed -i -re "s|^(myhostname = ).*$|\1$FQDN|g" /etc/postfix/main.cf
     
-    
-    #Configure a mail relay server to route mails through (or if
-    #empty, remove relay)
-    #3 -> Relay server address 
-    if [ "$2" == "relay" ] 
-    then
-        checkParameterOrDie MAILRELAY "${3}"
-        
-        #Remove relay configuration
-        if [ "$MAILRELAY" == "" ] 
-	       then
-	           sed -i -re "s/^(relayhost = ).*$/\1/g" /etc/postfix/main.cf 
-        else
-	           #Set relay host (brackets are for direct delivery, without NS MX lookup
-	           sed -i -re "s|^\s*#?\s*(relayhost = ).*$|\1[$MAILRELAY]|g" /etc/postfix/main.cf
-	       fi
-        exit 0
-    fi
-    
-    
-    
-    # Start or Reload mail server
-    if [ "$2" == "reload" ] 
-    then
-        #Launch mail server
-        /etc/init.d/postfix stop >>$LOGFILE 2>>$LOGFILE 
-        /etc/init.d/postfix start >>$LOGFILE 2>>$LOGFILE
-        exit "$?"            
-    fi
+    exit 0
 fi
+
+
+
+#Configure a mail relay server to route mails through (or if
+#empty, remove relay)
+#2 -> Relay server address 
+if [ "$1" == "mailServer-relay" ] 
+then
+    checkParameterOrDie MAILRELAY "${2}"
+    
+    #Remove relay configuration
+    if [ "$MAILRELAY" == "" ] 
+	   then
+	       sed -i -re "s/^(relayhost = ).*$/\1/g" /etc/postfix/main.cf 
+    else
+	       #Set relay host (brackets are for direct delivery, without NS MX lookup
+	       sed -i -re "s|^\s*#?\s*(relayhost = ).*$|\1[$MAILRELAY]|g" /etc/postfix/main.cf
+	   fi
+    exit 0
+fi
+
+
+
+# Start or Reload mail server
+if [ "$1" == "mailServer-reload" ] 
+then
+    #Launch mail server
+    /etc/init.d/postfix stop >>$LOGFILE 2>>$LOGFILE 
+    /etc/init.d/postfix start >>$LOGFILE 2>>$LOGFILE
+    exit "$?"            
+fi
+
 
 
 
@@ -876,7 +946,7 @@ fi
 
 
 
-#Checks if backup is enabled or not         #TODO make this a free-op
+#Checks if backup is enabled or not
 #RETURN 0: enabled, 1: disabled or error
 if [ "$1" == "isBackupEnabled" ]
 then
@@ -963,20 +1033,12 @@ fi
 
 
 
-#Grant or remove privileged admin access to webapp
-#2-> 'grant' or 'remove'
+#Grant privileged admin access to webapp # TODO if logging and reporting, make grant pwdAdmin clearance
 if [ "$1" == "grantAdminPrivileges" ] 
 then
+    log "giving webapp privileges."
     
-    privilege=0 
-    if [ "$2" == "grant" ] ; then
-        # TODO el grant Con verificación de llave
-        privilege=1
-    fi
-    
-    log "giving/removing webapp privileges ($2)."
-    
-    dbQuery "update eVotDat set mante=$privilege;"
+    dbQuery "update eVotDat set mante=1;"
     exit $?
 fi
 
@@ -984,7 +1046,20 @@ fi
 
 
 
-#Check the current status of admin privileges # TODO make this a free-access op
+#Remove privileged admin access to webapp
+if [ "$1" == "removeAdminPrivileges" ]
+then
+    log "removing webapp privileges."
+    
+    dbQuery "update eVotDat set mante=0;"
+    exit $?
+fi
+
+
+
+
+
+#Check the current status of admin privileges
 #Return : 0 if privileges are disabled, 1 otherwise
 if [ "$1" == "adminPrivilegeStatus" ] 
 then
@@ -1000,10 +1075,29 @@ fi
 
 
 
-#Authenticate administrator locally against the stored password
+#Mark database to add a one-time additional auth point to
+#administrators
+if [ "$1" == "raiseAdminAuth" ]
+then
+    
+    dbQuery "update  eVotDat set puntoextra=1;" # TODO verificar el nombre de campo que ponga manolo
+	   if [ $? -ne 0 ] ; then
+        log "raise admin auth failed: database server not running."
+        exit 1
+    fi
+    
+    exit 0
+fi
+
+
+
+
+
+#Authenticate administrator locally against the stored
+#password. Status is saved until logged out
 #2 -> challenge password
 #RETURN 0: successful authentication 1: authentication failed
-if [ "$1" == "authAdmin" ] 
+if [ "$1" == "authAdmin" ]
 then
     
     #Syntax check challenge password and calculate the sum
@@ -1020,11 +1114,26 @@ then
     #If password sums coincide
     if [ "$chalPwdSum" == "$LOCALPWDSUM" ] ; then
         log "Successful admin local authentication"
+        
+        #Store authentication successful status
+        setVar LOCALAUTH "1" mem
+        
         exit 0
     fi
     
     log "Failed admin local authentication"
     exit 1
+fi
+
+
+
+
+
+#Remove saved status of admin user authentication
+if [ "$1" == "clearAuthAdmin" ]
+then
+    setVar LOCALAUTH "0" mem
+    exit 0
 fi
 
 
@@ -1115,7 +1224,7 @@ then
         dbQuery "update eVotPob set rol=0 where us='$oldAdmName';"
         
         #New admin's e-mail will be the new notification e-mail recipient
-	       dbQuery "update eVotDat set email='$mgremail';"        
+	       dbQuery "update eVotDat set email='$mgremail';"
         
         #Also, update mail aliases
         setNotifcationEmail "$MGREMAIL"
@@ -1413,7 +1522,7 @@ fi
 
 #//// sin verif condicionada a verifcert
 # 4-> certChain o serverCert
-## TODO cambiar numeración de params, será 1 o 2 ahora
+## TODO cambiar numeración de params, será 1 o 2 ahora--> aplanar a ops de 1 nivel sólo
 if [ "$3" == "checkCertificate" ] 
 then
 
@@ -1566,590 +1675,582 @@ fi
 
 
 
+###############################################################
+# Operations related to the usb secure storage system and the #
+# management of the shared keys and configuration info.       #
+###############################################################
 
 
-
-
-
-
-#Operations related to the usb secure storage system and the
-#management of the shared keys and configuration info.
-if [ "$1" == "storops" ]
+#Init persistent key slot management data
+if [ "$1" == "storops-init" ] 
 then
+    #Start on slot 1
+	   for i in $(seq $SHAREMAXSLOTS)
+	   do
+	  	    mkdir -p "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
+	       chmod 600 "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
+	       resetSlot "$i"
+    done
+	   
+	   CURRENTSLOT=1
+	   setVar CURRENTSLOT "$CURRENTSLOT" mem
+	   
+	   exit 0
+fi
 
-    if [ "$2" == "" ] ; then
-	       log "ERROR storops: No op code provided" 
+
+
+
+#Reset currently active slot. 
+if [ "$1" == "storops-resetSlot" ] 
+then
+    getVar mem CURRENTSLOT
+	   
+	   resetSlot $CURRENTSLOT
+    exit $?
+fi
+
+
+
+
+#Reset all slots. 
+if [ "$1" == "storops-resetAllSlots" ] 
+then
+    for i in $(seq $SHAREMAXSLOTS)
+	   do
+	       resetSlot "$i"
+	   done
+	   
+	   exit 0
+fi
+
+
+
+
+
+
+#Check if the key in the active slot matches the drive's ciphering
+#password (so, those who added their shares are part of the
+#legitimate key holding commission)
+if [ "$1" == "storops-checkKeyClearance" ] 
+then
+	   getVar mem CURRENTSLOT
+    
+	   checkKeyMatch $CURRENTSLOT
+	   ret="$?"
+	   
+	   exit $ret
+fi
+
+
+
+
+
+
+#Switch active slot
+#2-> which will be the new active slot
+if [ "$1" == "storops-switchSlot" ] 
+then
+	   
+	   checkParameterOrDie INT "${2}" "0"
+	   if [ "$2" -gt $SHAREMAXSLOTS -o  "$2" -le 0 ]
+	   then
+	       log "switchSlot: Bad slot number: $2" 
 	       exit 1
-    fi
-    log "Called store operation $2..."
-    
-    
-    
-    
-    #Init persistent key slot management data
-    if [ "$2" == "init" ] 
-	   then
-        #Start on slot 1
-	       for i in $(seq $SHAREMAXSLOTS)
-	       do
-	  	    	   mkdir -p "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
-	           chmod 600 "$ROOTTMP/slot$i"  >>$LOGFILE 2>>$LOGFILE
-	           resetSlot "$i"
-        done
-	       
-	       CURRENTSLOT=1
-	       setVar CURRENTSLOT "$CURRENTSLOT" mem
-	       
-	       exit 0
-    fi
-    
-    
-    
-    
-    #Reset currently active slot. 
-    if [ "$2" == "resetSlot" ] 
-	   then
-        getVar mem CURRENTSLOT
-	       
-	       resetSlot $CURRENTSLOT
-        exit $?
-    fi
-    
-    
-    
-    
-    #Reset all slots. 
-    if [ "$2" == "resetAllSlots" ] 
-	   then
-        for i in $(seq $SHAREMAXSLOTS)
-	       do
-	           resetSlot "$i"
-	       done
-	       
-	       exit 0
-    fi
-    
-    
-    
-    
-    
-    
-    #Check if the key in the active slot matches the drive's ciphering
-    #password (so, those who added their shares are part of the
-    #legitimate key holding commission)
-    if [ "$2" == "checkClearance" ] 
-	   then
-	       getVar mem CURRENTSLOT
-        
-	       checkClearance $CURRENTSLOT
-	       ret="$?"
-	       
-	       exit $ret
-    fi
-    
-    
-    
-    
-    
-    
-    #Switch active slot
-    #3-> which will be the new active slot
-    if [ "$2" == "switchSlot" ] 
-	   then
-	       
-	       checkParameterOrDie INT "${3}" "0"
-	       if [ "$3" -gt $SHAREMAXSLOTS -o  "$3" -le 0 ]
-	       then
-	           log "switchSlot: Bad slot number: $3" 
-	           exit 1
-	       fi
-        
-	       setVar CURRENTSLOT "$3" mem
-	       exit 0
-    fi
-    
-    
-    
-    
-    
-    
-    #Tries to rebuild a key with the available shares on the current
-    #slot, single attempt
-    if [ "$2" == "rebuildKey" ] 
-	   then
-	       getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-                
-	       numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
-        
-        #Rebuild key and store it (it expects a set of files named
-        #keyshare[0-9]+, starting from zero until the specified
-        #number - 1)
-	       $OPSEXE retrieve $numreadshares $slotPath  2>>$LOGFILE > $slotPath/key
-	       exit $? 
 	   fi
     
-    
-    
-    
-    
-    
-    #Tries to rebuild a key with the available shares on the current
-    #slot, will try all available combinations
-    if [ "$2" == "rebuildKeyAllCombs" ] 
-	   then
-		      getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
+	   setVar CURRENTSLOT "$2" mem
+	   exit 0
+fi
 
-        getVar usb THRESHOLD	
-	       numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
-        
-        log "rebuildKeyAllCombs:" 
-	       log "Threshold:     $THRESHOLD" 
-	       log "numreadshares: $numreadshares" 
-	       
-        #If no threshold, something must be very wrong on the config 
-        [ "$THRESHOLD" == "" ] && exit 10
-        
-        #If not enough read shares, can't go on
-        [ "$THRESHOLD" -gt "$numreadshares" ] && exit 11
-        
-        
-        #Create temporary dir for the combinations
-	       mkdir -p $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
-	       
-	       #Calculate all possible combinations
-	       combs=$(/usr/local/bin/combs.py $THRESHOLD $numreadshares)
-        log "Number of combinations: "$(echo $combs | wc -w) 
-        
-        #Try to rebuild with each combination
-	       gotit=0
-	       for comb in $combs
+
+
+
+
+
+#Tries to rebuild a key with the available shares on the current
+#slot, single attempt
+if [ "$1" == "storops-rebuildKey" ] 
+then
+	   getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+	   numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
+    
+    #Rebuild key and store it (it expects a set of files named
+    #keyshare[0-9]+, starting from zero until the specified
+    #number - 1)
+	   $OPSEXE retrieve $numreadshares $slotPath  2>>$LOGFILE > $slotPath/key
+	   exit $? 
+fi
+
+
+
+
+
+
+#Tries to rebuild a key with the available shares on the current
+#slot, will try all available combinations
+if [ "$1" == "storops-rebuildKeyAllCombs" ] 
+then
+		  getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+    getVar usb THRESHOLD	
+	   numreadshares=$(ls $slotPath | grep -Ee "^keyshare[0-9]+$" | wc -w)
+    
+    log "rebuildKeyAllCombs:" 
+	   log "Threshold:     $THRESHOLD" 
+	   log "numreadshares: $numreadshares" 
+	   
+    #If no threshold, something must be very wrong on the config 
+    [ "$THRESHOLD" == "" ] && exit 10
+    
+    #If not enough read shares, can't go on
+    [ "$THRESHOLD" -gt "$numreadshares" ] && exit 11
+    
+    
+    #Create temporary dir for the combinations
+	   mkdir -p $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
+	   
+	   #Calculate all possible combinations
+	   combs=$(/usr/local/bin/combs.py $THRESHOLD $numreadshares)
+    log "Number of combinations: "$(echo $combs | wc -w) 
+    
+    #Try to rebuild with each combination
+	   gotit=0
+	   for comb in $combs
+	   do
+        log "** Testing combination: $comb"
+        #The rebuild tool needs the shares to be named
+        #sequentially, so we copy each share of the combination to
+        #a temp location and name them as needed
+	       poslist=$(echo "$comb" | sed "s/-/ /g")
+	       offset=0
+	       for pos in $poslist
 	       do
-            log "** Testing combination: $comb"
-            #The rebuild tool needs the shares to be named
-            #sequentially, so we copy each share of the combination to
-            #a temp location and name them as needed
-	           poslist=$(echo "$comb" | sed "s/-/ /g")
-	           offset=0
-	           for pos in $poslist
-	           do
-                log "copying keyshare$pos to $slotPath/testcombdir named keyshare$offset" 
-	               cp -f $slotPath/keyshare$pos $slotPath/testcombdir/keyshare$offset
-	               offset=$((offset+1))
-            done
-	           
-            #Try to rebuild key and store it
-	           $OPSEXE retrieve $THRESHOLD $slotPath/testcombdir  2>>$LOGFILE > $slotPath/key
-	           stat=$? 
-            log "op retrieve returned $stat"  # TODO test this, load usb 1,2,3,1 and see if this works
-            
-	           #Clean temp dir
-	           rm -f $slotPath/testcombdir/*  >>$LOGFILE 2>>$LOGFILE
-	           
-            #If successful, we are done
-	           if [ $stat -eq 0 ] ; then
-                log "combination successful. Exiting"
-                gotit=1
-                break
-            fi
-	       done
-        
-        #Delete temp dir
-	       rm -rf  $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
-	       
-        #If no combination was successful, return error.
-        if [ $gotit -ne 1 ] ; then
-            log "no combination was successful. Error"
-            exit 1
-        fi
-        
-	       exit 0	
-    fi
-    
-    
-    
-    
-    
-    
-    
-    
-    #Check if any share is corrupt. We rebuild key with N sets of
-    #THRESHOLD shares, so the set of all the shares is covered. Every
-    #rebuilt key is compared with the previous one to grant they are
-    #the same.
-    if [ "$2" == "testForDeadShares" ] 
-	   then
-    	   getVar mem CURRENTSLOT
-        getVar usb THRESHOLD
-        
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        
-        [ "$THRESHOLD" == "" ] && exit 2
-        [ "$CURRENTSLOT" == "" ] && exit 2
-        
-        #Get list of shares on the active slot
-        log "testForDeadShares: Available shares: "$(ls -l  $slotPath 2>>$LOGFILE )      
-        sharefiles=$(ls "$slotPath/" | grep -Ee "^keyshare[0-9]+$")
-        numsharefiles=$(echo $sharefiles 2>>$LOGFILE | wc -w)
-        
-        #If no shares
-        if [ "$sharefiles" == ""  ] ; then
-            log "Error. No shares found"
-            exit 1
-        fi
-        
-        #If not enough shares
-        [ "$THRESHOLD" -gt "$numsharefiles" ] && exit 3
-
-        
-        mkdir -p $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
-        LASTKEY=""
-        CURRKEY=""
-        count=0
-        failed=0
-        #For each share
-        while [ "$count" -lt "$numsharefiles"  ]
-        do
-            #Clean test dir
-            rm -f $ROOTTMP/testdir/* >>$LOGFILE 2>>$LOGFILE
-            
-            #Calculate which share numbers to use
-            offset=0
-            while [ "$offset" -lt "$THRESHOLD" ]
-	           do
-	               pos=$(( (count+offset)%numsharefiles ))
-
-                #Copy keyshare to the test dir [rename it so they are correlative]
-                log "copying keyshare$pos to $ROOTTMP/testdir named $ROOTTMP/testdir/keyshare$offset" 
-	               cp $slotPath/keyshare$pos $ROOTTMP/testdir/keyshare$offset   >>$LOGFILE 2>>$LOGFILE
-	                   
-	               offset=$((offset+1))
-            done
-            log "Shares copied to test directory: "$(ls -l  $ROOTTMP/testdir)  
-            
-            #Rebuild cipher key and store it on the var. 
-            CURRKEY=$($OPSEXE retrieve $THRESHOLD $ROOTTMP/testdir  2>>$LOGFILE)
-            #If failed, exit.
-            [ $? -ne 0 ] && failed=1 && break
-            
-            log "Could rebuild key" 
-            
-            #If key not matching the previous one, exit      
-            [ "$LASTKEY" != "" -a "$LASTKEY" != "$CURRKEY"   ] && failed=1 && break
-            
-            log "Matches previous" 
-            
-            #Shift current key
-            LASTKEY="$CURRKEY"
-            
-            #Next rebuild will start from the next to the last used now
-            count=$(( count + THRESHOLD ))
+            log "copying keyshare$pos to $slotPath/testcombdir named keyshare$offset" 
+	           cp -f $slotPath/keyshare$pos $slotPath/testcombdir/keyshare$offset
+	           offset=$((offset+1))
         done
+	       
+        #Try to rebuild key and store it
+	       $OPSEXE retrieve $THRESHOLD $slotPath/testcombdir  2>>$LOGFILE > $slotPath/key
+	       stat=$? 
+        log "op retrieve returned $stat"  # TODO test this, load usb 1,2,3,1 and see if this works
         
-        #Remove directory, to avoid leaving sensitive data behind
-        rm -rf $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
-        
-        log "found deadshares? $failed"
-        
-        exit $failed
-    fi
-    
-    
-    
-    
-    #Compare last read config with the one considered to be the
-    #correct one
-    #Return: 0 if no conflicts, 1 if conflicts
-    if [ "$2" == "compareConfigs" ]
-	   then
-        
-        getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        
-	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
-	       lastConfigRead=$((NEXTCONFIGNUM-1))
-        log "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM"
-	       log "***** #### lastConfigRead: $lastConfigRead"
-
-        #If none read, no conflicts
-	       if [ "$lastConfigRead" -lt 0 ] ; then
-	           log "compareConfigs: No config files read yet"
-	           exit 0;
-	       fi
-        
-        #No reference configuration settled (only one has been read or
-        #this is the first comparison)
-	       if [ ! -s $slotPath/config.raw ] ; then
-            #Set the first read config as the proper one
-            parseConfigFile "$slotPath/config0" 2>>$LOGFILE > $slotPath/config
-            #We also store a raw version of the read config block for comparison
-		          cat $slotPath/config0 2>>$LOGFILE > $slotPath/config.raw
-	       fi
-        
-        #Get the file differences (on the first read, it will compare with itself)
-	       differences=$( diff $slotPath/config$lastConfigRead  $slotPath/config.raw )
-        #<DEBUG>
-	       log "***** diff for config files $lastConfigRead - config: $differences"
-        #</DEBUG>
-        
-        #If there are differences, print them to the user and return conflict
-	       if [ "$differences" != "" ]
-		      then
-            #Build the diferences report so the user can decide
-            report=$"Current configuration:""\n"
-		          report="$report""--------------------- \n\n"
-            report="$report"$(cat $slotPath/config.raw)
-            report="$report""\n\n\n"
-            report="$report"$"New Configuration:""\n"
-            report="$report""--------------------- \n\n"
-            report="$report"$(cat $slotPath/config$lastConfigRead)
-            report="$report""\n\n\n"
-            report="$report"$"Differences:""\n"
-            report="$report""--------------------- \n\n"
-            report="$report""$differences"
-            
-            #Send to the user and return 'conflict'
-            echo -ne "$report"
-            exit 1
+	       #Clean temp dir
+	       rm -f $slotPath/testcombdir/*  >>$LOGFILE 2>>$LOGFILE
+	       
+        #If successful, we are done
+	       if [ $stat -eq 0 ] ; then
+            log "combination successful. Exiting"
+            gotit=1
+            break
         fi
-        
-        exit 0
-		  fi
+	   done
     
-    
-    
-    
-    #The user will command, in case of configuration conflict, to use
-    #the last read configuration as the correct one, substituting the
-    #one previously settled as the correct.
-    if [ "$2" == "resolveConfigConflict" ]
-	   then
-        
-	       #Store raw block for comparison
-	       cat $slotPath/config$lastConfigRead 2>>$LOGFILE > $slotPath/config.raw
-        
-        #Parse and store the configuration
-	       parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE > $slotPath/config
-        
-        exit 0
+    #Delete temp dir
+	   rm -rf  $slotPath/testcombdir  >>$LOGFILE 2>>$LOGFILE
+	   
+    #If no combination was successful, return error.
+    if [ $gotit -ne 1 ] ; then
+        log "no combination was successful. Error"
+        exit 1
     fi
     
-    
-    
-    
-    #Validate structure of the last read config file
-    if [ "$2" == "parseConfig" ] 
-	   then
-                
-        getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        
-	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
-	       lastConfigRead=$((NEXTCONFIGNUM-1))
-	       log "*****NEXTCONFIGNUM:  $NEXTCONFIGNUM"
-	       log "*****lastConfigRead: $lastConfigRead"
-        
-	       if [ "$NEXTCONFIGNUM" -eq 0 ]
-	       then
-	           log "parseConfig: no configuration file read yet!" 
-	           exit 1
-	       fi
-        
-	       config=$(parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE)
-	       
-	       if [ "$config" == "" ]
-	       then
-	           log "parseConfig: Configuration tampered or corrupted" 
-	           exit 2
-	       fi
-	       
-	       exit 0
-    fi
-    
-    
-    
-    
-    #Sets the configuration file from the slot as the working configuration file
-    if [ "$2" == "settleConfig" ] 
-	   then
-                
-        getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        
-        #Move it to the root home
-	       parseConfigFile "$slotPath/config" > $ROOTTMP/config
-        
-	       if [ ! -s "$ROOTTMP/config" ] ; then
-	           log "settleConfig: esurveyconfiguration parse error. Possible tampering or corruption" 
-	           exit 1
-	       fi
-        exit 0
-    fi
-    
-    
-    
-    
-    #Check if password is valid for a store
-    #3-> dev
-    #4-> password    
-    if [ "$2" == "checkPwd" ] 
-	   then
-        checkParameterOrDie PATH   "${3}" "0"
-        checkParameterOrDie DEVPWD "${4}" "0"
-        
-        $OPSEXE checkPwd -d "$3"  -p "$4"    2>>$LOGFILE #0 ok  1 bad pwd
-	       exit $?
-    fi
-    
-    
-    
-    
-    #Reads a configuration block from the usb store
-    #3-> dev
-    #4-> password    
-    if [ "$2" == "readConfigShare" ] 
-	   then
-        checkParameterOrDie PATH   "${3}" "0"
-        checkParameterOrDie DEVPWD "${4}" "0"              
-        
-        getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        
-	       NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
-	       
-	       $OPSEXE readConfig -d "$3"  -p "$4" >$slotPath/config$NEXTCONFIGNUM  2>>$LOGFILE	
-	       ret=$?
-        
-        #If properly read, increment config copy number
-	       if [ -s $slotPath/config$NEXTCONFIGNUM ] ; then
-	           NEXTCONFIGNUM=$(($NEXTCONFIGNUM+1))
-	           echo -n "$NEXTCONFIGNUM" > "$slotPath/NEXTCONFIGNUM"
-        else
-	           exit 42
-	       fi
-        
-	       exit $ret
-    fi
-    
-    
-    
-    
-    #Read a key share block from the usb store
-    #3-> dev
-    #4-> password
-    if [ "$2" == "readKeyShare" ] 
-	   then
-        checkParameterOrDie PATH   "${3}" "0"
-        checkParameterOrDie DEVPWD "${4}" "0"
-        
-        getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        
-        NEXTSHARENUM=$(cat "$slotPath/NEXTSHARENUM")
-        
-	       $OPSEXE readKeyShare -d "$3" -p "$4" >$slotPath/keyshare$NEXTSHARENUM  2>>$LOGFILE
-	       ret=$?
-        
-        #If properly read, increment share number
-	       if [ -s $slotPath/keyshare$NEXTSHARENUM ] ; then
-	           NEXTSHARENUM=$(($NEXTSHARENUM+1))
-	           echo -n "$NEXTSHARENUM" > "$slotPath/NEXTSHARENUM"
-	       else
-	           exit 42
-	       fi
-        
-	       exit $ret
-    fi
-    
-    
-    
-    
-    #Creates and inits a ciphered key store file on the device
-    #3 -> Device path
-    #4 -> New device password
-    if [ "$2" == "formatKeyStore" ] 
-	   then
-        checkParameterOrDie PATH   "${3}" "0" #Used to be a dev, now it's a mount path
-        checkParameterOrDie DEVPWD "${4}" "0"
+	   exit 0	
+fi
 
-        #Write an empty store file on the usb
-        $OPSEXE format -d "$3"  -p "$4" 2>>$LOGFILE
-	       ret=$?
-        
-        exit $ret
+
+
+
+
+
+
+
+#Check if any share is corrupt. We rebuild key with N sets of
+#THRESHOLD shares, so the set of all the shares is covered. Every
+#rebuilt key is compared with the previous one to grant they are
+#the same.
+if [ "$1" == "storops-testForDeadShares" ] 
+then
+    getVar mem CURRENTSLOT
+    getVar usb THRESHOLD
+    
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+    [ "$THRESHOLD" == "" ] && exit 2
+    [ "$CURRENTSLOT" == "" ] && exit 2
+    
+    #Get list of shares on the active slot
+    log "testForDeadShares: Available shares: "$(ls -l  $slotPath 2>>$LOGFILE )      
+    sharefiles=$(ls "$slotPath/" | grep -Ee "^keyshare[0-9]+$")
+    numsharefiles=$(echo $sharefiles 2>>$LOGFILE | wc -w)
+    
+    #If no shares
+    if [ "$sharefiles" == ""  ] ; then
+        log "Error. No shares found"
+        exit 1
     fi
     
+    #If not enough shares
+    [ "$THRESHOLD" -gt "$numsharefiles" ] && exit 3
+
     
+    mkdir -p $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
+    LASTKEY=""
+    CURRKEY=""
+    count=0
+    failed=0
+    #For each share
+    while [ "$count" -lt "$numsharefiles"  ]
+    do
+        #Clean test dir
+        rm -f $ROOTTMP/testdir/* >>$LOGFILE 2>>$LOGFILE
+        
+        #Calculate which share numbers to use
+        offset=0
+        while [ "$offset" -lt "$THRESHOLD" ]
+	       do
+	           pos=$(( (count+offset)%numsharefiles ))
+
+            #Copy keyshare to the test dir [rename it so they are correlative]
+            log "copying keyshare$pos to $ROOTTMP/testdir named $ROOTTMP/testdir/keyshare$offset" 
+	           cp $slotPath/keyshare$pos $ROOTTMP/testdir/keyshare$offset   >>$LOGFILE 2>>$LOGFILE
+	           
+	           offset=$((offset+1))
+        done
+        log "Shares copied to test directory: "$(ls -l  $ROOTTMP/testdir)  
+        
+        #Rebuild cipher key and store it on the var. 
+        CURRKEY=$($OPSEXE retrieve $THRESHOLD $ROOTTMP/testdir  2>>$LOGFILE)
+        #If failed, exit.
+        [ $? -ne 0 ] && failed=1 && break
+        
+        log "Could rebuild key" 
+        
+        #If key not matching the previous one, exit      
+        [ "$LASTKEY" != "" -a "$LASTKEY" != "$CURRKEY"   ] && failed=1 && break
+        
+        log "Matches previous" 
+        
+        #Shift current key
+        LASTKEY="$CURRKEY"
+        
+        #Next rebuild will start from the next to the last used now
+        count=$(( count + THRESHOLD ))
+    done
     
+    #Remove directory, to avoid leaving sensitive data behind
+    rm -rf $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
     
-    #Writes the indicated share on the store at the indicated path
-    #3 -> Device path
-    #4 -> New device password
-    #5 -> The number id of the share to be written (from the ones at the slot)
-    #Return: 0: succesully written,  1: write error
-    if [ "$2" == "writeKeyShare" ] 
+    log "found deadshares? $failed"
+    
+    exit $failed
+fi
+
+
+
+
+#Compare last read config with the one considered to be the
+#correct one
+#Return: 0 if no conflicts, 1 if conflicts
+if [ "$1" == "storops-compareConfigs" ]
+then
+    
+    getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+	   NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
+	   lastConfigRead=$((NEXTCONFIGNUM-1))
+    log "***** #### NEXTCONFIGNUM:  $NEXTCONFIGNUM"
+	   log "***** #### lastConfigRead: $lastConfigRead"
+
+    #If none read, no conflicts
+	   if [ "$lastConfigRead" -lt 0 ] ; then
+	       log "compareConfigs: No config files read yet"
+	       exit 0;
+	   fi
+    
+    #No reference configuration settled (only one has been read or
+    #this is the first comparison)
+	   if [ ! -s $slotPath/config.raw ] ; then
+        #Set the first read config as the proper one
+        parseConfigFile "$slotPath/config0" 2>>$LOGFILE > $slotPath/config
+        #We also store a raw version of the read config block for comparison
+		      cat $slotPath/config0 2>>$LOGFILE > $slotPath/config.raw
+	   fi
+    
+    #Get the file differences (on the first read, it will compare with itself)
+	   differences=$( diff $slotPath/config$lastConfigRead  $slotPath/config.raw )
+    #<DEBUG>
+	   log "***** diff for config files $lastConfigRead - config: $differences"
+    #</DEBUG>
+    
+    #If there are differences, print them to the user and return conflict
+	   if [ "$differences" != "" ]
+		  then
+        #Build the diferences report so the user can decide
+        report=$"Current configuration:""\n"
+		      report="$report""--------------------- \n\n"
+        report="$report"$(cat $slotPath/config.raw)
+        report="$report""\n\n\n"
+        report="$report"$"New Configuration:""\n"
+        report="$report""--------------------- \n\n"
+        report="$report"$(cat $slotPath/config$lastConfigRead)
+        report="$report""\n\n\n"
+        report="$report"$"Differences:""\n"
+        report="$report""--------------------- \n\n"
+        report="$report""$differences"
+        
+        #Send to the user and return 'conflict'
+        echo -ne "$report"
+        exit 1
+    fi
+    
+    exit 0
+fi
+
+
+
+
+#The user will command, in case of configuration conflict, to use
+#the last read configuration as the correct one, substituting the
+#one previously settled as the correct.
+if [ "$1" == "storops-resolveConfigConflict" ]
+then
+    
+	   #Store raw block for comparison
+	   cat $slotPath/config$lastConfigRead 2>>$LOGFILE > $slotPath/config.raw
+    
+    #Parse and store the configuration
+	   parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE > $slotPath/config
+    
+    exit 0
+fi
+
+
+
+
+#Validate structure of the last read config file
+if [ "$1" == "storops-parseConfig" ] 
+then
+    
+    getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+	   NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
+	   lastConfigRead=$((NEXTCONFIGNUM-1))
+	   log "*****NEXTCONFIGNUM:  $NEXTCONFIGNUM"
+	   log "*****lastConfigRead: $lastConfigRead"
+    
+	   if [ "$NEXTCONFIGNUM" -eq 0 ]
 	   then
-	       checkParameterOrDie PATH   "${3}" 0
-        checkParameterOrDie DEVPWD "${4}" 0
-        
-	       getVar usb SHARES
-	       checkParameterOrDie INT    "${5}" 0
-        
-        getVar mem CURRENTSLOT
-        
-	       #Check that the indicated share is in range (0,SHARES-1)
-	       if [ "$5" -lt 0 -o "$5" -ge "$SHARES" ] ; then
-	           log "writeKeyShare: bad share num $5 (not between 0 and $SHARES)" 
-	           exit 1
-	       fi
-        
-        #Get the path to the indicated share file
-	       shareFilePath="$ROOTTMP/slot$CURRENTSLOT/keyshare$5"
-        
-	       #Check that file exists and has size
-	       if [ ! -s "$shareFilePath" ] ; then
-	           log "writeKeyShare: nonexisting or empty share $5 (of $SHARES)" 
-	           exit 1
-	       fi
-        
-        #Write the share to the store
-	       $OPSEXE writeKeyShare -d "$3"  -p "$4" <"$shareFilePath" 2>>$LOGFILE
-	       ret=$?
-        
-	       exit $ret
-    fi
+	       log "parseConfig: no configuration file read yet!" 
+	       exit 1
+	   fi
     
-    
-    
-    
-    #Writes the usb config file (the one settled and being edited
-    #during operation, not one from a slot) to a device
-    #3 -> Device path
-    #4 -> New device password
-    if [ "$2" == "writeConfigBlock" ] 
+	   config=$(parseConfigFile "$slotPath/config$lastConfigRead" 2>>$LOGFILE)
+	   
+	   if [ "$config" == "" ]
 	   then
-        checkParameterOrDie PATH   "${3}" 0
-        checkParameterOrDie DEVPWD "${4}" 0
-        
-        #Get the path to the configuration file
-	       configFilePath="$ROOTTMP/config"	
-        
-        #Check that the file exists and has size
-	       if [ ! -s "$configFilePath" ] ; then
-	           log "writeConfigBlock: No config file to write!" 
-	           exit 1
-	       fi
-        
-	       #Write the config block to the store
-	       cat "$configFilePath" | $OPSEXE writeConfig -d "$3"  -p "$4" 2>>$LOGFILE
-	       ret=$?
-        
-	       exit $ret
-    fi
+	       log "parseConfig: Configuration tampered or corrupted" 
+	       exit 2
+	   fi
+	   
+	   exit 0
+fi
+
+
+
+
+#Sets the configuration file from the slot as the working configuration file
+if [ "$1" == "storops-settleConfig" ] 
+then
+    
+    getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+    #Move it to the root home
+	   parseConfigFile "$slotPath/config" > $ROOTTMP/config
+    
+	   if [ ! -s "$ROOTTMP/config" ] ; then
+	       log "settleConfig: esurveyconfiguration parse error. Possible tampering or corruption" 
+	       exit 1
+	   fi
+    exit 0
+fi
+
+
+
+
+#Check if password is valid for a store
+#2-> dev
+#3-> password    
+if [ "$1" == "storops-checkPwd" ] 
+then
+    checkParameterOrDie PATH   "${2}" "0"
+    checkParameterOrDie DEVPWD "${3}" "0"
+    
+    $OPSEXE checkPwd -d "$2"  -p "$3"    2>>$LOGFILE #0 ok  1 bad pwd
+	   exit $?
+fi
+
+
+
+
+#Reads a configuration block from the usb store
+#2-> dev
+#3-> password   
+if [ "$1" == "storops-readConfigShare" ] 
+then
+    checkParameterOrDie PATH   "${2}" "0"
+    checkParameterOrDie DEVPWD "${3}" "0"
+    
+    getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+	   NEXTCONFIGNUM=$(cat "$slotPath/NEXTCONFIGNUM")
+	   
+	   $OPSEXE readConfig -d "$2"  -p "$3" >$slotPath/config$NEXTCONFIGNUM  2>>$LOGFILE	
+	   ret=$?
+    
+    #If properly read, increment config copy number
+	   if [ -s $slotPath/config$NEXTCONFIGNUM ] ; then
+	       NEXTCONFIGNUM=$(($NEXTCONFIGNUM+1))
+	       echo -n "$NEXTCONFIGNUM" > "$slotPath/NEXTCONFIGNUM"
+    else
+	       exit 42
+	   fi
+    
+	   exit $ret
+fi
+
+
+
+
+#Read a key share block from the usb store
+#2-> dev
+#3-> password 
+if [ "$1" == "storops-readKeyShare" ] 
+then
+    checkParameterOrDie PATH   "${2}" "0"
+    checkParameterOrDie DEVPWD "${3}" "0"
+    
+    getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+    NEXTSHARENUM=$(cat "$slotPath/NEXTSHARENUM")
+    
+	   $OPSEXE readKeyShare -d "$2" -p "$3" >$slotPath/keyshare$NEXTSHARENUM  2>>$LOGFILE
+	   ret=$?
+    
+    #If properly read, increment share number
+	   if [ -s $slotPath/keyshare$NEXTSHARENUM ] ; then
+	       NEXTSHARENUM=$(($NEXTSHARENUM+1))
+	       echo -n "$NEXTSHARENUM" > "$slotPath/NEXTSHARENUM"
+	   else
+	       exit 42
+	   fi
+    
+	   exit $ret
+fi
+
+
+
+
+#Creates and inits a ciphered key store file on the device
+#2 -> Device path
+#3 -> New device password
+if [ "$1" == "storops-formatKeyStore" ] 
+then
+    checkParameterOrDie PATH   "${2}" "0"
+    checkParameterOrDie DEVPWD "${3}" "0"
+    
+    #Write an empty store file on the usb
+    $OPSEXE format -d "$2"  -p "$3" 2>>$LOGFILE
+	   ret=$?
+    
+    exit $ret
+fi
+
+
+
+
+#Writes the indicated share on the store at the indicated path
+#2 -> Device path
+#3 -> New device password
+#4 -> The number id of the share to be written (from the ones at the slot)
+#Return: 0: succesully written,  1: write error
+if [ "$1" == "storops-writeKeyShare" ] 
+then
+    checkParameterOrDie PATH   "${2}" "0"
+    checkParameterOrDie DEVPWD "${3}" "0"
+    
+	   getVar usb SHARES
+	   checkParameterOrDie INT    "${4}" 0
+    
+    getVar mem CURRENTSLOT
+    
+	   #Check that the indicated share is in range (0,SHARES-1)
+	   if [ "$4" -lt 0 -o "$4" -ge "$SHARES" ] ; then
+	       log "writeKeyShare: bad share num $4 (not between 0 and $SHARES)" 
+	       exit 1
+	   fi
+    
+    #Get the path to the indicated share file
+	   shareFilePath="$ROOTTMP/slot$CURRENTSLOT/keyshare$4"
+    
+	   #Check that file exists and has size
+	   if [ ! -s "$shareFilePath" ] ; then
+	       log "writeKeyShare: nonexisting or empty share $4 (of $SHARES)" 
+	       exit 1
+	   fi
+    
+    #Write the share to the store
+	   $OPSEXE writeKeyShare -d "$2"  -p "$3" <"$shareFilePath" 2>>$LOGFILE
+	   ret=$?
+    
+	   exit $ret
+fi
+
+
+
+
+#Writes the usb config file (the one settled and being edited
+#during operation, not one from a slot) to a device
+#2 -> Device path
+#3 -> New device password
+if [ "$1" == "storops-writeConfigBlock" ] 
+then
+    checkParameterOrDie PATH   "${2}" "0"
+    checkParameterOrDie DEVPWD "${3}" "0"
     
     
-fi #End of storops group of operations
+    #Get the path to the configuration file
+	   configFilePath="$ROOTTMP/config"	
+    
+    #Check that the file exists and has size
+	   if [ ! -s "$configFilePath" ] ; then
+	       log "writeConfigBlock: No config file to write!" 
+	       exit 1
+	   fi
+    
+	   #Write the config block to the store
+	   cat "$configFilePath" | $OPSEXE writeConfig -d "$2"  -p "$3" 2>>$LOGFILE
+	   ret=$?
+    
+	   exit $ret
+fi
+
+
+
+
+
+
+
+
 
 
 
@@ -2202,7 +2303,7 @@ then
 
 
 
-    if [ "$2" == "startLog" ] 
+    if [ "$2" == "startLog" ] # TODO aplanar a 1 nivel
 	   then
 	       /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
 	       exit 0
@@ -2423,15 +2524,7 @@ exit 42
 
 
 
-# TODO !
-    # #Comprueba si la clave reconstruida en el slot activo es la correcta. # TODO esto no estaba ya más arriba? verificar si ya existem si se llama de otro modo o si es que falta código. --> está checkClearance, pero no sé si el uso de ambas es el mismo. buscar las llamadas a ambas -> no se usa en ningún lado, y no creo que tenga razón de ser en ninguna de las op de mant que faltan, creoq que es equivalente al checkclearance --> creo que es la op de mantenimiento de verifiar la llave actual, luego es equivalente. Quizá cambiarnombre del checkclearance para que se vea más genérico y usar en ambos sitios --> quizá no sean compatibles. una mira si hay llave y si coincide. la otra además ha de verificar todas las shares. OJO!! --> se puede implementar con llamadas a varias pvops, no implementar
-    # # DENTRO de storops
-    # if [ "$2" == "validateKey" ] 
-	   # then
-	   #     :
-    #     getVar mem CURRENTSLOT
-    #     slotPath=$ROOTTMP/slot$CURRENTSLOT/
-    # fi
+
 
 
 
@@ -2440,7 +2533,6 @@ exit 42
     # 4 -> Former device password -p
     # 5 -> New device password -n
 
-    # TODO opsexe checkdev no usada, usarla?  -d dev and [ -p pwd ] (not eneded, ignored if provided) --> no vale la pena, s ehace un checkdev antes de cada op, y no veo ningún sitio donde convenga usarla por sí sola.
 
 
 
@@ -2449,10 +2541,6 @@ exit 42
 
 
 
-
-
-
-#Trazar en la aplicación cuándo aparecen y desaparecen los datos críticos de memoria (pwd de la part, pwd de root de la bd, etc...). Limitar su tiempo de vida al máximo. 
 
 #Antes del standby, borrar todos los datos, y si son necesarios luego, pasar esas ops a privado y que se carguen esos datos de la zona privada.
 

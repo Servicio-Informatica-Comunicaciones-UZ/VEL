@@ -11,7 +11,7 @@
 	           $dlg --msgbox $"Prepare ahora los Clauers del sistema anterior. Vamos a recuperar los datos." 0 0
 
             #La llave y la config a restaurar las metemos en el slot 2
-	           $PVOPS storops switchSlot 2
+	           $PVOPS storops-switchSlot 2
 
 	           
 
@@ -36,7 +36,7 @@
 	           
 	           
 	           #Volvemos al Slot de la instalación nueva (sobre la que estamso restaurando la vieja)
-	           $PVOPS storops switchSlot 1
+	           $PVOPS storops-switchSlot 1
 
 
 	           break

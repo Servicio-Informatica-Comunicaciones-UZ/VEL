@@ -454,17 +454,18 @@ executeMaintenanceOperation () {
         
 	       "admin-priv-grant" )
             $dlg --msgbox $"Not implemented." 0 0
+            #$PVOPS  grantAdminPrivileges
             return 0
             ;;
 
         "admin-priv-remove" )
             $dlg --msgbox $"Not implemented." 0 0
-            #grantAdminPrivileges remove
+            #$PVOPS  removeAdminPrivileges
             return 0
             ;;
         
         "admin-auth" )
-            $dlg --msgbox $"Not implemented." 0 0
+            admin-auth
             return 0
             ;;
         
@@ -501,7 +502,7 @@ executeMaintenanceOperation () {
             # No-clearance (we will call the rebuild internally, not on clearance request)
             # readUsbsRebuildKey keyonly #So the usbs are requested and the key rebuilt if possible (with the earliest available comb)
             # testForDeadShares #Where all shares are tested on reconstruction, so we know all are ok
-            # $PVOPS storops checkClearance #Where the key is compared with the actual one, so we know it is not an alien key
+            # $PVOPS storops-checkKeyClearance #Where the key is compared with the actual one, so we know it is not an alien key
             return 0
             ;;
         
@@ -652,7 +653,7 @@ executeMaintenanceOperation () {
 getClearance () {
     
     #List of operations that can be executed without any authorisation
-    local freeOps="admin-priv-remove  
+    local freeOps="admin-auth           admin-priv-remove  
                    key-store-validate   key-store-pwd         key-validate-key
                    backup-unfreeze
                    monitor-sys-monit    monitor-log-ops-view
@@ -660,12 +661,13 @@ getClearance () {
 
     #List of operations that can be executed just with administrator
     #local password authentication
-    local pwdOps="admin-auth          admin-usrpwd
+    local pwdOps="admin-usrpwd
                   key-emails-get
                   ssl-csr-read        ssl-cert-install   ssl-key-renew
                   backup-force        backup-freeze
                   monitor-stat-reset  "
     # TODO quizá añadir 'admin-priv-grant' a pwdOps cuando la app notifique y loguee el estado claramente
+    #TODO crear sistema de logs de interés para la comisión y los admins. usar el oplog? un log de app y el oplog para la de mant? otro log para añadir al acta de una elec? añadir a este oplog además de ops realizadas, el etado de privilegio, auths locales, ediciones de usuarios en la BD, bajas de votos y bajas/altas de votantes en una elección una vez está iniciada... ver qué más cosas pueden dejar de ser ejecutadas sólo bajo privilegio a ejecutarse siempre con logs.
     
     #If no operation code, then reject
     if [ "$1" == "" ] ; then
@@ -710,7 +712,7 @@ getClearance () {
     [ $? -ne 0 ] && return 1  #Key rebuild error or user cancelled
     
     #Check if key is the expected one
-    $PVOPS storops checkClearance
+    $PVOPS storops-checkKeyClearance
     if [ $? -ne 0 ] ; then
 	       $dlg --msgbox $"Key not valid. Access denied." 0 0
 	       return 1
@@ -719,6 +721,49 @@ getClearance () {
     #Key is valid
     return 0
 }
+
+
+
+
+
+
+
+################
+#  Operations  #
+################
+
+
+
+
+#Authenticate the user locally and, if successful, mark the database
+#to grant an additional auth point
+admin-auth () {
+    
+    #Ask for the admin's local password (will set PASSWD)
+    getPassword auth $"Insert Administrator Local Password" 1
+    [ $? -ne 0 ] && return 1 #Cancelled password insertion
+    
+    #Check the challenge password against the actual one
+    $PVOPS authAdmin "$PASSWD"
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Password not valid." 0 0            
+        return 1
+    fi
+    
+    #Grant the additional auth point in the database.
+    $PVOPS raiseAdminAuth
+    return $?
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -743,7 +788,7 @@ chooseMaintenanceAction
 
 #Check if the operation needs any clearance and obtain it (clear any
 #possibly existing key clearance)
-$PVOPS storops resetAllSlots
+$PVOPS storops-resetAllSlots
 getClearance "$MAINTACTION"
 clearance=$?
 
@@ -760,8 +805,10 @@ executeMaintenanceOperation "$MAINTACTION"
 
 
 #Clean key slots to minimise key exposure
-$PVOPS storops resetAllSlots
+$PVOPS storops-resetAllSlots
 
+#Clean admin authentication, if any
+$PVOPS clearAuthAdmin
 
 
 #Finished. loop to the idle screen
