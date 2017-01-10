@@ -412,7 +412,8 @@ fi
 opLog "Executing operation $1 after clearance verification."
 
 
-# TODO si hay ops que sólo se llaman durante el setup, mover al privileged-setup
+
+
 
 
 
@@ -2372,26 +2373,26 @@ fi
 
 
 
-
+# TODO SEGUIR MAÑANA
 if [ "$1" == "launchTerminal" ] 
 then
-
     
-    #Si no existe el directorio de logs del terminal, lo crea
+    #Create terminal logs directory
     [ -d "$DATAPATH/terminalLogs" ] || mkdir  "$DATAPATH/terminalLogs"  >>$LOGFILE  2>>$LOGFILE
 	   
-    #Guarda el bash_history actual si existe (no debería ocurrir, pero por si acaso)
+    #Store current bash_history if any (shouldn't, but just in case)
     if [ -s /root/.bash_history  ] ; then
 	       mv /root/.bash_history  $DATAPATH/terminalLogs/bash_history_$(date +before-%Y%m%d-%H%M%S)  >>$LOGFILE  2>>$LOGFILE
 	   fi
 	   
-	   #El history de esta sesión, se escribirá directamente en la zona de datos
-	   export HISTFILE=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S) #//// probar que se guardan.
-
-	   echo $"ESCRIBA exit PARA VOLVER AL MENÚ DE ESPERA."
+	   #This session's history will be written on the data partition
+	   export HISTFILE=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S)
+    
+    #Launch root terminal
+	   echo $"WRITE exit TO FINISH THE SESION AND GO BACK TO THE MAIN MENU."
 	   /bin/bash
 	   
-	   #Enviar el bash_history a todos los interesados
+	   #Send bash command history to anyone interested
 	   mailsubject=$"Registro de la sesión de mantenimiento sobre el servidor de voto vtUJI del $(date +%d/%m/%Y-%H:%M)"
 	   mailbody=$"Usted ha proporcionado su dirección como interesado en recibir una copia de la secuencia de comandos introducida por el técnico designado sobre el terminal del servidor de voto. Esta se encuentra en el fichero adjunto. Puede emplear este fichero para realizar o encargar personalmente una auditoría de la seguridad del mismo."
 	   
@@ -2618,3 +2619,4 @@ exit 42
 
 
 
+# TODO si hay ops que sólo se llaman durante el setup, mover al privileged-setup

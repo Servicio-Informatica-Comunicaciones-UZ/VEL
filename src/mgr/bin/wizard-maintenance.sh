@@ -453,22 +453,33 @@ executeMaintenanceOperation () {
         ##### Admin operations #####
         
 	       "admin-priv-grant" )
-            $dlg --msgbox $"Not implemented." 0 0
-            #$PVOPS  grantAdminPrivileges
+            $PVOPS  grantAdminPrivileges
+            if [ $? -ne 0 ] ; then
+                $dlg --msgbox $"Error accessing database." 0 0            
+                return 1
+            fi
+            $dlg --msgbox $"The administrator will now have extended access to the voting application. Don't forget to remove the privileges before holding an election." 0 0
             return 0
             ;;
 
+        
         "admin-priv-remove" )
-            $dlg --msgbox $"Not implemented." 0 0
-            #$PVOPS  removeAdminPrivileges
+            $PVOPS  removeAdminPrivileges
+            if [ $? -ne 0 ] ; then
+                $dlg --msgbox $"Error accessing database." 0 0            
+                return 1
+            fi
+            $dlg --msgbox $"Administrator privileges removed." 0 0
             return 0
             ;;
+        
         
         "admin-auth" )
             admin-auth
-            return 0
+            return $?
             ;;
         
+        # TODO seguir faltan por implementar
         "admin-update" )  # TODO Esta op, leer los datos de la bd, borrar vars inútiles del fichero de disco
             $dlg --msgbox $"Not implemented." 0 0
             return 0
@@ -499,7 +510,7 @@ executeMaintenanceOperation () {
         "key-validate-key" )
             $dlg --msgbox $"Not implemented." 0 0
             #Validate key is:
-            # No-clearance (we will call the rebuild internally, not on clearance request)
+            # free operation (we will call the rebuild internally, not on clearance request)
             # readUsbsRebuildKey keyonly #So the usbs are requested and the key rebuilt if possible (with the earliest available comb)
             # testForDeadShares #Where all shares are tested on reconstruction, so we know all are ok
             # $PVOPS storops-checkKeyClearance #Where the key is compared with the actual one, so we know it is not an alien key
@@ -525,7 +536,7 @@ executeMaintenanceOperation () {
         
         "ssl-csr-read" )
             $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            return 0 # SEGUIR MAÑANA
             ;;
         
         "ssl-cert-install" )
@@ -752,7 +763,12 @@ admin-auth () {
     
     #Grant the additional auth point in the database.
     $PVOPS raiseAdminAuth
-    return $?
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error accessing database." 0 0            
+        return 1
+    fi
+    
+    return 0
 }
 
 
