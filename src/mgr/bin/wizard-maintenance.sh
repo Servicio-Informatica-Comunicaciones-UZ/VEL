@@ -149,7 +149,7 @@ chooseMaintenanceAction () {
         local title=''
         title=$title$"Maintenance operations categories""\n"
         title=$title"===============================\n"
-        title=$title"  * ""\Zb"$"Administrator privileges"": \Z5""$adminprivileges""\ZN\Z0""\n"
+        title=$title"  * ""\Zb"$"Administrator privileges"": \Z5""$adminprivileges""\Zn\Z0""\n"
         
         local selec=$($dlg --no-cancel --no-tags --colors \
                            --menu "$title" 0 60  9  \
@@ -618,7 +618,7 @@ executeMaintenanceOperation () {
         ##### Miscellaneous operations #####
         
         "misc-shell" )
-            $dlg --msgbox $"Not implemented." 0 0
+            misc-shell
             return 0
             ;;
         
@@ -773,7 +773,30 @@ admin-auth () {
 
 
 
+#Launch a root terminal to perform any emergency and unexpected admin
+#tasks not available in the operations menu. This is only a last
+#resort and gives full access to the administrator, so keep him under
+#expert supervision
+misc-shell () {
 
+    #Big red warning, screen is shown for at least 3 seconds after hitting a button
+    $dlg --yes-label $"Back" --no-label $"Go on" --colors --sleep 3 --yesno \
+         "\Zb\Z1"$"WARNING!""\Zn\n\n"$"Opening a root terminal gives the administrator full access to the system. This is a delicate situation, as he""\n\Zb\Z1"$"CAN POTENTIALLY BREAK THE SECURITY AND INTEGRITY OF FUTURE ELECTIONS.""\Zn\n"$"You will receive an e-mail with the history of commands used by him for audit purposes, but there are ways to circumvent this security measure.""\n\Zb\Z1"$"KEEP HIM UNDER THE SUPERVISION OF AN INDEPENDENT QUALIFIED TECHNICIAN AT ALL TIMES""\Zn" 0 0
+    
+    #Go Back to the menu
+    [ $? -ne 1 ] && return 1
+    
+    
+
+
+	   #Insert a list of e-mail addresses where the shell history will be
+	   #delivered (additionally to the commission ones, defined elsewhere)
+	   getEmailList 	   # TODO SEGUIR MAÑANA
+    [ $? -ne 1 ] && return 1 #Back to the menu
+	
+	$PVOPS launchTerminal
+
+}
 
 
 

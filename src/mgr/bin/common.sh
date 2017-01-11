@@ -1,13 +1,9 @@
 #!/bin/bash
 # Methods and global variables common to all management scripts go here
-
-#TODO delete when system is stable enough
-# Debugging tool: Every time a command return value is non-zero, it will stop and show the prompt on stderr
-#trap "read -p 'NON ZERO RETURN DETECTED (check if OK). Press return to go on.'" ERR
-
-
-
 # Functions here are used in privileged and unprivileged config scripts.
+
+
+
 
 ###############
 #  Constants  #
@@ -95,6 +91,13 @@ export DIALOG_HELP=1
 export DIALOG_ITEM_HELP=1
 
 
+#Preemptively redirect all STDERR to the log file
+#Save the STDERR file descriptor in descriptor 8, just in case we need
+#it; restore stderr to its descriptor with exec 2>&8
+exec 8>&2
+exec 2>>$LOGFILE  # TODO check that stderr is not being used anywhere other than being redirected.
+
+
 
 
 
@@ -153,7 +156,7 @@ shutdownServer(){
 # $2 --> input value string
 #Returns 0 if matching data type, 1 otherwise.
 #ALLOWEDCHARSET: If not matching, the allowed charset information for the data
-#type is set there in some cases  # TODO: review that all calls comply with this.
+#type is set there in some cases
 parseInput () {
     
     #For those who have one, set the allowed characters to match the
@@ -313,7 +316,7 @@ parseInput () {
 }
 
 
-#TODO check which vars do not exist anymore (iscsi, nfs, smb), and add news if needed
+#TODO check which vars do not exist anymore (iscsi, nfs, smb), and add new ones if needed
 
 #Check if a certain variable has a proper value (content type is inferred from the variable name)
 # $1 -> Variable name
@@ -598,7 +601,7 @@ isRunning () {
 #Generate a true random password
 # $1 -> Length in chars for the password (optional)
 #Stdout: the generated password
-randomPassword () { # TODO eliminar usos var $pw
+randomPassword () {
     local pwlen=91
     [ "$1" != "" ] && pwlen="$1"
     
@@ -644,7 +647,7 @@ compareFiles () {
 # $1 -> The dev path to oversee
 # $2 -> Message to show
 # $3 -> The "you didn't remove it" message
-detectUsbExtraction (){     # TODO SEGUIR ver por qué no pide la extracción aquí (ni en el fetch). creo que es por el trap. compilo y pruebo
+detectUsbExtraction (){
     local didnt=""
     
     #While dev is on the list of usbs, refresh and wait
@@ -667,7 +670,7 @@ detectUsbExtraction (){     # TODO SEGUIR ver por qué no pide la extracción aquí
 #Return code 0: selected device/partition is writable
 #            1: nothing selected/insertion cancelled (the 'no' option has been selected)
 #            2: selected device needs to be formatted
-insertUSB () {  # TODO extinguish usage of $DEV
+insertUSB () {
     
     $dlg --yes-label $"Continue" --no-label "$2"  --yesno "$1" 0 0
     [ $? -ne 0 ]  &&  return 1 #Insertion cancelled
@@ -715,7 +718,7 @@ insertUSB () {  # TODO extinguish usage of $DEV
             local options=""
             for p in $parts
             do
-                options="$options $p" # TODO removed the - at the end because put --no-items. check
+                options="$options $p"
             done
 
             exec 4>&1

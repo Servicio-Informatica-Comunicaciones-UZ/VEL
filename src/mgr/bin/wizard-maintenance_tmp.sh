@@ -246,7 +246,7 @@ installSSLCert () {
 
 
 
-
+# TODO SEGUIR MAÑANA
 #RETURN: $emaillist --> Lista de correos electrónicos
 getEmailList () {
 
@@ -788,20 +788,7 @@ $PVOPS  grantAdminPrivileges
 
       ######### Lanza un terminal, para casos desesperados. ######### 
       "terminal" )
-      # TODO SEGUIR MAÑANA
 
-	$dlg --msgbox $"ATENCIÓN:\n\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que finalice la sesión. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. Sus acciones serán registradas y enviadas a la lista de destinatarios interesados, que se solicita a continuación." 0 0
-	
-	
-        #Pedir listado de correos electrónicos de receptores del bash_history
-	getEmailList 
-	if [ $? -eq 1  ] 
-	    then
-	    $dlg --msgbox $"Se ha cancelado la sesión de terminal." 0 0 
-	    return 1
-	fi
-	
-	$PVOPS launchTerminal
 	
       ;;
 

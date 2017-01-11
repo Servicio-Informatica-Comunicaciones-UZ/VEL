@@ -377,12 +377,6 @@ getClearance () { # TODO fill the lists
     #Key is valid
     log "Key clearance obtained. Go on."
     return 0
-    
-fi
-
-
-
-    
 }
 
 
@@ -2418,7 +2412,7 @@ then
     if [ "$2" == "mountDev" ] 
 	   then
 	       
-	       checkParameterOrDie DEV "${3}"
+	       checkParameterOrDie DEV "${3}"  #TODO IS this the parameter being used? not thought to be set as a variable. check if it is worth keeping it. 
 	       
         #//// Verificar los permisos con que se monta (por lo de las umask).
 	       
