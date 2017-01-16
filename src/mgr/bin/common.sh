@@ -156,6 +156,14 @@ shutdownServer(){
 }
 
 
+#Hash a cleartext password
+# 1-> password to hash
+#STDOUT: sha256 hash
+hashPassword () {
+    echo -n "$1" | sha256sum | cut -d " " -f 1 | tr -d "\n"
+}
+
+
 #Check if a string matches the syntax restrictions of some data type
 # $1 --> expected data type
 # $2 --> input value string

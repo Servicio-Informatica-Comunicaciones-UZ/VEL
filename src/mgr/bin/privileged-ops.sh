@@ -1105,7 +1105,7 @@ then
     
     #Syntax check challenge password and calculate the sum
     checkParameterOrDie LOCALPWD "${2}" 0
-    chalPwdSum=$(/usr/local/bin/genPwd.php "${2}" 2>>$LOGFILE)
+    chalPwdSum=$(hashPassword "${2}" 2>>$LOGFILE)
     [ "$chalPwdSum" == "" ] && exit 1
     
     
@@ -1182,11 +1182,10 @@ then
     #Hash passwords for storage, for security reasons
 	   MGRPWDSUM=$(/usr/local/bin/genPwd.php "$MGRPWD" 2>>$LOGFILE)
     
-    
-    
+        
     #In any case, update local manager password (if any)
     if [ "$LOCALPWD" != "" ] ; then
-        LOCALPWDSUM=$(/usr/local/bin/genPwd.php "$LOCALPWD" 2>>$LOGFILE)
+        LOCALPWDSUM=$(hashPassword "$LOCALPWD" 2>>$LOGFILE)
         setVar LOCALPWDSUM "$LOCALPWDSUM" disk
     fi
     

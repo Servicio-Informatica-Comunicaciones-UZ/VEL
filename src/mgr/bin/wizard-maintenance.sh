@@ -135,6 +135,42 @@ getSSLCertificateStatus () {
 
 
 
+#Allows the user to input a list of e-mails
+#OUTPUT: $emaillist --> Lista de correos electrónicos
+getEmailList () {
+    # Needs a file to be displayed, so we create an empty file
+    echo -n "" > /tmp/empty
+    
+    local emaillist=""
+    exec 4>&1 
+    while true; do
+	       emaillist=$($dlg --backtitle $"Write the e-mail addresses of the recipients of the session logs." \
+                         --cancel-label $"Back to the menu" \
+                         --editbox /tmp/empty 0 0  2>&1 >&4)
+	       [ $? -ne 0  ] &&  return 1 # Go back
+        
+        #Parse input addresses
+	       for eml in $emaillist; do 
+	           parseInput email "$eml"
+	           if [ $? -ne 0 ] ; then
+		              $dlg --msgbox $"There are invalid addresses. Please, check." 0 0
+                #Write the former list as input of the dialog
+                echo "$emaillist" > /tmp/empty
+		              continue 2
+	           fi
+	       done
+	       
+	       break
+    done
+    rm -f /tmp/empty >>$LOGFILE 2>>$LOGFILE
+    
+    echo -n "$emaillist"
+    return 0
+}
+
+
+
+
 #Main maintenance menu
 #Will set the following globals (the calls to the submenus will):
 #MAINTACTION: which action to perform
@@ -771,41 +807,6 @@ admin-auth () {
         return 1
     fi
     
-    return 0
-}
-
-
-
-#Allows the user to input a list of e-mails
-#OUTPUT: $emaillist --> Lista de correos electrónicos
-getEmailList () {
-    # Needs a file to be displayed, so we create an empty file
-    echo -n "" > /tmp/empty
-    
-    local emaillist=""
-    exec 4>&1 
-    while true; do
-	       emaillist=$($dlg --backtitle $"Write the e-mail addresses of the recipients of the session logs." \
-                         --cancel-label $"Back to the menu" \
-                         --editbox /tmp/empty 0 0  2>&1 >&4)
-	       [ $? -ne 0  ] &&  return 1 # Go back
-        
-        #Parse input addresses
-	       for eml in $emaillist; do 
-	           parseInput email "$eml"
-	           if [ $? -ne 0 ] ; then
-		              $dlg --msgbox $"There are invalid addresses. Please, check." 0 0
-                #Write the former list as input of the dialog
-                echo "$emaillist" > /tmp/empty
-		              continue 2
-	           fi
-	       done
-	       
-	       break
-    done
-    rm -f /tmp/empty >>$LOGFILE 2>>$LOGFILE
-    
-    echo -n "$emaillist"
     return 0
 }
 
