@@ -246,44 +246,7 @@ installSSLCert () {
 
 
 
-# TODO SEGUIR MAÑANA
-#RETURN: $emaillist --> Lista de correos electrónicos
-getEmailList () {
 
-    #Pedir listado de correos electrónicos de los interesados en recibir copia del/los fichero/s
-    echo "" > /tmp/emptyfile
-    while true; do
-	       emaillist=$($dlg --backtitle $"Escriba el listado de destinatarios (uno por línea)." --editbox /tmp/emptyfile 0 0  2>&1 >&4)
-	       emlcanceled=$?
-        
-	       [ "$emlcanceled" -ne 0  ] &&  return 1
-
-	       if [ "$emaillist" == ""  ]
-	       then
-	           $dlg --msgbox $"Debe especificar al menos una dirección." 0 0
-	           continue
-	       fi
-	       
-	       
-	       echo "$emaillist" > /tmp/emptyfile
-
-        #Comprobamos la lista de correos
-	       for eml in $emaillist; do 
-	           log "$eml" 
-	           parseInput email "$eml"
-	           if [ $? -ne 0 ] 
-		          then
-		              $dlg --msgbox $"Existen direcciones de correo no válidas." 0 0
-		              continue 2
-	           fi
-	       done
-	       
-	       break
-    done
-    
-    
-    return 0
-}
 
 
 

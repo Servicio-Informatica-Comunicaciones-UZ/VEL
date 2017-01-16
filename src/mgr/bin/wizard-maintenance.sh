@@ -87,6 +87,7 @@ resetLoop () {
 #a clean environment by overriding the process context of the previous
 #execution
 doLoop () {
+    log "**Looping to the maintenance menu**"
     exec /bin/bash  /usr/local/bin/wizard-maintenance.sh
     shutdownServer "h" #This will never be executed
 }
@@ -117,6 +118,7 @@ getAdminPrivilegeStatus () {
 getSSLCertificateStatus () {
     
     local status=$($PVOPS getPubVar disk  SSLCERTSTATE) #dummy, renew, ok
+    log "returned SSL status: $status"
     
     if [ "$status" == "ok" ] ; then
         echo -n $"Running on proper certificate"
@@ -278,6 +280,7 @@ chooseSSLOperation () {
     local sslstateText=''
     sslstateText=$(getSSLCertificateStatus)
     local sslstate=$?
+    log "current SSL state ($sslstate): $sslstateText"
     
     if [ $sslstate -eq 0 ] ; then #ok
         local certInstallText=$"Install a renewed certificate but keeping the private key."
@@ -298,7 +301,7 @@ chooseSSLOperation () {
     selec=$($dlg --cancel-label $"Back" --no-tags --colors \
                  --menu "$title" 0 90  5  \
                  ssl-csr-read      $"Get the certificate sign request." \
-                 ssl-cert-install  $certInstallText \
+                 ssl-cert-install  "$certInstallText" \
                  ssl-key-renew     $"Renew the SSL certificate and private key." \
 	                2>&1 >&4)
     
@@ -339,7 +342,7 @@ chooseBackupOperation () {
     fi
     
     #Freeze/Unfreeze system   # SYSFROZEN TODO añadir esta var a mem, autorizarla en getpub, hacer ops de freeze y unfreeze
-    local frozen=$($PVOPS getPubVar SYSFROZEN)
+    local frozen=$($PVOPS getPubVar mem SYSFROZEN)
     if [ "$frozen" -eq 1 ] ; then
         local freezeTag=backup-unfreeze
         local freezeItem=$"Enable services again."
@@ -773,12 +776,48 @@ admin-auth () {
 
 
 
+#Allows the user to input a list of e-mails
+#OUTPUT: $emaillist --> Lista de correos electrónicos
+getEmailList () {
+    # Needs a file to be displayed, so we create an empty file
+    echo -n "" > /tmp/empty
+    
+    local emaillist=""
+    exec 4>&1 
+    while true; do
+	       emaillist=$($dlg --backtitle $"Write the e-mail addresses of the recipients of the session logs." \
+                         --cancel-label $"Back to the menu" \
+                         --editbox /tmp/empty 0 0  2>&1 >&4)
+	       [ $? -ne 0  ] &&  return 1 # Go back
+        
+        #Parse input addresses
+	       for eml in $emaillist; do 
+	           parseInput email "$eml"
+	           if [ $? -ne 0 ] ; then
+		              $dlg --msgbox $"There are invalid addresses. Please, check." 0 0
+                #Write the former list as input of the dialog
+                echo "$emaillist" > /tmp/empty
+		              continue 2
+	           fi
+	       done
+	       
+	       break
+    done
+    rm -f /tmp/empty >>$LOGFILE 2>>$LOGFILE
+    
+    echo -n "$emaillist"
+    return 0
+}
+
+
+
+
 #Launch a root terminal to perform any emergency and unexpected admin
 #tasks not available in the operations menu. This is only a last
 #resort and gives full access to the administrator, so keep him under
 #expert supervision
 misc-shell () {
-
+    
     #Big red warning, screen is shown for at least 3 seconds after hitting a button
     $dlg --yes-label $"Back" --no-label $"Go on" --colors --sleep 3 --yesno \
          "\Zb\Z1"$"WARNING!""\Zn\n\n"$"Opening a root terminal gives the administrator full access to the system. This is a delicate situation, as he""\n\Zb\Z1"$"CAN POTENTIALLY BREAK THE SECURITY AND INTEGRITY OF FUTURE ELECTIONS.""\Zn\n"$"You will receive an e-mail with the history of commands used by him for audit purposes, but there are ways to circumvent this security measure.""\n\Zb\Z1"$"KEEP HIM UNDER THE SUPERVISION OF AN INDEPENDENT QUALIFIED TECHNICIAN AT ALL TIMES""\Zn" 0 0
@@ -787,15 +826,15 @@ misc-shell () {
     [ $? -ne 1 ] && return 1
     
     
-
-
 	   #Insert a list of e-mail addresses where the shell history will be
-	   #delivered (additionally to the commission ones, defined elsewhere)
-	   getEmailList 	   # TODO SEGUIR MAÑANA
+	   #delivered (additionally to the commission ones, defined elsewhere) # TODO implement getting the commission e-mails. here or at the priv op?
+	   getEmailList > /home/vtuji/shellSessionRecipients
     [ $? -ne 1 ] && return 1 #Back to the menu
-	
-	$PVOPS launchTerminal
-
+    
+    #Launch the root terminal with a private operation (will read the e-mail list and send the history)
+	   $PVOPS launchTerminal
+    
+    rm /home/vtuji/shellSessionRecipients >>$LOGFILE 2>>$LOGFILE
 }
 
 
@@ -818,6 +857,7 @@ misc-shell () {
 ##################
 
 
+#redirectError # TODO uncomment
 
 
 #Idle screen. Select which action to execute

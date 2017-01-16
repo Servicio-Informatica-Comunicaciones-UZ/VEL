@@ -297,19 +297,27 @@ checkKeyMatch () {
 #    key: The rebuilt shared data ciphering key will be required
 #1 -> operation code
 #RETURN: 0: if got clearance 1: if not allowed
-getClearance () { # TODO fill the lists
+getClearance () { # TODO fill the lists *-*-
     
     #List of operations that can be executed without any authorisation
-    local freeOps="getPubVar isBackupEnabled
+    local freeOps="getPubVar   isBackupEnabled
                    authAdmin  clearAuthAdmin
+                   setupSSLcertificate   fetchCSR
+                   listUSBDrives   listHDDPartitions   getFilesystemSize   mountUSB
+                   storops-resetSlot   storops-resetAllSlots   storops-switchSlot
+                   storops-checkKeyClearance   storops-rebuildKey   storops-rebuildKeyAllCombs
+                   storops-testForDeadShares   storops-checkPwd   storops-readKeyShare
                    removeAdminPrivileges    adminPrivilegeStatus
-                   suspend"
+                   unfreezeSystem   stats
+                   suspend   shutdownServer"
     
     #List of operations requiring admin password check only
     local pwdOps="raiseAdminAuth
-                   "
-    
-    
+                  forceBackup    freezeSystem"
+
+    # TODO decidir si free: setVarSafe getVarSafe trustSSHServer storops-readConfigShare
+    # TODO decidir si pwd: stopServers mailServer-reload grantAdminPrivileges startApache 
+
     #If no operation code, then reject
     if [ "$1" == "" ] ; then
         log "getClearance: No operation code"
@@ -1075,7 +1083,7 @@ fi
 if [ "$1" == "raiseAdminAuth" ]
 then
     
-    dbQuery "update  eVotDat set puntoextra=1;" # TODO verificar el nombre de campo que ponga manolo
+    dbQuery "update  eVotDat set authextra=1;" # TODO verificar que funciona
 	   if [ $? -ne 0 ] ; then
         log "raise admin auth failed: database server not running."
         exit 1
@@ -1362,7 +1370,7 @@ then
 	   ln -s  $DATAPATH/webserver/server.crt    /etc/ssl/certs/server.crt   >>$LOGFILE 2>>$LOGFILE
 	   ln -s  $DATAPATH/webserver/ca_chain.pem  /etc/ssl/ca_chain.pem       >>$LOGFILE 2>>$LOGFILE
 
-    #Postfix SMTP client requires CAs to be on the same file, se we create a special
+    #Postfix SMTP client requires CAs to be on the same file, se we create a special # TODO due to this, we may need to call this function after each cert install, and it is a unprivileged op, so this should be
     cp -f $DATAPATH/webserver/server.crt /etc/ssl/certs/server_postfix.crt    >>$LOGFILE 2>>$LOGFILE
     cat $DATAPATH/webserver/ca_chain.pem >> /etc/ssl/certs/server_postfix.crt 2>>$LOGFILE
     chmod 644 /etc/ssl/certs/server_postfix.crt                               >>$LOGFILE 2>>$LOGFILE
@@ -2242,6 +2250,34 @@ fi
 
 
 
+if [ "$1" == "launchTerminal" ] 
+then
+    
+    #Create terminal logs directory
+    [ -d "$DATAPATH/terminalLogs" ] || mkdir  "$DATAPATH/terminalLogs"  >>$LOGFILE  2>>$LOGFILE
+	   
+    #Store current bash_history if any (shouldn't, but just in case)
+    if [ -s /root/.bash_history  ] ; then
+	       mv /root/.bash_history  $DATAPATH/terminalLogs/bash_history_$(date +before-%Y%m%d-%H%M%S)  >>$LOGFILE  2>>$LOGFILE
+	   fi
+	   
+	   #This session's history will be written on the data partition
+	   export HISTFILE=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S)
+    
+    #Launch root terminal
+	   echo $"WRITE exit TO FINISH THE SESION AND GO BACK TO THE MAIN MENU."
+	   /bin/bash
+	   
+	   #Once finished, send bash command history to anyone interested
+	   mailsubject=$"Voting server maintenance session registry"" $(date +%d/%m/%Y-%H:%M)"
+	   mailbody=$"You provided ypour e-mail address to receive the logs of the execution of the maintenance session on a root terminal. Find it on the attached file. Use it to audit the session and detect any fraud."
+	   
+    #Send mail to all recipients
+	   echo "$mailbody" | mutt -s "$mailsubject"  -a $HISTFILE --  $emaillist
+    
+	   exit 0
+fi     # TODO: recordarb que existe la op 'rootShell'
+
 
 
 
@@ -2367,36 +2403,6 @@ fi
 
 
 
-# TODO SEGUIR MAÑANA
-if [ "$1" == "launchTerminal" ] 
-then
-    
-    #Create terminal logs directory
-    [ -d "$DATAPATH/terminalLogs" ] || mkdir  "$DATAPATH/terminalLogs"  >>$LOGFILE  2>>$LOGFILE
-	   
-    #Store current bash_history if any (shouldn't, but just in case)
-    if [ -s /root/.bash_history  ] ; then
-	       mv /root/.bash_history  $DATAPATH/terminalLogs/bash_history_$(date +before-%Y%m%d-%H%M%S)  >>$LOGFILE  2>>$LOGFILE
-	   fi
-	   
-	   #This session's history will be written on the data partition
-	   export HISTFILE=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S)
-    
-    #Launch root terminal
-	   echo $"WRITE exit TO FINISH THE SESION AND GO BACK TO THE MAIN MENU."
-	   /bin/bash
-	   
-	   #Send bash command history to anyone interested
-	   mailsubject=$"Registro de la sesión de mantenimiento sobre el servidor de voto vtUJI del $(date +%d/%m/%Y-%H:%M)"
-	   mailbody=$"Usted ha proporcionado su dirección como interesado en recibir una copia de la secuencia de comandos introducida por el técnico designado sobre el terminal del servidor de voto. Esta se encuentra en el fichero adjunto. Puede emplear este fichero para realizar o encargar personalmente una auditoría de la seguridad del mismo."
-	   
-    #Enviar correo a los interesados
-	   echo "$mailbody" | mutt -s "$mailsubject"  -a $HISTFILE --  $emaillist
-
-	   exit 0
-
-    # TODO: recordarb que existe la op 'rootShell'
-fi
 
 
 

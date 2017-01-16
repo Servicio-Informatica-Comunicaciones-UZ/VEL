@@ -324,7 +324,7 @@ selectKeySize () {
 #  Main Program  #
 ##################
 
-
+#redirectError # TODO uncomment
 
 #This block is executed just once (skipped after invoking this same
 #script from inside itself)
@@ -916,6 +916,9 @@ do
     
     #Init the value of the local authentication state to non-authenticated
     setVar mem LOCALAUTH "0"
+
+    #Mark the system services as running, so no maintenance under progress
+    setVar mem SYSFROZEN "0" # TODO check that it is written, and also localauth
     
     
     #Lock privileged operations. Any privileged action invoked from
@@ -936,7 +939,12 @@ do
     
     
     #Inform the user that system is successfully running
-    $dlg --msgbox $"System is running properly.""\n"$"The administrator has now privileged access to the voting web application. Don't forget to remove privileges before running an election. Otherwise he will have the means to disenfranchise targeted voters." 0 0
+    privWarning=""
+    if [ "$DOINSTALL" -eq 1 ] ; then
+        #Add a warning about the admin privileges
+        privWarning=$"The administrator has now privileged access to the voting web application. Don't forget to remove privileges before running an election. Otherwise he will have the means to disenfranchise targeted voters."
+    fi
+    $dlg --msgbox $"System is running properly.""\n""$privWarning" 0 0
     
     
     #Go into the maintenance mode. Process context is overriden with a new

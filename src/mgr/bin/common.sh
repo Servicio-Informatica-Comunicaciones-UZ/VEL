@@ -91,12 +91,6 @@ export DIALOG_HELP=1
 export DIALOG_ITEM_HELP=1
 
 
-#Preemptively redirect all STDERR to the log file
-#Save the STDERR file descriptor in descriptor 8, just in case we need
-#it; restore stderr to its descriptor with exec 2>&8
-exec 8>&2
-exec 2>>$LOGFILE  # TODO check that stderr is not being used anywhere other than being redirected.
-
 
 
 
@@ -110,6 +104,17 @@ exec 2>>$LOGFILE  # TODO check that stderr is not being used anywhere other than
 log () {
     echo "["$(date --rfc-3339=ns)"][common]: "$*  >>$LOGFILE 2>>$LOGFILE
 }
+
+
+
+#Preemptively redirect all STDERR to the log file
+#Save the STDERR file descriptor in descriptor 8, just in case we need
+#it; restore stderr to its descriptor with exec 2>&8
+redirectError () {
+    exec 8>&2
+    exec 2>>$LOGFILE  # TODO check that stderr is not being used anywhere other than being redirected.
+}
+
 
 
 #Check if an element is in a list

@@ -236,10 +236,6 @@ privilegedSetupPhase4 () {
         # the incoming e-mail
 	       return 1
     fi
-
-    #Initialise variable that marks that services are being offered,
-    #so no maintenance under progress
-	   setVar SYSFROZEN "0" mem
     
     return 0
 }
