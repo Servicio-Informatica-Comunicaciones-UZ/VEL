@@ -841,7 +841,8 @@ configureHostDomain () {
         sed -i -re "s/^$IPADDR.*$/$IPADDR $HOSTNM$DOMNAME $HOSTNM/g" /etc/hosts
  	  else
         #Add new line at the top
-        echo "$IPADDR $HOSTNM$DOMNAME $HOSTNM" >  /tmp/hosts.tmp
+        #echo "$IPADDR $HOSTNM$DOMNAME $HOSTNM" >  /tmp/hosts.tmp  ## TODO aliasing to localhost, see if there's any problem
+        echo "127.0.0.1 $HOSTNM$DOMNAME $HOSTNM" >  /tmp/hosts.tmp  
 	       cat  /etc/hosts                        >> /tmp/hosts.tmp
 	       mv   /tmp/hosts.tmp /etc/hosts
 	   fi
@@ -979,4 +980,32 @@ verifyCert () {
     
     return 0
     
+}
+
+
+
+
+
+#Read a file and parse its contents as e-mails
+#1 -> file path
+# RETURN: 0 if OK 1 if error
+#STDOUT: list of e-mails
+parseEmailFile () {
+    
+    if [ ! -s "$1" ] ; then
+        log "parse email file: File $1 not found or empty."
+        return 1
+    fi
+    
+    local emaillist=$(cat "$1")
+	   for eml in $emaillist; do 
+	       parseInput email "$eml"
+	       if [ $? -ne 0 ] ; then
+		          log "Bad e-mail address found: $eml. Aborting"
+		          return 1
+	       fi
+	   done
+    
+    echo -n "$emaillist"
+    return 0
 }

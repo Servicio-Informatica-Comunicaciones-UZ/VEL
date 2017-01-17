@@ -136,7 +136,7 @@ getSSLCertificateStatus () {
 
 
 #Allows the user to input a list of e-mails
-#OUTPUT: $emaillist --> Lista de correos electrónicos
+#OUTPUT FILE: /home/vtuji/shellSessionRecipients -> list of e-mails
 getEmailList () {
     # Needs a file to be displayed, so we create an empty file
     echo -n "" > /tmp/empty
@@ -164,7 +164,7 @@ getEmailList () {
     done
     rm -f /tmp/empty >>$LOGFILE 2>>$LOGFILE
     
-    echo -n "$emaillist"
+    echo "$emaillist" > /home/vtuji/shellSessionRecipients
     return 0
 }
 
@@ -574,12 +574,12 @@ executeMaintenanceOperation () {
         ##### SSL certificate operations #####
         
         "ssl-csr-read" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0 # SEGUIR MAÑANA
+            ssl-csr-read
+            return 0
             ;;
         
         "ssl-cert-install" )
-            $dlg --msgbox $"Not implemented." 0 0
+            ssl-cert-install
             return 0
             ;;
         
@@ -656,23 +656,40 @@ executeMaintenanceOperation () {
         
         ##### Miscellaneous operations #####
         
+        
+        
         "misc-shell" )
             misc-shell
             return 0
             ;;
         
+        
+        
         "misc-pow-suspend" )
-            $dlg --msgbox $"Not implemented." 0 0
+            $dlg --yes-label $"Back" --no-label $"Suspend" \
+                 --yesno  $"Are you sure?" 0 0
+            if [ $? -ne 0 ] ; then
+                $PVOPS suspend
+            fi
+            [ $? -eq 1 ] && $dlg --msgbox $"Can't suspend if disc is not in memory." 0 0
             return 0
             ;;
+        
+        
         
         "misc-pow-shutdown" )
-            $dlg --msgbox $"Not implemented." 0 0
+            $dlg --yes-label $"Back" --no-label $"Shutdown" \
+                 --yesno  $"Are you sure?" 0 0
+            if [ $? -ne 0 ] ; then
+                $PVOPS shutdownServer "h"
+            fi
             return 0
             ;;
         
+        
+        
 	       * )
-            #No operation code # TODO see how to handle
+            #No operation code
             $dlg --msgbox $"Bad operation code"": $1." 0 0
             log "Bad operation code: $1."
             return 1
@@ -820,20 +837,20 @@ admin-auth () {
 misc-shell () {
     
     #Big red warning, screen is shown for at least 3 seconds after hitting a button
-    $dlg --yes-label $"Back" --no-label $"Go on" --colors --sleep 3 --yesno \
+    $dlg --yes-label $"Go on" --no-label $"Back" --colors --sleep 3 --yesno \
          "\Zb\Z1"$"WARNING!""\Zn\n\n"$"Opening a root terminal gives the administrator full access to the system. This is a delicate situation, as he""\n\Zb\Z1"$"CAN POTENTIALLY BREAK THE SECURITY AND INTEGRITY OF FUTURE ELECTIONS.""\Zn\n"$"You will receive an e-mail with the history of commands used by him for audit purposes, but there are ways to circumvent this security measure.""\n\Zb\Z1"$"KEEP HIM UNDER THE SUPERVISION OF AN INDEPENDENT QUALIFIED TECHNICIAN AT ALL TIMES""\Zn" 0 0
-    
     #Go Back to the menu
-    [ $? -ne 1 ] && return 1
+    [ $? -ne 0 ] && return 1
     
     
 	   #Insert a list of e-mail addresses where the shell history will be
-	   #delivered (additionally to the commission ones, defined elsewhere) # TODO implement getting the commission e-mails. here or at the priv op?
-	   getEmailList > /home/vtuji/shellSessionRecipients
-    [ $? -ne 1 ] && return 1 #Back to the menu
+	   #delivered (additionally to the commission ones, defined elsewhere)
+	   getEmailList
+    [ $? -ne 0 ] && return 1 #Back to the menu
     
-    #Launch the root terminal with a private operation (will read the e-mail list and send the history)
-	   $PVOPS launchTerminal
+    #Launch the root terminal with a private operation (will read the
+    #e-mail list from the file and send the history)
+	   $PVOPS launchTerminal /home/vtuji/shellSessionRecipients
     
     rm /home/vtuji/shellSessionRecipients >>$LOGFILE 2>>$LOGFILE
 }
@@ -842,11 +859,49 @@ misc-shell () {
 
 
 
+#Read the current/to renew CSR to sign or renew the SSL certificate
+ssl-csr-read () {
+    
+    $dlg --msgbox $"Insert a usb device to write the current SSL certificate request." 0 0
+    fetchCSR cancel
+}
 
 
 
+#Install a SSL certificate, either for the current test certificate or
+#a new one for a new key or for the same key
+ssl-cert-install () {
+    local ret=0
+    
+    #Detect device insertion
+    insertUSB $"Insert USB storage device" "$cancelMsg"
+    ret=$?
 
+    [ $ret -eq 1 ] && return 1 #Cancelled, return
+    if [ $ret -eq 2 ] ; then
+        #No readable partitions found.
+        $dlg --msgbox $"Device contained no readable partitions." 0 0
+        return 2
+    fi
+    
+    #Mount the device (will do on /media/usbdrive)
+    $PVOPS mountUSB mount $USBDEV
+    if [ $? -ne 0 ] ; then
+        #Mount error. Try another one
+        $dlg --msgbox $"Error mounting the device." 0 0
+        return 3
+    fi
+    
+    # TODO SEGUIR
+    #derivar todo lo que pueda a la priv op.
+        
+    #Pedir ruta del cert
 
+    #Pedir ruta del chain
+
+    #Priv op: que lea ambos y, según el estado, los valide del modo adecuado y los instale en la ubicación adecuada.
+    
+}
 
 
 

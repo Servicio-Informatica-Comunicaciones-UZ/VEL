@@ -680,6 +680,7 @@ fi
 
 
 #Halt or reboot system
+# 2-> 'h' to halt, 'r' to reboot
 if [ "$1" == "shutdownServer" ] 
 then
     
@@ -1436,7 +1437,7 @@ fi
 
 
 #Will write the certificate request and the instructions on the
-#mounted usb drive
+#mounted usb drive (either the current one or the one to renew)
 if [ "$1" == "fetchCSR" ] 
 then
     
@@ -1510,7 +1511,6 @@ fi
 
 
 ### TODO respecto a la gestión de cert ssl:
-# TODO op de releer el csr, siempre activa, si dummy o ok, lee la actual, si renew, lee la candidata
 # TODO op de instalar cert. recibe un cert. si dummy/renew, mira si el actual/candidato son autofirmados, si el nuevo valida y si coincide con la llave. si ok (se habrá renovado el cert sin cambiar la llave, luego se habrá refirmado la csr que ya tenemos), mirar que el actual valida, que le falta menos de X para caducar (o dejamos siempre y punto?), que el nuevo valida y si coincide con la llave.
 # TODO op que lance un proceso de renew de clave (si en modo ok). genera csr nuevo, etc [hacer además que esté disponible siempre, sin tener en cuenta el modo y se pueda machacar el renew con otro? MEjor que sea machacable, así si hubiese algún error que requirese reiniciar el proceso antes de instalar un cert firmado, se podría hacer]
 
@@ -1655,7 +1655,101 @@ then
 	   exit 0
 fi
 
+
+
+
+
+#////revisar
+if [ "$1" == "getFile" ] 
+then
     
+    # 3-> Dev
+    if [ "$2" == "mountDev" ] 
+	   then
+	       
+	       checkParameterOrDie DEV "${3}"  #TODO IS this the parameter being used? not thought to be set as a variable. check if it is worth keeping it. 
+	       
+        #//// Verificar los permisos con que se monta (por lo de las umask).
+	       
+	       #Montamos el directorio para que sólo el root puda leer y escribir 
+	       # los ficheros y modificar los dirs, pero vtuji pueda recorrer y 
+	       # listar el árbol de dirs. (las máscaras son umask, hace el XOR 
+	       # entre estas y la default del proceso, que debería ser 755)
+	       mkdir -p /media/USB >>$LOGFILE 2>>$LOGFILE
+	       mount "$DEV""1" /media/USB -o dmask=022,fmask=027 >>$LOGFILE 2>>$LOGFILE
+	       ret=$?
+	       
+	       if [ "$ret" -ne 0 ] 
+	       then
+	           log "getFile mountDev: El dispositivo no pudo ser accedido." 
+	           umount /media/USB
+	           exit 11
+	       fi
+	       
+	       exit 0
+    fi
+
+    
+
+
+    if [ "$2" == "umountDev" ] 
+	   then
+	       umount /media/USB >>$LOGFILE 2>>$LOGFILE
+	       rmdir /media/USB  >>$LOGFILE 2>>$LOGFILE
+	       exit 0
+    fi
+
+
+
+    # 3 -> file path to copy to destination
+    if [ "$2" == "copyFile" ] 
+	   then
+
+
+	       checkParameterOrDie FILEPATH  "$3"  "0"
+	       
+	       aux=$(echo "$3" | grep -Ee "^/media/USB/.+")
+	       if [ "$aux" == "" ] 
+	       then
+	           echo "Ruta inválida. Debe ser subdirectorio de /media/USB/"  >>$LOGFILE 2>>$LOGFILE
+	           exit 31
+	       fi
+
+	       aux=$(echo "$3" | grep -Ee "/\.\.(/| |$)")
+	       if [ "$aux" != "" ] 
+	       then
+	           echo "Ruta inválida. No puede acceder a directorios superiores."  >>$LOGFILE 2>>$LOGFILE 
+	           exit 32
+	       fi
+	       
+	       rm -rf    $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
+	       mkdir -p  $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
+	       chmod 750 $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
+	       
+	       destfile=$ROOTFILETMP"/usbrreadfile"
+	       
+	       #echo "------->cp $3  $destfile"
+        #echo "-------------------"
+        #ls -l $3
+        #echo "-------------------"
+        #ls -l $DATAPATH 
+        #echo "-------------------"
+
+	       cp -f "$3" "$destfile"  >>$LOGFILE 2>>$LOGFILE
+        
+	       exit 0
+    fi
+    
+    log "getFile: bad subopcode."
+    exit 1
+fi
+
+
+
+
+
+
+
 
 
 
@@ -2247,10 +2341,15 @@ then
 fi
 
 
-
-
+#Launch a root terminal. Log all session commands and send to interested recipients
+#2 -> file with the list of recipient e-mail addresses
 if [ "$1" == "launchTerminal" ] 
 then
+    emaillist=$(parseEmailFile "$2")
+    if [ $? -ne 0 ] ; then
+        log "Error processing e-mail list at $2. Aborting."
+        exit 1
+    fi
     
     #Create terminal logs directory
     [ -d "$DATAPATH/terminalLogs" ] || mkdir  "$DATAPATH/terminalLogs"  >>$LOGFILE  2>>$LOGFILE
@@ -2270,8 +2369,8 @@ then
 	   #Once finished, send bash command history to anyone interested
 	   mailsubject=$"Voting server maintenance session registry"" $(date +%d/%m/%Y-%H:%M)"
 	   mailbody=$"You provided ypour e-mail address to receive the logs of the execution of the maintenance session on a root terminal. Find it on the attached file. Use it to audit the session and detect any fraud."
-	   
-    #Send mail to all recipients
+    
+    #Send mail to all recipients # TODO include the list of commission emails
 	   echo "$mailbody" | mutt -s "$mailsubject"  -a $HISTFILE --  $emaillist
     
 	   exit 0
@@ -2404,95 +2503,6 @@ fi
 
 
 
-
-
-
-
-
-#////revisar
-if [ "$1" == "getFile" ] 
-then
-    
-    # 3-> Dev
-    if [ "$2" == "mountDev" ] 
-	   then
-	       
-	       checkParameterOrDie DEV "${3}"  #TODO IS this the parameter being used? not thought to be set as a variable. check if it is worth keeping it. 
-	       
-        #//// Verificar los permisos con que se monta (por lo de las umask).
-	       
-	       #Montamos el directorio para que sólo el root puda leer y escribir 
-	       # los ficheros y modificar los dirs, pero vtuji pueda recorrer y 
-	       # listar el árbol de dirs. (las máscaras son umask, hace el XOR 
-	       # entre estas y la default del proceso, que debería ser 755)
-	       mkdir -p /media/USB >>$LOGFILE 2>>$LOGFILE
-	       mount "$DEV""1" /media/USB -o dmask=022,fmask=027 >>$LOGFILE 2>>$LOGFILE
-	       ret=$?
-	       
-	       if [ "$ret" -ne 0 ] 
-	       then
-	           log "getFile mountDev: El dispositivo no pudo ser accedido." 
-	           umount /media/USB
-	           exit 11
-	       fi
-	       
-	       exit 0
-    fi
-
-    
-
-
-    if [ "$2" == "umountDev" ] 
-	   then
-	       umount /media/USB >>$LOGFILE 2>>$LOGFILE
-	       rmdir /media/USB  >>$LOGFILE 2>>$LOGFILE
-	       exit 0
-    fi
-
-
-
-    # 3 -> file path to copy to destination
-    if [ "$2" == "copyFile" ] 
-	   then
-
-
-	       checkParameterOrDie FILEPATH  "$3"  "0"
-	       
-	       aux=$(echo "$3" | grep -Ee "^/media/USB/.+")
-	       if [ "$aux" == "" ] 
-	       then
-	           echo "Ruta inválida. Debe ser subdirectorio de /media/USB/"  >>$LOGFILE 2>>$LOGFILE
-	           exit 31
-	       fi
-
-	       aux=$(echo "$3" | grep -Ee "/\.\.(/| |$)")
-	       if [ "$aux" != "" ] 
-	       then
-	           echo "Ruta inválida. No puede acceder a directorios superiores."  >>$LOGFILE 2>>$LOGFILE 
-	           exit 32
-	       fi
-	       
-	       rm -rf    $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	       mkdir -p  $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	       chmod 750 $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	       
-	       destfile=$ROOTFILETMP"/usbrreadfile"
-	       
-	       #echo "------->cp $3  $destfile"
-        #echo "-------------------"
-        #ls -l $3
-        #echo "-------------------"
-        #ls -l $DATAPATH 
-        #echo "-------------------"
-
-	       cp -f "$3" "$destfile"  >>$LOGFILE 2>>$LOGFILE
-        
-	       exit 0
-    fi
-    
-    log "getFile: bad subopcode."
-    exit 1
-fi
 
 
 

@@ -1610,14 +1610,27 @@ generateCSR () {
 
 #Instructs the user to insert a usb device and writes the server csr
 #for its signature by a CA
+# 1 -> 'cancel' to allow cancel, '' (default) to keep looping
 fetchCSR () {
+    local ret=0
+    
+    local cancel=0
+    local cancelMsg=$"Start again"
+    if [ "$1" == "cancel" ] ; then
+        cancel=1
+        cancelMsg=$"Cancel"
+    fi
     
     while true ; do
         
         #Detect device insertion
-        insertUSB $"Insert USB storage device" $"Start again"
-        [ $? -eq 1 ] && continue #Cannot cancel, just restart this step
-        if [ $? -eq 2 ] ; then
+        insertUSB $"Insert USB storage device" "$cancelMsg"
+        ret=$?
+        if [ $ret -eq 1 ] ; then
+            [ "$cancel" -eq 1 ] && return 1 #Can cancel, return
+            continue #Cannot cancel, just restart this step
+        fi
+        if [ $ret -eq 2 ] ; then
             #No readable partitions found. Ask to use another one
             $dlg --msgbox $"Device contained no readable partitions. Try another one." 0 0
             continue 
@@ -1649,6 +1662,8 @@ fetchCSR () {
         
         break
     done
+    
+    return 0
 }
 
 
