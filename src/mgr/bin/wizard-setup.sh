@@ -885,7 +885,7 @@ do
         #Give privileged access to the webapp to the administrator (temporary)
         $PVOPS  grantAdminPrivileges
     else
-        #Explicitly remove privileges to the administrator on reload
+        #Explicitly remove privileges to the administrator on reload # TODO should we keep them on?
         $PVOPS  removeAdminPrivileges
     fi
     

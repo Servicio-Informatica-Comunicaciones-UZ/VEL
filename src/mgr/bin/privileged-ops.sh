@@ -1286,8 +1286,8 @@ fi
 
 #Will generate a RSA keypair and then a certificate request to be
 #signed by a CA, with the specified Subject
-#2 -> 'new': will generate the keys and the csr
-#   'renew': only a new csr will be generated
+#2 -> 'new': will generate the keys and the csr on the main directory
+#   'renew': will generate the keys and the csr on a secondary directory
 #3 -> SERVERCN
 #4 -> COMPANY
 #5 -> DEPARTMENT
@@ -1307,7 +1307,7 @@ then
     checkParameterOrDie SERVEREMAIL "${9}"
     
     
-    #Path where all the ssl data can eb found in the encrypted drive
+    #Path where all the ssl data can be found in the encrypted drive
     sslpath="$DATAPATH/webserver"
     #If this is a cert renewal, create a secondary directory for the
     #new request
@@ -1318,6 +1318,13 @@ then
 	       chown root:www-data $sslpath >>$LOGFILE 2>>$LOGFILE
 	       chmod 755  $sslpath          >>$LOGFILE 2>>$LOGFILE
     fi
+    
+    #This operation can be called on any mode and overwrite a previous
+    #request or functioning cert. We archive any previous files found here
+    archive="$DATAPATH/webserver/archive/ssl"$(date +%s)
+    mkdir -p "$archive"           >>$LOGFILE 2>>$LOGFILE
+    cp -f $sslpath/* "$archive/"  >>$LOGFILE 2>>$LOGFILE # Only copy the files
+    rm -f $sslpath/*              >>$LOGFILE 2>>$LOGFILE # Only remove the files
     
     #Destination file
     OUTFILE="$sslpath/server.csr"
@@ -1332,7 +1339,9 @@ then
     
     #Generate the request
     log "Generating CSR in $OUTFILE with subject: $SUBJECT"
-    openssl req -new -sha256 -newkey rsa:2048 -nodes -keyout "${sslpath}/server.key" -out $OUTFILE -subj "$SUBJECT" >>$LOGFILE 2>>$LOGFILE
+    openssl req -new -sha256 -newkey rsa:2048 -nodes \
+            -keyout "${sslpath}/server.key" \
+            -out $OUTFILE -subj "$SUBJECT" >>$LOGFILE 2>>$LOGFILE
     ret=$?
     if [ $ret -ne 0 ] ; then
 	       log  "Error $ret while generating CSR." 
@@ -1501,22 +1510,97 @@ fi
 if [ "$1" == "installSSLCert" ] 
 then
     
-
     #Since we are just copying a file to the root domains, we don't
     #need any further checks or path limitations
-    checkParameterOrDie FILEPATH  "$2"  "0"
-    checkParameterOrDie FILEPATH  "$3"  "0"
+    sslcertpath="$2"
+    cachainpath="$3"
+    checkParameterOrDie FILEPATH  "$sslcertpath"  "0"
+    checkParameterOrDie FILEPATH  "$cachainpath"  "0"
+    
+    
+    getVar disk SSLCERTSTATE
+    
+    sslpath="$DATAPATH/webserver"
+    if [ "$SSLCERTSTATE" == "renew" ] ; then
+	       sslpath="$DATAPATH/webserver/newcsr"	
+    fi
+    
+    #Read the files and put them on a temp
+    if [ ! -s "$sslcertpath" ] ; then
+        log "SSL cert file $sslcertpath has no size"
+    fi
+    cp -f "$sslcertpath" $ROOTTMP/tmp/server.crt >>$LOGFILE 2>>$LOGFILE
+
+
+    if [ ! -s "$cachainpath" ] ; then
+        log "SSL cert file $cachainpath has no size"
+    fi
+    cp -f "$cachainpath" $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+    
+
+    #Validate the certificate and chain, depending on the current state
+    # TODO
+    #    candidate is self-signed? reject
+    #    candidate is valid? ok
+    checkCertificate candidate
+    #    candidate coincides with the privkey? ok
+            #If processing a server cert file, it must match with the private key       # TODO sacarlo fuera
+        doCertAndKeyMatch "$cert" "$keyFile"
+        if [ $? -ne 0  ] ; then
+	           log "Error: certificate does not match the private key."
+	           return 19
+        fi
+        #    each cert of the chain is valid? ok
+            checkCertificate chain
+
+    #    candidate validates with all the provided chain? ok -- verifyCert
+    #    is the root cert part of the system ca store? ok -- verifyCert
 
     
+
+    rm -f $ROOTTMP/tmp/server.crt   >>$LOGFILE 2>>$LOGFILE
+    rm -f $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
     
+    
+    
+    #Since this can be called to renew a working certificate without
+    #renewing the key, archive the one being substituted, if any.
+    if [ -e "$sslpath/server.crt" ] ; then 
+        archive="$DATAPATH/webserver/archive/ssl"$(date +%s)
+        mkdir -p "$archive"           >>$LOGFILE 2>>$LOGFILE
+        cp -f $sslpath/* "$archive/"  >>$LOGFILE 2>>$LOGFILE # Only copy the files
+    fi  
+    
+    
+    #Install the certificate and chain
+
+    /etc/init.d/apache2 stop  >>$LOGFILE  2>>$LOGFILE
+    /etc/init.d/postfix stop  >>$LOGFILE  2>>$LOGFILE
     
     #TODO SEGUIR
-    #Priv op: que lea ambos y, según el estado, los valide del modo adecuado y los instale en la ubicación adecuada.
     
     
-    # TODO store the overridden certificate in an oldcert directory
+    # TODO añadir op log indicando el estado anterior, el actual, el cambio de cert y el hash del cert instalado? y de las cas? también loguear los errores e intentos fallidos    opLog "asdas"
+    
+
+    # TODO do the postfix cert rebundle
     
     
+    
+    
+    #Reload apache and postfix
+    /etc/init.d/apache2 start  >>$LOGFILE  2>>$LOGFILE
+    if [ $? -ne 0 ] ; then
+	       log "Error restarting apache" 
+	       exit 1
+	   fi
+    /etc/init.d/postfix start  >>$LOGFILE  2>>$LOGFILE
+    if [ $? -ne 0 ] ; then
+	       log "Error restarting postfix" 
+	       exit 1
+	   fi
+    
+    exit 0
 fi
 
    
@@ -2136,6 +2220,11 @@ fi     # TODO: recordarb que existe la op 'rootShell'
 
 
 
+# SEGUIR REVISANDO
+
+
+
+
 
 
 #  TODO implement
@@ -2167,7 +2256,6 @@ fi
 
 
     
-# SEGUIR REVISANDO
 
 
 
@@ -2296,10 +2384,6 @@ exit 42
     # 5 -> New device password -n
 
 
-
-
-
-#//// implementar verifycert  SIN VERIF!! (porque se usa para discernir si la instalación del cert requiere autorización o no  ---> Las ops que se ejecutan durante la instal del cert deben hacerse sin verif, pero sólo cuando falle verifycert!!!  --> ver cuáles son.)
 
 
 

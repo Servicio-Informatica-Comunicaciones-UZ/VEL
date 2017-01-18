@@ -13,9 +13,6 @@ OPSEXE=/usr/local/bin/ssOperations
 ROOTTMP="/root"
 
 
-ROOTSSLTMP=$ROOTTMP"/tmp/ssltmp"  # TODO delete if possible
-
-
 #############
 #  Globals  #
 #############
@@ -862,138 +859,9 @@ configureHostDomain () {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# SEGUIR, las de abajo quedan por revisar
-
-
-#1 -> Path to the file containing the cert(s) to be checked
-#2 -> mode: 'serverCert' verify a single ssl server cert (by itself and towards the priv key)
-#           'certChain' verify a number of certificates (individually, not whether they form a valid cert chain)
-#3 -> path to the private key (in serverCert mode)
-checkCertificate () {
-
-    [ "$1" == "" ] && log "checkCertificate: no param 1"  && return 11
-    [ "$2" == "" ] && log "checkCertificate: no param 2"  && return 12
-    [ "$2" == "serverCert" -a "$3" == "" ] && log "checkCertificate: no param 3 at mode serverCert"  && return 13
-
-    #Validate non-empty file
-    if [ -s "$1" ] 
-	   then
-	       :
-    else
-	       log "Error: empty file." 
-	       return 14
-    fi
-    
-    #Separate certs in different files for testing
-    /usr/local/bin/separateCerts.py  "$1"
-    ret=$?
-	   
-    if [ "$ret" -eq 3 ] 
-	   then
-	       log "Read error." 
-	       return 15
-    fi
-    if [ "$ret" -eq 5 ]  
-	   then
-	       log "Error: file contains no PEM certificates." 
-	       return 16
-    fi
-    if [ "$ret" -ne 0 ]  
-	   then
-	       log "Error processing cert file." 
-	       return 17
-    fi
-    
-    certlist=$(ls "$1".[0-9]*)
-    certlistlen=$(echo $certlist | wc -w)
-    
-    #If processing a server cert file, it must be alone
-    if [ "$2" == "serverCert" -a  "$certlistlen" -ne 1 ]
-	   then
-	       log "File should contain server cert only." 
-	       return 18
-    fi
-    
-    #For each cert
-    for c in $certlist
-    do      
-        #Check it is a x509 cert
-        openssl x509 -text < $c  >>$LOGFILE  2>>$LOGFILE
-        ret=$?
-        if [ "$ret" -ne 0  ] 
-	       then 
-	           log "Error: certificate not valid."
-	           return 19
-        fi
-        
-        #If processing a server cert file, it must match with the private key
-        if  [ "$2" == "serverCert" ] ; then
-            #Compare modulus on the cert and on the priv key
-	           aa=$(openssl x509 -noout -modulus -in $c | openssl sha1)
-	           bb=$(openssl rsa  -noout -modulus -in $3 | openssl sha1)
-            
-	           #If not matching, the cert doesn't belong to the priv key
-	           if [ "$aa" != "$bb" ]
-	           then
-	               log "Error: no cert-key match."
-	               return 20
-	           fi
-        fi
-        
-    done
-    
-    return 0
-}
-
-
-
-
-#Check purpose of a certificate (and trust if chain is supplied)
-# $1 -> Certificate to verify
-# $2 -> (optional) CA chain (to see if matching towards it)
-# RET: 0: ok  1: error
-verifyCert () {
-    
-    [ "$1" == "" ] && return 1
-    
-    if [ "$2" != "" ]
-	   then
-	       chain=" -untrusted $2 "
-    fi
-    
-    iserror=$(openssl verify -purpose sslserver -CApath /etc/ssl/certs/ $chain  "$1" 2>&1  | grep -ie "error")
-    
-    log "verify cert error? "$iserror 
-    
-    #If no error string, validated
-    [ "$iserror" != ""  ] && return 1
-    
-    return 0
-    
-}
-
-
-
-
-
 #Read a file and parse its contents as e-mails
 #1 -> file path
-# RETURN: 0 if OK 1 if error
+#RETURN: 0 if OK 1 if error
 #STDOUT: list of e-mails
 parseEmailFile () {
     
@@ -1013,4 +881,120 @@ parseEmailFile () {
     
     echo -n "$emaillist"
     return 0
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# TODO SEGUIR MAÑANA, las tres estas de cert, aplicarlas como toque en la priv op. ver si cubro todos los checks necesarios. ver tb el otro código por si me dejo algo.
+
+#Check if file contains one or more valid x509 certificates
+#1 -> Path to the file containing the certificate(s) to be checked
+#2 -> mode: 'serverCert' verify a single ssl server cert (by itself and towards the priv key)
+#           'certChain' verify a number of certificates (individually, not whether they form a valid cert chain)
+#3 -> path to the private key (in serverCert mode)
+# RETURN: 0: Valid 1: Not valid
+checkCertificate () {
+    
+    local ret=0
+    
+    local certFile="$1"
+    local keyFile="$3"
+    
+    if [ "$certFile" == "" -o ! -s "$certFile" ] ; then
+        log "check certificate: can't find certificate file: $certFile"
+        return 1
+    fi
+    
+    #Separate certs in different files to test them separately
+    #Writes the original path tailed by a sequence number [0-9]+
+    /usr/local/bin/separateCerts.py "$certFile"
+    ret=$?
+	   [ $ret -eq 3 ] && log "Read error."
+    [ $ret -eq 5 ] && log "Error: file contains no PEM certificates."
+    if [ $ret -ne 0 ] ; then
+	       log "Error processing certificate file." 
+	       return 1
+    fi
+    
+    #For each cert
+    local certlist=$(ls "$certFile".[0-9]*)
+    local certlistlen=$(echo $certlist | wc -w)
+    for cert in $certlist
+    do
+        #Check it is a x509 cert
+        openssl x509 -text < "$cert"  >>$LOGFILE 2>>$LOGFILE
+        if [ $? -ne 0 ] ; then 
+	           log "Error: certificate not a valid x509."
+	           return 1
+        fi
+        
+        #Delete the test file
+        rm -f "$cert"  >>$LOGFILE 2>>$LOGFILE
+    done
+    
+    return 0
+}
+
+
+
+
+#Check whether a certificate belongs to a certain private key
+#1 -> certificate path
+#2 -> key path
+# RETURN 0: They match  1: they don't
+doCertAndKeyMatch () {
+    
+    #Compare modulus on the cert and on the priv key
+	   local aa=$(openssl x509 -noout -modulus -in "$1" | openssl sha1)
+	   local bb=$(openssl rsa  -noout -modulus -in "$2" | openssl sha1)
+    
+	   #If empty or not matching, the cert doesn't belong to the priv key
+	   if [ "$aa" == "" -o "$aa" != "$bb" ] ; then
+        return 1
+	   fi
+    
+    return 0
+}
+
+
+
+
+#Check if a certificate is correct and if it has ssl purpose. If chain
+#is supplied it also checks the trust chain.
+# $1 -> Path to the certificate to verify
+# $2 -> (optional) Path to the CA chain (to see if matching towards it)
+#RETURN: 0: if valid  1: if not valid
+verifyCert () {
+    
+    [ "$1" == "" ] && return 1
+    
+    local chain=""
+    if [ "$2" != "" ] ; then
+	       chain=" -untrusted $2 "
+    fi
+    
+    local output=$(openssl verify -purpose sslserver \
+                           -CApath /etc/ssl/certs/ \
+                           $chain \
+                           "$1" 2>&1  | grep -ie "error")
+    
+    log "openssl verify cert error output $output "
+    
+    #If no error string returned, it was validated
+    [ "$output" != ""  ] && return 1
+    
+    return 0
+    
 }
