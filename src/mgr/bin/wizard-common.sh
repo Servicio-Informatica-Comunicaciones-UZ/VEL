@@ -1765,3 +1765,69 @@ writeUsbs () {
     done
 }
 
+
+
+
+
+# Lets the user select a file path inside the mounted USB
+# $1 -> User prompt message
+#Return: 0: OK 1: Cancelled
+#chosenFilepath: the path selected by the user
+selectUsbFilepath() {
+    
+    local title=$"Select a file: ""\Z2""$1\Z0"
+
+    
+    local helpLine=$"(Press F1 for Help)"
+    local helpMsg=$"Use tab or arrow keys to move between the windows.
+Within the directory or filename windows, use the 
+up/down arrow keys to scroll the current selection.
+Use the space-bar to copy the current selection 
+into the text-entry window."
+    echo "$helpMsg" >/tmp/fselectHelper
+
+    #Return global
+    chosenFilepath=""
+	   
+    while true
+    do
+        #Select the path
+        local selPath=""
+        selPath=$($dlg --backtitle "$title"  --colors \
+                       --hfile /tmp/fselectHelper \
+                       --hline "$helpLine" \
+                       --fselect /media/usbdrive/ 8 60 2>&1 >&4 )
+        [ $? -ne 0 -o "$selPath" == "" ] && return 1 # Cancelled        
+		      
+        #Syntax check the resulting path
+        parseInput path "$selPath"
+        if [ $? -ne 0 ]  ; then 
+	           $dlg --msgbox $"Bad path. Directory names can contain:""$ALLOWEDCHARSET" 0 0 
+	           continue
+        fi
+        
+        #Check that the path is strictly a subdirectory of the mounted
+        #usb device
+        if ! (echo "$selPath" | grep -Ee "^/media/usbdrive/.+") ; then
+	           $dlg --msgbox $"Bad path. Must be a file inside the USB device" 0 0  
+	           continue
+        fi
+        
+        #Check that path does not contain directory backreferences (../)
+        if (echo "$selPath" | grep -Ee "/\.\.(/| |$)") ; then 
+	           $dlg --msgbox $"Bad path. Upper directories not allowed in path." 0 0  
+	           continue
+        fi
+        
+        #Check that the path is a file
+        if [ ! -f "$selPath" ] ; then
+            $dlg --msgbox $"Path is not a file." 0 0  
+	           continue
+        fi
+        
+        break
+    done
+    
+    chosenFilepath="$selPath"
+    return 0
+}

@@ -1493,281 +1493,33 @@ fi
 ##### SEGUIR: faltan por revisar
 
 
-
-
-
-
-
-
-
-
-   
-
-   
-   
-   
-   
- 
-
-
-### TODO respecto a la gestión de cert ssl:
-# TODO op de instalar cert. recibe un cert. si dummy/renew, mira si el actual/candidato son autofirmados, si el nuevo valida y si coincide con la llave. si ok (se habrá renovado el cert sin cambiar la llave, luego se habrá refirmado la csr que ya tenemos), mirar que el actual valida, que le falta menos de X para caducar (o dejamos siempre y punto?), que el nuevo valida y si coincide con la llave.
-# TODO op que lance un proceso de renew de clave (si en modo ok). genera csr nuevo, etc [hacer además que esté disponible siempre, sin tener en cuenta el modo y se pueda machacar el renew con otro? MEjor que sea machacable, así si hubiese algún error que requirese reiniciar el proceso antes de instalar un cert firmado, se podría hacer]
-
-# TODO Reiniciar apache y postfix, ambos lo usan
-
-#TODO añadir cron que avise por e-mail cuando falte X para caducar el cert
-
-	
-     
-
-
-#//// sin verif condicionada a verifcert
-# 4-> certChain o serverCert
-## TODO cambiar numeración de params, será 1 o 2 ahora--> aplanar a ops de 1 nivel sólo
-if [ "$3" == "checkCertificate" ] 
-then
-
-	   if [ "$4" != "serverCert" -a "$4" != "certChain" ]
-	   then
-	       log "checkCertificate: bad param 4: $4"
-	       exit 1
-	   fi
-
-	   #El nombre con que se guardará si se acepta 
-	   destfilename="ca_chain.pem"
-
-	   keyfile=''
-	   #Si estamos verificando el cert de serv, necesitamos la privkey
-	   if [ "$4" == "serverCert" ]
-	   then
-
-	       #El nombre con que se guardará si se acepta 
-	       destfilename="server.crt"
-
-	       crtstate=$(cat $DATAPATH/root/sslcertstate.txt 2>>$LOGFILE)
-	       
-	       if [ "$crtstate" == "RENEW" ]
-		      then
-		          #Buscamos la llave en el subdirectorio (porque la del principal está en uso y e sválida)
-		          keyfile="$DATAPATH/webserver/newcsr/server.key"
-	       else #DUMMY y  OK
-		          #La buscamos en el dir principal
-		          keyfile="$DATAPATH/webserver/server.key"
-	       fi
-        
-	   fi 
-	   
-	   checkCertificate  $ROOTFILETMP/usbrreadfile "$4" $keyfile
-	   ret="$?"
-
-	   if [ "$ret" -ne 0 ] 
-	   then
-	       rm -rf $ROOTFILETMP/*  >>$LOGFILE  2>>$LOGFILE #Vaciamos el temp de lectura de ficheros
-	       exit "$ret" 	  
-	   fi
-
-	   #Si no existe el temp específico de ssl, crearlo
-	   if [ -e $ROOTSSLTMP ]
-	   then
-	       :
-	   else
-	       mkdir -p  $ROOTSSLTMP >>$LOGFILE 2>>$LOGFILE
-	       chmod 750 $ROOTSSLTMP >>$LOGFILE 2>>$LOGFILE
-	   fi
-	   
-	   #Movemos el fichero al temporal específico (al destino se copiará cuando estén verificados la chain y el cert)	  
-	   mv -f $ROOTFILETMP/usbrreadfile $ROOTSSLTMP/$destfilename  >>$LOGFILE  2>>$LOGFILE
-	   
-	   
-	   rm -rf $ROOTFILETMP/* >>$LOGFILE  2>>$LOGFILE #Vaciamos el temp de lectura de ficheros
-	   exit 0
-fi
-
-
-
-
-      
-
-#//// sin verif condicionada a verifcert?
-
-## TODO cambiar numeración de params, será 1 o 2 ahora
-if [ "$3" == "installSSLCert" ] 
-then
-	   
-	   #Verificamos el certificado frente a la cadena.
-	   verifyCert $ROOTSSLTMP/server.crt $ROOTSSLTMP/ca_chain.pem
-	   if [ "$?" -ne 0 ] 
-	   then
- 	      #No ha verificado. Avisamos y salimos (borramos el cert y la chain en temp)
-	       log "Cert not properly verified against chain" 
-	       rm -rf $ROOTSSLTMP/*  >>$LOGFILE  2>>$LOGFILE
-	       exit 1
-	   fi
-	   
-	   #Según si estamos instalando el primer cert o uno renovado, elegimos el dir.
-	   crtstate=$(cat $DATAPATH/root/sslcertstate.txt 2>>$LOGFILE)
-	   if [ "$crtstate" == "RENEW" ]
-	   then
-	       basepath="$DATAPATH/webserver/newcsr/"
-	   else #DUMMY y  OK
-	       basepath="$DATAPATH/webserver/"
-	   fi
-
-
-    #Si todo ha ido bien, copiamos la chain a su ubicación 
-	   mv -f $ROOTSSLTMP/ca_chain.pem  $basepath/ca_chain.pem >>$LOGFILE  2>>$LOGFILE
-    
-    #Si todo ha ido bien, copiamos el cert a su ubicación
-	   mv -f $ROOTSSLTMP/server.crt  $basepath/server.crt >>$LOGFILE  2>>$LOGFILE
-	   
-
-	   /etc/init.d/apache2 stop  >>$LOGFILE  2>>$LOGFILE
-
-
-	   #Si es renew, sustituye el cert activo por el nuevo.
-	   if [ "$crtstate" == "RENEW" ]
-	   then
-	       mv -f  "$DATAPATH/webserver/newcsr/server.csr"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	       mv -f  "$DATAPATH/webserver/newcsr/server.crt"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	       mv -f  "$DATAPATH/webserver/newcsr/server.key"   "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	       mv -f  "$DATAPATH/webserver/newcsr/ca_chain.pem" "$DATAPATH/"  >>$LOGFILE  2>>$LOGFILE
-	       rm -rf "$DATAPATH/webserver/newcsr/"                           >>$LOGFILE  2>>$LOGFILE
-	   fi
-
-	   
-    #Cambiar estado de SSL
-	   echo -n "OK" > $DATAPATH/root/sslcertstate.txt
-
-
-	   #enlazar el csr en el directorio web. (borrar cualquier enlace anterior)
-	   rm /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	   cp -f $DATAPATH/webserver/server.csr /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	   chmod 444 /var/www/server.csr  >>$LOGFILE 2>>$LOGFILE
-	   
-	   
-	   /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
-	   if [ "$ret" -ne 0 ]; then
-	       log "Error restarting web server!" 
-	       exit 2
-	   fi
-	   
-	   exit 0
-fi
-
-
-
-
-
-#////revisar
-if [ "$1" == "getFile" ] 
+#Reads a certificate and ca_chain file and depending on the current
+#ssl state, performs some validations and if adequate, gets it
+#installed
+#2 -> ssl certificate file path
+#3 -> ca chain file path
+if [ "$1" == "installSSLCert" ] 
 then
     
-    # 3-> Dev
-    if [ "$2" == "mountDev" ] 
-	   then
-	       
-	       checkParameterOrDie DEV "${3}"  #TODO IS this the parameter being used? not thought to be set as a variable. check if it is worth keeping it. 
-	       
-        #//// Verificar los permisos con que se monta (por lo de las umask).
-	       
-	       #Montamos el directorio para que sólo el root puda leer y escribir 
-	       # los ficheros y modificar los dirs, pero vtuji pueda recorrer y 
-	       # listar el árbol de dirs. (las máscaras son umask, hace el XOR 
-	       # entre estas y la default del proceso, que debería ser 755)
-	       mkdir -p /media/USB >>$LOGFILE 2>>$LOGFILE
-	       mount "$DEV""1" /media/USB -o dmask=022,fmask=027 >>$LOGFILE 2>>$LOGFILE
-	       ret=$?
-	       
-	       if [ "$ret" -ne 0 ] 
-	       then
-	           log "getFile mountDev: El dispositivo no pudo ser accedido." 
-	           umount /media/USB
-	           exit 11
-	       fi
-	       
-	       exit 0
-    fi
+
+    #Since we are just copying a file to the root domains, we don't
+    #need any further checks or path limitations
+    checkParameterOrDie FILEPATH  "$2"  "0"
+    checkParameterOrDie FILEPATH  "$3"  "0"
 
     
-
-
-    if [ "$2" == "umountDev" ] 
-	   then
-	       umount /media/USB >>$LOGFILE 2>>$LOGFILE
-	       rmdir /media/USB  >>$LOGFILE 2>>$LOGFILE
-	       exit 0
-    fi
-
-
-
-    # 3 -> file path to copy to destination
-    if [ "$2" == "copyFile" ] 
-	   then
-
-
-	       checkParameterOrDie FILEPATH  "$3"  "0"
-	       
-	       aux=$(echo "$3" | grep -Ee "^/media/USB/.+")
-	       if [ "$aux" == "" ] 
-	       then
-	           echo "Ruta inválida. Debe ser subdirectorio de /media/USB/"  >>$LOGFILE 2>>$LOGFILE
-	           exit 31
-	       fi
-
-	       aux=$(echo "$3" | grep -Ee "/\.\.(/| |$)")
-	       if [ "$aux" != "" ] 
-	       then
-	           echo "Ruta inválida. No puede acceder a directorios superiores."  >>$LOGFILE 2>>$LOGFILE 
-	           exit 32
-	       fi
-	       
-	       rm -rf    $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	       mkdir -p  $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	       chmod 750 $ROOTFILETMP >>$LOGFILE 2>>$LOGFILE
-	       
-	       destfile=$ROOTFILETMP"/usbrreadfile"
-	       
-	       #echo "------->cp $3  $destfile"
-        #echo "-------------------"
-        #ls -l $3
-        #echo "-------------------"
-        #ls -l $DATAPATH 
-        #echo "-------------------"
-
-	       cp -f "$3" "$destfile"  >>$LOGFILE 2>>$LOGFILE
-        
-	       exit 0
-    fi
     
-    log "getFile: bad subopcode."
-    exit 1
+    
+    #TODO SEGUIR
+    #Priv op: que lea ambos y, según el estado, los valide del modo adecuado y los instale en la ubicación adecuada.
+    
+    
+    # TODO store the overridden certificate in an oldcert directory
+    
+    
 fi
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+   
 
 
 
@@ -1994,7 +1746,7 @@ then
     [ "$THRESHOLD" -gt "$numsharefiles" ] && exit 3
 
     
-    mkdir -p $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
+    mkdir -p $ROOTTMP/tmp/testdir >>$LOGFILE 2>>$LOGFILE
     LASTKEY=""
     CURRKEY=""
     count=0
@@ -2003,7 +1755,7 @@ then
     while [ "$count" -lt "$numsharefiles"  ]
     do
         #Clean test dir
-        rm -f $ROOTTMP/testdir/* >>$LOGFILE 2>>$LOGFILE
+        rm -f $ROOTTMP/tmp/testdir/* >>$LOGFILE 2>>$LOGFILE
         
         #Calculate which share numbers to use
         offset=0
@@ -2012,15 +1764,15 @@ then
 	           pos=$(( (count+offset)%numsharefiles ))
 
             #Copy keyshare to the test dir [rename it so they are correlative]
-            log "copying keyshare$pos to $ROOTTMP/testdir named $ROOTTMP/testdir/keyshare$offset" 
-	           cp $slotPath/keyshare$pos $ROOTTMP/testdir/keyshare$offset   >>$LOGFILE 2>>$LOGFILE
+            log "copying keyshare$pos to $ROOTTMP/tmp/testdir named $ROOTTMP/tmp/testdir/keyshare$offset" 
+	           cp $slotPath/keyshare$pos $ROOTTMP/tmp/testdir/keyshare$offset   >>$LOGFILE 2>>$LOGFILE
 	           
 	           offset=$((offset+1))
         done
-        log "Shares copied to test directory: "$(ls -l  $ROOTTMP/testdir)  
+        log "Shares copied to test directory: "$(ls -l  $ROOTTMP/tmp/testdir)  
         
         #Rebuild cipher key and store it on the var. 
-        CURRKEY=$($OPSEXE retrieve $THRESHOLD $ROOTTMP/testdir  2>>$LOGFILE)
+        CURRKEY=$($OPSEXE retrieve $THRESHOLD $ROOTTMP/tmp/testdir  2>>$LOGFILE)
         #If failed, exit.
         [ $? -ne 0 ] && failed=1 && break
         
@@ -2039,7 +1791,7 @@ then
     done
     
     #Remove directory, to avoid leaving sensitive data behind
-    rm -rf $ROOTTMP/testdir >>$LOGFILE 2>>$LOGFILE
+    rm -rf $ROOTTMP/tmp/testdir >>$LOGFILE 2>>$LOGFILE
     
     log "found deadshares? $failed"
     

@@ -324,7 +324,7 @@ selectKeySize () {
 #  Main Program  #
 ##################
 
-#redirectError # TODO uncomment
+redirectError
 
 #This block is executed just once (skipped after invoking this same
 #script from inside itself)

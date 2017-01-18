@@ -9,14 +9,19 @@
 
 OPSEXE=/usr/local/bin/ssOperations
 
-#Temp dirs for the privileged operations
+#The base non-persistent directory for Root operation
 ROOTTMP="/root"
-ROOTFILETMP=$ROOTTMP"/filetmp"
-ROOTSSLTMP=$ROOTTMP"/ssltmp"
 
 
+ROOTSSLTMP=$ROOTTMP"/tmp/ssltmp"  # TODO delete if possible
 
 
+#############
+#  Globals  #
+#############
+
+#All root executed scripts will not give other permissions
+umask 027  # TODO verificar cuando vuelva ainstalar de cero que los ficheros creados, tipo los logs, no tienen o+r
 
 
 #############

@@ -177,7 +177,12 @@ getEmailList () {
 chooseMaintenanceAction () {
     
     #Get the privilege status for the admin
-    local adminprivileges=$(getAdminPrivilegeStatus)
+    local adminprivileges=""
+    adminprivileges=$(getAdminPrivilegeStatus)
+    local adminprivStatus=$?
+    
+    local color=1 #If privileges, show in red
+    [ $adminprivStatus -eq 0 ] && color=2 # If no privileges, show in green
     
     exec 4>&1
     while true; do
@@ -187,7 +192,7 @@ chooseMaintenanceAction () {
         local title=''
         title=$title$"Maintenance operations categories""\n"
         title=$title"===============================\n"
-        title=$title"  * ""\Zb"$"Administrator privileges"": \Z5""$adminprivileges""\Zn\Z0""\n"
+        title=$title"  * ""\Zb"$"Administrator privileges"": \Zn\Z$color""$adminprivileges""\Zn\Z0""\n"
         
         local selec=$($dlg --no-cancel --no-tags --colors \
                            --menu "$title" 0 60  9  \
@@ -320,10 +325,13 @@ chooseSSLOperation () {
     
     if [ $sslstate -eq 0 ] ; then #ok
         local certInstallText=$"Install a renewed certificate but keeping the private key."
+        local color=2 #Green
     elif [  $sslstate -eq 1 ] ; then #dummy
         local certInstallText=$"Install the pending certificate, overwriting the temporary one."
+        local color=1 #Red
     elif [  $sslstate -eq 2 ] ; then #renew
-        local certInstallText=$"Install the pending certificate and subtitute the currently operative one."
+        local certInstallText=$"Install the pending certificate and substitute the currently operative one."
+        local color=3 #Yellow
     else
         log "Bad sslcert status code returned $sslstate"
     fi
@@ -331,7 +339,7 @@ chooseSSLOperation () {
     local title=''
     title=$title$"SSL certificate management""\n"
     title=$title"===============================\n"
-    title=$title"  * ""\Zb"$"SSL certificate status"": \Z5""$sslstateText""\ZN"
+    title=$title"  * ""\Zb"$"SSL certificate status"": \Zn\Z$color""$sslstateText""\Zn"
     
     local selec=''
     selec=$($dlg --cancel-label $"Back" --no-tags --colors \
@@ -872,36 +880,64 @@ ssl-csr-read () {
 #a new one for a new key or for the same key
 ssl-cert-install () {
     local ret=0
-    
-    #Detect device insertion
-    insertUSB $"Insert USB storage device" "$cancelMsg"
-    ret=$?
 
-    [ $ret -eq 1 ] && return 1 #Cancelled, return
-    if [ $ret -eq 2 ] ; then
-        #No readable partitions found.
-        $dlg --msgbox $"Device contained no readable partitions." 0 0
-        return 2
-    fi
-    
-    #Mount the device (will do on /media/usbdrive)
-    $PVOPS mountUSB mount $USBDEV
-    if [ $? -ne 0 ] ; then
-        #Mount error. Try another one
-        $dlg --msgbox $"Error mounting the device." 0 0
-        return 3
-    fi
-    
-    # TODO SEGUIR
-    #derivar todo lo que pueda a la priv op.
+    while true
+    do
+        #Detect device insertion
+        insertUSB $"Insert USB storage device" "$cancelMsg"
+        ret=$?
+
+        [ $ret -eq 1 ] && return 1 #Cancelled, return
+        if [ $ret -eq 2 ] ; then
+            #No readable partitions found.
+            $dlg --msgbox $"Device contained no readable partitions." 0 0
+            continue
+        fi
         
-    #Pedir ruta del cert
-
-    #Pedir ruta del chain
-
-    #Priv op: que lea ambos y, según el estado, los valide del modo adecuado y los instale en la ubicación adecuada.
+        #Mount the device (will do on /media/usbdrive)
+        $PVOPS mountUSB mount $USBDEV
+        if [ $? -ne 0 ] ; then
+            #Mount error. Try another one
+            $dlg --msgbox $"Error mounting the device." 0 0
+            continue
+        fi
+        
+        break
+    done
     
+    while true
+    do   
+        #Ask for the SSL certificate file
+        selectUsbFilepath $"The signed SSL certificate file"
+        [ $? -ne 0 ] && return 1 #Cancelled, return
+        local sslcertFile="$chosenFilepath"
+        
+        #Ask for the SSL certificate chain file
+        selectUsbFilepath $"The certificate authority chain for the SSL certificate"
+        [ $? -ne 0 ] && return 1 #Cancelled, return
+        local chainFile="$chosenFilepath"
+        
+        #Read the files, parse them and if legitimate, install them
+        $PVOPS installSSLCert "$sslcertFile" "$chainFile"
+        ret=$?
+        
+        if [ $ret -eq 0 ] ; then
+            $dlg --msgbox $"SSL certificate successfully installed." 0 0
+            return 0
+        fi
+        # TODO SEGUIR , poner errores
+        [ $ret -eq 1 ] && $dlg --msgbox $"Error XXX." 0 0
+        
+        continue
+        
+    done
 }
+
+
+
+
+
+
 
 
 
@@ -913,7 +949,7 @@ ssl-cert-install () {
 ##################
 
 
-#redirectError # TODO uncomment
+redirectError
 
 
 #Idle screen. Select which action to execute

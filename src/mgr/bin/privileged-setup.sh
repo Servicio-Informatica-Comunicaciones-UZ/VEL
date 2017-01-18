@@ -132,8 +132,14 @@ privilegedSetupPhase1 () {
     ##### Last pre-setup steps #####
     
     #Create dir where usbs will be mounted
-	   mkdir -p /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+	   mkdir -p  /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+    chmod 755 /media/usbdrive
     
+    #Create root home dir structures
+    mkdir -p /root/log    >>$LOGFILE 2>>$LOGFILE
+    mkdir -p /root/stats  >>$LOGFILE 2>>$LOGFILE
+    mkdir -p /root/tmp    >>$LOGFILE 2>>$LOGFILE  # TODO ver que con el umask, other no tiene permisos.
+
     #Prepare root user tmp dir
     chmod 700 $ROOTTMP/ >>$LOGFILE 2>>$LOGFILE
     $PVOPS storops-init
@@ -297,7 +303,7 @@ recoverSSHBackupFileOp () {
         setVar SSHBAKPASSWD "$SSHBAKPASSWD" disk
         
         #Recover backup
-        recoverSSHBackupFile "" "$DATABAKPWD" "$SSHBAKUSER" "$SSHBAKSERVER" "$SSHBAKPORT" "$ROOTTMP/backupRecovery"
+        recoverSSHBackupFile "" "$DATABAKPWD" "$SSHBAKUSER" "$SSHBAKSERVER" "$SSHBAKPORT" "$ROOTTMP/tmp/backupRecovery"
         ret="$?"
         if [ "$ret" -ne 0 ] 
         then
@@ -309,7 +315,7 @@ recoverSSHBackupFileOp () {
         #recover those that are not going to be overwritten (ssh,
         #dbpwd and mailrelay will be written later with their new
         #values).
-        mv -f "$ROOTTMP/backupRecovery/$DATAPATH/*"  $DATAPATH/  # TODO change this. aufs may not be big enough to hold all of this. Write directly on the peristent data dev, also download the encrypted bak file there
+        mv -f "$ROOTTMP/tmp/backupRecovery/$DATAPATH/*"  $DATAPATH/  # TODO change this. aufs may not be big enough to hold all of this. Write directly on the peristent data dev, also download the encrypted bak file there
         
         #Restore temporarily saved variables
         setVar SSHBAKPASSWD "$SSHBAKPASSWDaux" disk 
@@ -336,16 +342,16 @@ recoverSSHBackupFile () {
 	       return 1
     fi
     
-    mkdir $ROOTTMP/bak
+    mkdir $ROOTTMP/tmp/bak
     
-    scp -P "$5" "$3"@"$4":vtUJI_backup.tgz.aes "$ROOTTMP/bak/"  >>$LOGFILE 2>>$LOGFILE
+    scp -P "$5" "$3"@"$4":vtUJI_backup.tgz.aes "$ROOTTMP/tmp/bak/"  >>$LOGFILE 2>>$LOGFILE
     if [ "$?" -ne 0 ]
 	   then
 	       $dlg --msgbox $"Error conectando con el servidor de Copia de Seguridad." 0 0
 	       return 1
     fi
     
-    openssl enc -d  -aes-256-cfb  -pass "pass:$2" -in "$ROOTTMP/bak/vtUJI_backup.tgz.aes" -out "$ROOTTMP/bak/vtUJI_backup.tgz"
+    openssl enc -d  -aes-256-cfb  -pass "pass:$2" -in "$ROOTTMP/tmp/bak/vtUJI_backup.tgz.aes" -out "$ROOTTMP/tmp/bak/vtUJI_backup.tgz"
     if [ "$?" -ne 0 ] 
 	   then
 	       $dlg --msgbox $"Error descifrando el fichero de Copia de Seguridad: fichero corrupto o llave incorrecta." 0 0 
@@ -354,20 +360,20 @@ recoverSSHBackupFile () {
 
 # TODO hacer que se guarden copias en round robin o infinitas. Sea como sea, aquí hacer un ls y sacar un selector de qué fichero de bak usar
     
-    rm -rf "$ROOTTMP/bak/vtUJI_backup.tgz.aes"
+    rm -rf "$ROOTTMP/tmp/bak/vtUJI_backup.tgz.aes"
     rm -rf "$6"
     mkdir  "$6"
     
-    tar xzf "$ROOTTMP/bak/vtUJI_backup.tgz" -C "$6"
+    tar xzf "$ROOTTMP/tmp/bak/vtUJI_backup.tgz" -C "$6"
     if [ "$?" -ne 0 ] 
 	   then
 	       $dlg --msgbox $"Error desempaquetando el fichero de Copia de Seguridad: fichero corrupto." 0 0 
 	       return 1
     fi
     
-    rm -rf "$ROOTTMP/bak/vtUJI_backup.tgz"
+    rm -rf "$ROOTTMP/tmp/bak/vtUJI_backup.tgz"
     
-    rmdir $ROOTTMP/bak
+    rmdir $ROOTTMP/tmp/bak
     
     return 0
 }
@@ -720,11 +726,11 @@ if [ "$1" == "recoverSSHBackup_phase2" ]
 then
     
     #restore database dump
-    mysql -f -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection  <"$ROOTTMP/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
+    mysql -f -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection  <"$ROOTTMP/tmp/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
     [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos." # TODO extinguir system Panic, al menos en el wizard. cambiar por msgbox y ya
     
     #Delete backup directory # TODO. this may change
-    rm -rf "$ROOTTMP/backupRecovery/"
+    rm -rf "$ROOTTMP/tmp/backupRecovery/"
     exit 0
 fi    
 

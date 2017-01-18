@@ -25,10 +25,10 @@ LOGFILE=/tmp/wizardLog
 
 #Log for the sql operations during install/maintenance (more
 #sensitive, root access only)
-SQLLOGFILE=/root/sqlLog
+SQLLOGFILE=/root/log/sqlLog
 
 #Log of the executed operations # TODO move to the encripted drive?
-OPLOG=/root/opLog
+OPLOG=/root/log/opLog
 
 
 #If this file contains a 1, no privileged operation will execute
