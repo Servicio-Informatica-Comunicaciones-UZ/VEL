@@ -887,31 +887,42 @@ parseEmailFile () {
 
 
 
+#Performs the operations to configure the SSL certificate on Apache
+#and Postfix
+setupSSLcertificate () {
+    
+    #Set the permissions and ownership (yes, every time, just in case)
+    chown root:ssl-cert $DATAPATH/webserver/server.key   >>$LOGFILE 2>>$LOGFILE
+    chown root:root     $DATAPATH/webserver/server.crt   >>$LOGFILE 2>>$LOGFILE
+    chown root:root     $DATAPATH/webserver/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+    chmod 640 $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
+    chmod 644 $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
+    chmod 644 $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
+    
+    #Link the files from the data drive to the system path
+	   ln -s  $DATAPATH/webserver/server.key    /etc/ssl/private/server.key >>$LOGFILE 2>>$LOGFILE
+	   ln -s  $DATAPATH/webserver/server.crt    /etc/ssl/certs/server.crt   >>$LOGFILE 2>>$LOGFILE
+	   ln -s  $DATAPATH/webserver/ca_chain.pem  /etc/ssl/ca_chain.pem       >>$LOGFILE 2>>$LOGFILE
+    
+    #Postfix SMTP client requires CAs to be on the same file, se we create a special
+    cp -f $DATAPATH/webserver/server.crt /etc/ssl/certs/server_postfix.crt    >>$LOGFILE 2>>$LOGFILE
+    cat $DATAPATH/webserver/ca_chain.pem >> /etc/ssl/certs/server_postfix.crt 2>>$LOGFILE
+    chmod 644 /etc/ssl/certs/server_postfix.crt                               >>$LOGFILE 2>>$LOGFILE
+}
 
 
 
 
-
-
-
-
-
-
-# TODO SEGUIR MAÑANA, las tres estas de cert, aplicarlas como toque en la priv op. ver si cubro todos los checks necesarios. ver tb el otro código por si me dejo algo.
 
 #Check if file contains one or more valid x509 certificates
-#1 -> Path to the file containing the certificate(s) to be checked
-#2 -> mode: 'serverCert' verify a single ssl server cert (by itself and towards the priv key)
-#           'certChain' verify a number of certificates (individually, not whether they form a valid cert chain)
-#3 -> path to the private key (in serverCert mode)
+#1 -> Path to the file containing the certificate(s) to be checked [no spaces]
+#2 -> Set to 1 if only 1 certificate must be expected in the file (will fail if more than 1 found)
 # RETURN: 0: Valid 1: Not valid
 checkCertificate () {
     
     local ret=0
     
     local certFile="$1"
-    local keyFile="$3"
-    
     if [ "$certFile" == "" -o ! -s "$certFile" ] ; then
         log "check certificate: can't find certificate file: $certFile"
         return 1
@@ -927,25 +938,84 @@ checkCertificate () {
 	       log "Error processing certificate file." 
 	       return 1
     fi
-    
-    #For each cert
     local certlist=$(ls "$certFile".[0-9]*)
     local certlistlen=$(echo $certlist | wc -w)
+    
+    
+    #If needed, check if there's a single certificate
+    if [ "$2" != ""  -a  "$2" -eq 1 ] ; then
+        
+        if [ "$certlistlen" -ne 1 ] ; then
+            log "Certificate file contains more than one certificate ($certlistlen)"
+            rm -f $certlist  >>$LOGFILE 2>>$LOGFILE
+            return 1
+        fi
+    fi
+    
+    
+    #For each cert
+    ret=0
     for cert in $certlist
     do
         #Check it is a x509 cert
         openssl x509 -text < "$cert"  >>$LOGFILE 2>>$LOGFILE
         if [ $? -ne 0 ] ; then 
-	           log "Error: certificate not a valid x509."
-	           return 1
+	           log "Error: certificate $cert not a valid x509."
+	           ret=1
         fi
         
         #Delete the test file
         rm -f "$cert"  >>$LOGFILE 2>>$LOGFILE
     done
     
+    return $ret
+}
+
+
+
+
+
+getX509Subject () {
+    openssl x509 -subject -in "$1" |
+        head -n 1 | grep subject | sed -re "s/^subject= //g"
+}
+
+
+getX509Issuer () {
+    openssl x509 -issuer -in "$1" |
+        head -n 1 | grep issuer | sed -re "s/^issuer= //g"
+}
+
+
+getX509Fingerprint () {
+    openssl x509 -sha256 -fingerprint -in "$1" |
+        head -n 1 | grep Fingerprint | sed -re "s/^SHA256 Fingerprint=//g"
+}
+
+
+
+
+
+#Checks if a certificate is self-signed or not
+#1 -> certificate path
+#RETURN 1: self-signed 2: error 0:signed by other
+isSelfSigned () {
+    
+    local subject=$(getX509Subject "$1")
+    local issuer=$(getX509Issuer   "$1")
+    
+    if [ "$subject" == "" -o "$issuer" == "" ] ; then
+        log "error extracting subject or issuer. certificate not right"
+        return 2
+    fi
+    
+    #If subject and issuer match, it must be self-signed
+    if [ "$subject" == "$issuer" ] ; then
+        return 1
+    fi
     return 0
 }
+
 
 
 

@@ -302,7 +302,7 @@ getClearance () { # TODO fill the lists *-*-
     #List of operations that can be executed without any authorisation
     local freeOps="getPubVar   isBackupEnabled
                    authAdmin  clearAuthAdmin
-                   setupSSLcertificate   fetchCSR
+                   fetchCSR
                    listUSBDrives   listHDDPartitions   getFilesystemSize   mountUSB
                    storops-resetSlot   storops-resetAllSlots   storops-switchSlot
                    storops-checkKeyClearance   storops-rebuildKey   storops-rebuildKeyAllCombs
@@ -313,7 +313,8 @@ getClearance () { # TODO fill the lists *-*-
     
     #List of operations requiring admin password check only
     local pwdOps="raiseAdminAuth
-                  forceBackup    freezeSystem"
+                  forceBackup    freezeSystem
+                  installSSLCert"
 
     # TODO decidir si free: setVarSafe getVarSafe trustSSHServer storops-readConfigShare
     # TODO decidir si pwd: stopServers mailServer-reload grantAdminPrivileges startApache 
@@ -1365,24 +1366,7 @@ fi
 #postfix
 if [ "$1" == "setupSSLcertificate" ] 
 then
-    
-    #Set the permissions and ownership (yes, every time, just in case)
-    chown root:ssl-cert $DATAPATH/webserver/server.key   >>$LOGFILE 2>>$LOGFILE
-    chown root:root     $DATAPATH/webserver/server.crt   >>$LOGFILE 2>>$LOGFILE
-    chown root:root     $DATAPATH/webserver/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
-    chmod 640 $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
-    chmod 644 $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
-    chmod 644 $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
-    
-    #Link the files from the data drive to the system path
-	   ln -s  $DATAPATH/webserver/server.key    /etc/ssl/private/server.key >>$LOGFILE 2>>$LOGFILE
-	   ln -s  $DATAPATH/webserver/server.crt    /etc/ssl/certs/server.crt   >>$LOGFILE 2>>$LOGFILE
-	   ln -s  $DATAPATH/webserver/ca_chain.pem  /etc/ssl/ca_chain.pem       >>$LOGFILE 2>>$LOGFILE
-
-    #Postfix SMTP client requires CAs to be on the same file, se we create a special # TODO due to this, we may need to call this function after each cert install, and it is a unprivileged op, so this should be
-    cp -f $DATAPATH/webserver/server.crt /etc/ssl/certs/server_postfix.crt    >>$LOGFILE 2>>$LOGFILE
-    cat $DATAPATH/webserver/ca_chain.pem >> /etc/ssl/certs/server_postfix.crt 2>>$LOGFILE
-    chmod 644 /etc/ssl/certs/server_postfix.crt                               >>$LOGFILE 2>>$LOGFILE
+    setupSSLcertificate
     exit 0
 fi
 
@@ -1491,22 +1475,11 @@ fi
 
 
 
-
-
-
-
-  
-
-
-
-##### SEGUIR: faltan por revisar
-
-
 #Reads a certificate and ca_chain file and depending on the current
 #ssl state, performs some validations and if adequate, gets it
 #installed
-#2 -> ssl certificate file path
-#3 -> ca chain file path
+#2 -> ssl certificate file path candidate for installation
+#3 -> ca chain file path for the candidate
 if [ "$1" == "installSSLCert" ] 
 then
     
@@ -1525,6 +1498,13 @@ then
 	       sslpath="$DATAPATH/webserver/newcsr"	
     fi
     
+    opLog "[SSL] Attempting certificate installation on "$(date)"."
+    opLog "[SSL] Current SSL state: $SSLCERTSTATE"
+    opLog "[SSL] Current certificate SHA256 fingerprint: "$(getX509Fingerprint "$DATAPATH/webserver/server.crt")
+    opLog "[SSL] Current certificate subject: "$(getX509Subject "$DATAPATH/webserver/server.crt")
+    opLog "[SSL] Current certificate issuer: "$(getX509Issuer   "$DATAPATH/webserver/server.crt")
+    
+    
     #Read the files and put them on a temp
     if [ ! -s "$sslcertpath" ] ; then
         log "SSL cert file $sslcertpath has no size"
@@ -1537,30 +1517,55 @@ then
     fi
     cp -f "$cachainpath" $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
     
-
+    
     #Validate the certificate and chain, depending on the current state
-    # TODO
-    #    candidate is self-signed? reject
-    #    candidate is valid? ok
-    checkCertificate candidate
-    #    candidate coincides with the privkey? ok
-            #If processing a server cert file, it must match with the private key       # TODO sacarlo fuera
-        doCertAndKeyMatch "$cert" "$keyFile"
-        if [ $? -ne 0  ] ; then
-	           log "Error: certificate does not match the private key."
-	           return 19
-        fi
-        #    each cert of the chain is valid? ok
-            checkCertificate chain
-
-    #    candidate validates with all the provided chain? ok -- verifyCert
-    #    is the root cert part of the system ca store? ok -- verifyCert
-
     
-
-    rm -f $ROOTTMP/tmp/server.crt   >>$LOGFILE 2>>$LOGFILE
-    rm -f $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+    #Candidate is valid? ok
+    checkCertificate  $ROOTTMP/tmp/server.crt  "1"
+    if [ $? -ne 0  ] ; then
+	       log "Error: candidate certificate is not valid x509 pem."
+        rm -f $ROOTTMP/tmp/server.crt   >>$LOGFILE 2>>$LOGFILE
+        rm -f $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+	       exit 1
+    fi
     
+    #Candidate is self-signed? reject
+    isSelfSigned  $ROOTTMP/tmp/server.crt
+    if [ $? -ne 0  ] ; then
+	       log "Error: candidate certificate is self signed."
+        rm -f $ROOTTMP/tmp/server.crt   >>$LOGFILE 2>>$LOGFILE
+        rm -f $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+	       exit 2
+    fi
+    
+    #Candidate matches with the private key? ok
+    doCertAndKeyMatch  $ROOTTMP/tmp/server.crt "$sslpath"/server.key
+    if [ $? -ne 0  ] ; then
+	       log "Error: certificate does not match the private key."
+        rm -f $ROOTTMP/tmp/server.crt   >>$LOGFILE 2>>$LOGFILE
+        rm -f $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+	       exit 3
+    fi
+    
+    #Each certificate in the chain is valid? ok
+    checkCertificate $ROOTTMP/tmp/ca_chain.pem  "0"
+    if [ $? -ne 0  ] ; then
+	       log "Error: some certificate in the chain is not valid x509."
+        rm -f $ROOTTMP/tmp/server.crt   >>$LOGFILE 2>>$LOGFILE
+        rm -f $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+	       exit 4
+    fi
+    
+    #Candidate validates with the provided chain? ok
+    #Is the root certificate part of the system CA store? ok
+	   verifyCert  $ROOTTMP/tmp/server.crt  $ROOTTMP/tmp/ca_chain.pem
+    if [ $? -ne 0 ] ; then
+ 	      #No ha verificado. Avisamos y salimos (borramos el cert y la chain en temp)
+	       log "Error: some certificate in the chain is not valid x509."
+        rm -f $ROOTTMP/tmp/server.crt   >>$LOGFILE 2>>$LOGFILE
+        rm -f $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
+	       exit 5
+	   fi
     
     
     #Since this can be called to renew a working certificate without
@@ -1572,38 +1577,57 @@ then
     fi  
     
     
-    #Install the certificate and chain
-
     /etc/init.d/apache2 stop  >>$LOGFILE  2>>$LOGFILE
     /etc/init.d/postfix stop  >>$LOGFILE  2>>$LOGFILE
     
-    #TODO SEGUIR
+    
+    #Install the certificate and chain to the expected path
+    mv -f $ROOTTMP/tmp/server.crt  $sslpath/server.crt      >>$LOGFILE 2>>$LOGFILE
+    mv -f $ROOTTMP/tmp/ca_chain.pem  $sslpath/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
     
     
-    # TODO añadir op log indicando el estado anterior, el actual, el cambio de cert y el hash del cert instalado? y de las cas? también loguear los errores e intentos fallidos    opLog "asdas"
+    #If we are in renew state
+    if [ "$SSLCERTSTATE" == "renew" ] ; then
+        
+        #Archive the base one 
+        archive="$DATAPATH/webserver/archive/ssl"$(date +%s)
+        mkdir -p "$archive"                      >>$LOGFILE 2>>$LOGFILE
+        cp -f $DATAPATH/webserver/* "$archive/"  >>$LOGFILE 2>>$LOGFILE # Only copy the files
+        
+        #Substitute old certificate with the new certificate
+        mv -f $DATAPATH/webserver/newcsr/* $DATAPATH/webserver/  >>$LOGFILE 2>>$LOGFILE
+        rmdir $DATAPATH/webserver/newcsr/    >>$LOGFILE 2>>$LOGFILE
+    fi
     
-
-    # TODO do the postfix cert rebundle
     
-    
+    #Do the apache and postfix configuration
+    setupSSLcertificate
     
     
     #Reload apache and postfix
     /etc/init.d/apache2 start  >>$LOGFILE  2>>$LOGFILE
     if [ $? -ne 0 ] ; then
 	       log "Error restarting apache" 
-	       exit 1
+	       exit 6
 	   fi
     /etc/init.d/postfix start  >>$LOGFILE  2>>$LOGFILE
     if [ $? -ne 0 ] ; then
 	       log "Error restarting postfix" 
-	       exit 1
+	       exit 7
 	   fi
     
+    #Switch SSL state to OK
+	   setVar SSLCERTSTATE "OK" disk
+
+    #Register the operation for security reasons
+    opLog "Certificate installation successful on "$(date)" "
+    opLog "[SSL] New certificate SHA256 fingerprint: "$(getX509Fingerprint "$DATAPATH/webserver/server.crt")
+    opLog "[SSL] New certificate subject: "$(getX509Subject "$DATAPATH/webserver/server.crt")
+    opLog "[SSL] New certificate issuer: "$(getX509Issuer   "$DATAPATH/webserver/server.crt")
     exit 0
 fi
 
-   
+
 
 
 

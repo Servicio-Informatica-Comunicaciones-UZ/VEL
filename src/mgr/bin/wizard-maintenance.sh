@@ -925,7 +925,7 @@ ssl-cert-install () {
             $dlg --msgbox $"SSL certificate successfully installed." 0 0
             return 0
         fi
-        # TODO SEGUIR , poner errores
+        # TODO SEGUIR , poner errores 1-7
         [ $ret -eq 1 ] && $dlg --msgbox $"Error XXX." 0 0
         
         continue
