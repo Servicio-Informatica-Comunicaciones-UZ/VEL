@@ -1560,8 +1560,7 @@ then
     #Is the root certificate part of the system CA store? ok
 	   verifyCert  $ROOTTMP/tmp/server.crt  $ROOTTMP/tmp/ca_chain.pem
     if [ $? -ne 0 ] ; then
- 	      #No ha verificado. Avisamos y salimos (borramos el cert y la chain en temp)
-	       log "Error: some certificate in the chain is not valid x509."
+	       log "Error: certificate purpose not SSL server or chain trust validation error."
         rm -f $ROOTTMP/tmp/server.crt   >>$LOGFILE 2>>$LOGFILE
         rm -f $ROOTTMP/tmp/ca_chain.pem >>$LOGFILE 2>>$LOGFILE
 	       exit 5
@@ -1604,6 +1603,12 @@ then
     setupSSLcertificate
     
     
+    #Register the operation for security reasons
+    opLog "[SSL] New certificate SHA256 fingerprint: "$(getX509Fingerprint "$DATAPATH/webserver/server.crt")
+    opLog "[SSL] New certificate subject: "$(getX509Subject "$DATAPATH/webserver/server.crt")
+    opLog "[SSL] New certificate issuer: "$(getX509Issuer   "$DATAPATH/webserver/server.crt")
+    
+    
     #Reload apache and postfix
     /etc/init.d/apache2 start  >>$LOGFILE  2>>$LOGFILE
     if [ $? -ne 0 ] ; then
@@ -1618,12 +1623,8 @@ then
     
     #Switch SSL state to OK
 	   setVar SSLCERTSTATE "OK" disk
-
-    #Register the operation for security reasons
-    opLog "Certificate installation successful on "$(date)" "
-    opLog "[SSL] New certificate SHA256 fingerprint: "$(getX509Fingerprint "$DATAPATH/webserver/server.crt")
-    opLog "[SSL] New certificate subject: "$(getX509Subject "$DATAPATH/webserver/server.crt")
-    opLog "[SSL] New certificate issuer: "$(getX509Issuer   "$DATAPATH/webserver/server.crt")
+    
+    opLog "[SSL] Certificate installation successful on "$(date)" "
     exit 0
 fi
 

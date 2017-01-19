@@ -919,15 +919,19 @@ ssl-cert-install () {
         
         #Read the files, parse them and if legitimate, install them
         $PVOPS installSSLCert "$sslcertFile" "$chainFile"
-        ret=$?
-        
+        ret=$?        
         if [ $ret -eq 0 ] ; then
             $dlg --msgbox $"SSL certificate successfully installed." 0 0
             return 0
         fi
-        # TODO SEGUIR , poner errores 1-7
-        [ $ret -eq 1 ] && $dlg --msgbox $"Error XXX." 0 0
-        
+        #If error, show it and loop (can cancel there)
+        [ $ret -eq 1 ] && $dlg --msgbox $"Certificate is not a valid x509." 0 0
+        [ $ret -eq 2 ] && $dlg --msgbox $"Self signed certificates not allowed" 0 0
+        [ $ret -eq 3 ] && $dlg --msgbox $"Certificate does not match the private key" 0 0
+        [ $ret -eq 4 ] && $dlg --msgbox $"Some certificate in the CA chain is not valid. Check them." 0 0
+        [ $ret -eq 5 ] && $dlg --msgbox $"Failed validating chain trust and certificate purpose." 0 0
+        [ $ret -eq 6 ] && $dlg --msgbox $"Error configuring webserver." 0 0
+        [ $ret -eq 7 ] && $dlg --msgbox $"Error configuring mail server" 0 0
         continue
         
     done
