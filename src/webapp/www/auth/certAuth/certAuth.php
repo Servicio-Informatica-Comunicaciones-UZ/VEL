@@ -1,13 +1,11 @@
 <?php
 
 
+//Default language: English
+mmSetLang(mmIniStr('en'),'en');
 
 
 
-echo '<pre>';
-print_r($_SERVER['SSL_CLIENT_CERT']);
-
-exit(0);
 
 
 
@@ -47,6 +45,9 @@ if ($sid=$_GET['sid']) {
 
 
 
+
+
+
 ////// Perform the authentication
 
 
@@ -61,12 +62,6 @@ session_start();
 //  header('Location: https://'.$_SERVER['HTTP_HOST'].':444'.$_SERVER['SCRIPT_NAME'].'?'.$_SERVER['QUERY_STRING']);
 //  die();
 //}
-
-
-//Get user agent preferred language and use it. Default to English
-$lang = substr($_SERVER['HTTP_ACCEPT_LANGUAGE'], 0, 2);
-mmSetLang(mmIniStr($lang),'en');
-
 
 
 
@@ -112,7 +107,12 @@ $x509['email'] = $email;
 //Get the Common Name
 $cn = $prs['subject']['CN'];
 
-//Try to extract the user ID number
+
+
+
+
+
+//Try to extract the user ID number  // TODO refine using user certificates as example
 
 //Search for the string NIF
 $dni = preg_replace('/.*NIF[: ] */','', $cn);
@@ -124,21 +124,33 @@ if ($dni == $cn)
 $x509['DNI'] = $dni;
 
 
-//Get the return URL
-$url = $_GET['reto'];
 
-//Build the return
+
+
+
+//Build the return destination (different methods):
+
+//Returns to the URL specified by the SP, passes the session token so
+//info can be retrieved through backchannel [we use this]
+$url = $_GET['reto'];
 if ($url){
     $reto = 'reto_auth='.urlencode('?sid='.session_id());
     header("Location: $url$reto");
 }
+
+//Redirect back to the SP, session is shared and info will be read. Same server only
 else if ($ret=$_GET['dirAuth'])
     header("Location: $ret");
+
+// Just print the certificate
 else {
     header("Content-type: text/plain");
     print_r($prs);
     print_r($x509);
 }
+
+
+
 
 
 
