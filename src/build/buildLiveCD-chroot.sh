@@ -221,6 +221,8 @@ cp -fv /root/src/webapp/bundle/ivot.php          /var/www/tmp/
 cp -fv /root/src/webapp/tools/mkInstaller.php    /var/www/tmp/
 cp -fv /root/src/webapp/tools/markVariables.py   /var/www/tmp/
 
+#Copy the static web app tree
+cp -fvr /root/src/webapp/www/*                   /var/www/
 
 
 

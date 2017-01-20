@@ -7,7 +7,7 @@
 
 
 #Install from scratch, executes deboostrap
-NEWCD=0
+NEWCD=1
 
 #Run the chroot specific script
 RUNCHROOT=1

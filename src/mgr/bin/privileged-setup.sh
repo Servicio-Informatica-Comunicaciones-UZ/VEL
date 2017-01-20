@@ -676,6 +676,16 @@ then
     #Run the script (-f to go on despite errors, as the script
     #executes some alters for backwards compatibility)
     dbQuery  $(cat /usr/local/bin/buildDB.sql 2>>$SQLLOGFILE)
+    if [ $? -ne 0 ] ; then
+        log "error executing buildDB.sql"
+        exit 1
+    fi
+
+    #Configure the Certificate authentication method # TODO SEGUIR MAÑANA, verificar que se instala el script y que se configura y se puede usar
+    dbQuery "update eVotMetAut set nomA='Certificate'," \
+            "tipEx=1, disp=1," \
+            "urlA='https://localhost/auth/certAuth/certAuth.php'" \
+            "where idH=11;"
     exit $?
 fi
 
