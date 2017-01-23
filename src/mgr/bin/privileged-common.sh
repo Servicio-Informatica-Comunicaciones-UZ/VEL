@@ -396,9 +396,9 @@ listUSBs  () {
             
             #Try to write a file
 	           local testfile=testfile$(randomPassword 32)
-            echo "test writability" > /media/usbdrive/$testfile 2>/dev/null
+            echo "test writability" > /mnt/$testfile 2>/dev/null
             [ $? -ne 0 ] && continue # Can't write
-	           rm -f /media/usbdrive/$testfile
+	           rm -f /mnt/$testfile
             
             #Mountable and writable, add to the list
             USBDEVS="$USBDEVS $currdev"

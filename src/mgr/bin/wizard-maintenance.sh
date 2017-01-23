@@ -884,7 +884,7 @@ ssl-cert-install () {
     while true
     do
         #Detect device insertion
-        insertUSB $"Insert USB storage device" "$cancelMsg"
+        insertUSB $"Insert USB storage device" $"Cancel"
         ret=$?
 
         [ $ret -eq 1 ] && return 1 #Cancelled, return
@@ -909,12 +909,18 @@ ssl-cert-install () {
     do   
         #Ask for the SSL certificate file
         selectUsbFilepath $"The signed SSL certificate file"
-        [ $? -ne 0 ] && return 1 #Cancelled, return
+        if [ $? -ne 0 ] ; then
+            $PVOPS mountUSB umount
+            return 1 #Cancelled, return
+        fi
         local sslcertFile="$chosenFilepath"
         
         #Ask for the SSL certificate chain file
         selectUsbFilepath $"The certificate authority chain for the SSL certificate"
-        [ $? -ne 0 ] && return 1 #Cancelled, return
+        if [ $? -ne 0 ] ; then
+            $PVOPS mountUSB umount
+            return 1 #Cancelled, return
+        fi
         local chainFile="$chosenFilepath"
         
         #Read the files, parse them and if legitimate, install them
@@ -922,6 +928,7 @@ ssl-cert-install () {
         ret=$?        
         if [ $ret -eq 0 ] ; then
             $dlg --msgbox $"SSL certificate successfully installed." 0 0
+            $PVOPS mountUSB umount
             return 0
         fi
         #If error, show it and loop (can cancel there)

@@ -1808,13 +1808,13 @@ into the text-entry window."
         
         #Check that the path is strictly a subdirectory of the mounted
         #usb device
-        if ! (echo "$selPath" | grep -Ee "^/media/usbdrive/.+") ; then
+        if ! (echo "$selPath" | grep -Ee "^/media/usbdrive/.+" >>$LOGFILE 2>>$LOGFILE) ; then
 	           $dlg --msgbox $"Bad path. Must be a file inside the USB device" 0 0  
 	           continue
         fi
         
         #Check that path does not contain directory backreferences (../)
-        if (echo "$selPath" | grep -Ee "/\.\.(/| |$)") ; then 
+        if (echo "$selPath" | grep -Ee "/\.\.(/| |$)" >>$LOGFILE 2>>$LOGFILE) ; then 
 	           $dlg --msgbox $"Bad path. Upper directories not allowed in path." 0 0  
 	           continue
         fi

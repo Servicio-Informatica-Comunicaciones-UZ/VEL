@@ -674,17 +674,18 @@ fi
 if [ "$1" == "populateDB" ]
 then
     #Run the script (-f to go on despite errors, as the script
-    #executes some alters for backwards compatibility)
-    dbQuery  $(cat /usr/local/bin/buildDB.sql 2>>$SQLLOGFILE)
-    if [ $? -ne 0 ] ; then
-        log "error executing buildDB.sql"
-        exit 1
-    fi
-
+    #executes some alters for backwards compatibility). No error
+    #control can be performed here and dbQuery cannot be used.
+    getVar disk DBPWD
+    log "Executing buildDB.sql"
+    cat /usr/local/bin/buildDB.sql |
+        mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
+    
     #Configure the Certificate authentication method # TODO SEGUIR MAÑANA, verificar que se instala el script y que se configura y se puede usar
+    getVar disk SERVERCN
     dbQuery "update eVotMetAut set nomA='Certificate'," \
             "tipEx=1, disp=1," \
-            "urlA='https://localhost/auth/certAuth/certAuth.php'" \
+            "urlA='https://$SERVERCN/auth/certAuth/certAuth.php'" \
             "where idH=11;"
     exit $?
 fi

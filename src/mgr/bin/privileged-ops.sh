@@ -617,9 +617,12 @@ then
         exit 1
     fi
 
+    #Mount options, to allow the user to travel and select files
+    mountOpts="dmask=0022,fmask=0027"
+    
     #Do the mount
     if [ "$2" == "mount" ] ; then
-        mount  "$3" /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+        mount  "$3" /media/usbdrive -o"$mountOpts"  >>$LOGFILE 2>>$LOGFILE
 	       if [ "$?" -ne "0" ] ; then
             #Maybe the path is already mounted. Umount and retry
             umount /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
@@ -628,7 +631,7 @@ then
                 exit 1
             fi
             #Try a second and last mount
-            mount  "$3" /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
+            mount  "$3" /media/usbdrive -o"$mountOpts"  >>$LOGFILE 2>>$LOGFILE
             if [ "$?" -ne "0" ] ; then
                 log "mountUSB: Partition '$3' mount error"
                 exit 1

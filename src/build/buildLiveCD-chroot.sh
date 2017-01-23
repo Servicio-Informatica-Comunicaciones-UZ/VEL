@@ -369,7 +369,7 @@ update-rc.d -f winbind       remove
 #Create non-privileged user (UID 1000)
 #adduser [options] [--home DIR] [--shell SHELL] [--no-create-home] [--uid ID] [--firstuid ID] [--lastuid ID] [--ingroup GROUP | --gid ID] [--disabled-password] [--disabled-login] [--gecos GECOS] [--add_extra_groups] user
 ctell "****** Create non-privileged user vtuji"
-adduser --shell $BINDIR/wizard-bootstrap.sh --disabled-password --disabled-login vtuji
+echo -ne "\n\n\n\n\n\n" | adduser --shell $BINDIR/wizard-bootstrap.sh --disabled-password --disabled-login vtuji
 
 
 
