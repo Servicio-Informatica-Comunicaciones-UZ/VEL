@@ -163,7 +163,7 @@ executeSystemAction (){
 	               
 	               fetchCSR "renew"
 
-	               echo -n "RENEW" > $DATAPATH/root/sslcertstate.txt	  
+	               echo -n "renew" > $DATAPATH/root/sslcertstate.txt	  
 
 	               $dlg --msgbox $"Petición de certificado generada correctamente." 0 0
             else

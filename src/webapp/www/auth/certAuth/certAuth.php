@@ -21,7 +21,8 @@ if ($sid=$_GET['sid']) {
     //For this purpose, only localhost
     $whitelist = array(
         '127.0.0.1',
-        '::1'
+        '::1',
+        '###***ownIP***###'
     );
     
     //($_SERVER['SERVER_ADDR'] != $_SERVER['REMOTE_ADDR'])

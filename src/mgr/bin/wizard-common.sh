@@ -552,14 +552,14 @@ networkParams () {
     
     #<DEBUG>
 	   log "IPMODE: "$IPMODE   # TODO guess where these vars are passed to the privileged part and stored on the config (either drive or usbdevs)
-	   log "IP:   "$IPADDR
+	   log "IP:   "$IPADDR  # TODO I guess in dhcp mode, this is not set, and it is used in configureHostDomain, extratc the IP from somewhere (use a function I'll create to parse the certificate auth script, getOwnIP)
 	   log "MASK: "$MASK
 	   log "GATE: "$GATEWAY
 	   log "DNS1: "$DNS1
 	   log "DNS2: "$DNS2
 	   log "HOSTNM: "$HOSTNM
  	  log "DOMNAME: "$DOMNAME
-   #</DEBUG>
+    #</DEBUG>
     
     return $ret
 } #NetworkParams

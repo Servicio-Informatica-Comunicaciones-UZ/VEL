@@ -818,3 +818,16 @@ sshTestConnect () {
     
     return $ret
 }
+
+
+
+
+
+#Returns the currently configured IP address (for when it is needed
+#and network config is dhcp)
+#STDOUT: own IP address
+getOwnIP () {
+    /sbin/ifconfig | grep -Ee "^eth" -A 1 |
+        grep -Ee "inet addr" |
+        sed -re  "s/^.*inet addr:([^\s]+)\s.*$/\1/g"
+}

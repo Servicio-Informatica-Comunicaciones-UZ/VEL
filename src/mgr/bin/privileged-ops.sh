@@ -1425,6 +1425,11 @@ then
     #Leave the app version empty to block remote updates
     sed -i  -e "s|###\*\*\*ver\*\*\*###||g" /var/www/*.php
     
+    
+    #Set the local IP for the protection of the certificate auth script
+    ownIP=$(getOwnIP)  # TODO verificar que funciona
+    sed -i  -e "s|###\*\*\*ownIP\*\*\*###|$ownIP|g" /var/www/auth/certAuth/certAuth.php # TODO esto tras NAT funcionará?
+    
     exit 0
 fi
 
@@ -1624,8 +1629,8 @@ then
 	       exit 7
 	   fi
     
-    #Switch SSL state to OK
-	   setVar SSLCERTSTATE "OK" disk
+    #Switch SSL state to ok
+	   setVar SSLCERTSTATE "ok" disk
     
     opLog "[SSL] Certificate installation successful on "$(date)" "
     exit 0
