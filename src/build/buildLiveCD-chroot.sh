@@ -226,6 +226,20 @@ cp -fvr /root/src/webapp/www/*                   /var/www/
 
 
 
+#Remove the test CA
+rm -fv  /etc/ssl/certs/TEST.pem
+if [ -e /etc/ssl/certs/ca-certificates.crt.orig ] ; then
+    mv /etc/ssl/certs/ca-certificates.crt.orig /etc/ssl/certs/ca-certificates.crt
+fi
+#<DEBUG>
+#Install the test CA
+cp -fv  /root/src/test/ssl/ca.crt  /etc/ssl/certs/TEST.pem
+cp -fv /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt.orig
+cat /etc/ssl/certs/TEST.pem >> /etc/ssl/certs/ca-certificates.crt
+c_rehash
+#</DEBUG>
+
+
 
 
 #Build locales
@@ -647,6 +661,7 @@ rm -rf /var/www/tmp/
 
 
 ctell "####### Miscellany #########"
+
 
 #Rehash certificate directory # TODO hacer esto cuando pueda estar instalando un cert o una CA
 c_rehash

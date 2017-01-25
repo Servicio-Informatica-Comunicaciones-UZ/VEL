@@ -829,5 +829,6 @@ sshTestConnect () {
 getOwnIP () {
     /sbin/ifconfig | grep -Ee "^eth" -A 1 |
         grep -Ee "inet addr" |
-        sed -re  "s/^.*inet addr:([^\s]+)\s.*$/\1/g"
+        sed -re  "s/^.*inet addr:([^\s]+)\s.*$/\1/g" |
+        tr -d "\n "
 }

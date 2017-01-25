@@ -2253,6 +2253,58 @@ fi     # TODO: recordarb que existe la op 'rootShell'
 
 
 
+
+if [ "$1" == "enableCertbot" ] 
+then
+
+
+    #Enable backports repo and install package (TODO move to build?)
+echo "deb http://ftp.debian.org/debian jessie-backports main" > /etc/apt/sources.list.d/backports.list
+apt-get update
+apt-get install python-certbot-apache -t jessie-backports
+
+#Get certificate with certbot
+certbot --apache certonly -n -m farago@uji.es --domains lab9056...
+
+#Move letsencrypt directory to data partition
+
+#Link current certificate/chain/key to the expected location ( TODO overwrite the files in the partition or do a dual apache-postfix config function?)
+/etc/letsencrypt/live/lab9056.../cert.pem
+/etc/letsencrypt/live/lab9056.../privkey.pem
+/etc/letsencrypt/live/lab9056.../chain.pem #para el apache?
+/etc/letsencrypt/live/lab9056.../fullchain.pem # Para el postfix?
+
+
+
+#Test renewal
+certbot renew --dry-run 
+
+
+#Automate renewal
+
+0 3 * * 1       certbot renew
+
+    exit 0
+fi
+
+
+
+if [ "$1" == "disableCertbot" ] 
+then
+
+
+
+
+    exit 0
+fi
+
+
+
+
+
+
+
+
 # SEGUIR REVISANDO
 
 
