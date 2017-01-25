@@ -1172,6 +1172,39 @@ selectSharingParams () {
 
 
 
+#Prompts the user to select whether to use lets'encrypt automatic CA
+#with certbot or to go for a classical hand installed certificate
+#Will set the following global variables:
+#USINGCERTBOT
+sslModeParameters () {
+    
+    #Let the user choose
+    $dlg --yes-label $"Use Let's Encrypt"  --no-label $"I will handle the certificate manually"  --yesno  $"Do you wish to use a certificate from Let's Encrypt Certification Authority (automatic, instant and free of charge) or do you wish to use a traditional CA? (You may go from one mode to another at any time )" 0 0
+    #Decided to use certbot
+    if [ $? -eq  0 ] ; then
+		      log "Using certbot."
+        USINGCERTBOT="1"
+    else
+        log "Using a traditional CA."
+        USINGCERTBOT="0"
+    fi
+    
+    #<DEBUG>
+    log "USINGCERTBOT: $USINGCERTBOT"
+    #</DEBUG>
+    return 0
+    
+}
+
+
+
+
+
+
+
+
+
+
 #Prompts the user to select the content of the SSL certificate request
 #for the HTTP and mail servers
 #Will set the following global variables:
@@ -1193,7 +1226,6 @@ sslCertParameters () {
     [ "$DEPARTMENT" == "" ] && DEPARTMENT="-"
     [ "$STATE" == "" ] && STATE="-"
     [ "$LOC" == "" ] && LOC="-"
-    [ "$SERVEREMAIL" == "" ] && SERVEREMAIL="-"
     [ "$SERVERCN" == "" ] && SERVERCN="$HOSTNM.$DOMNAME"
     
     local choice=""
@@ -1208,7 +1240,7 @@ sslCertParameters () {
 	                     $"Two letter code of your contry"     8  1 "$COUNTRY"     8  40  3   2   0  \
                       $"State or province (optional)"       10 1 "$STATE"       10 40  20  30  0  \
                       $"Locality (optional)"                12 1 "$LOC"         12 40  20  30  0  \
-                      $"Contact e-mail (optional)"          15 1 "$SERVEREMAIL" 15 40  20  30  0  \
+                      $"Contact e-mail"                     15 1 "$SERVEREMAIL" 15 40  20  30  0  \
                       $"Server domain name"                 18 1 "$SERVERCN"    18 40  20  50  0  \
                       2>&1 >&4 )
         #If cancelled, exit
@@ -1241,9 +1273,11 @@ sslCertParameters () {
                     ;;
 		              
 		              "2" ) #DEPARTMENT
-		                  parseInput x500 "$item"
-                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Department name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
-  		                else DEPARTMENT="$item" ; fi
+                    if [ "$item" != "-" ] ; then
+		                      parseInput x500 "$item"
+                        if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Department name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                    else DEPARTMENT="$item" ; fi
+                    fi
                     ;;
 		              
 		              "3" ) #COUNTRY
@@ -1253,23 +1287,25 @@ sslCertParameters () {
                     ;;
 		              
 		              "4" ) #STATE
-		                  parseInput x500 "$item"
-                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"State/Province name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
-  		                else STATE="$item" ; fi
+                    if [ "$item" != "-" ] ; then
+		                      parseInput x500 "$item"
+                        if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"State/Province name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                    else STATE="$item" ; fi
+                    fi
                     ;;
 		              
 		              "5" ) #LOC
-		                  parseInput x500 "$item"
-                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Locality name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
-  		                else LOC="$item" ; fi
+                    if [ "$item" != "-" ] ; then
+                        parseInput x500 "$item"
+                        if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Locality name not valid. Can contain any of the following:""\n$ALLOWEDCHARSET"
+  		                    else LOC="$item" ; fi
+                    fi
                     ;;
 		              
 		              "6" ) #SERVEREMAIL
-                    if [ "$item" != "-" ] ; then
-		                      parseInput email "$item"
-                        if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Contact e-mail not valid."
-  		                    else SERVEREMAIL="$item" ; fi
-                    fi
+		                  parseInput email "$item"
+                    if [ $? -ne 0 ] ; then loopAgain=1; errors="$errors\n"$"Contact e-mail not valid."
+  		                else SERVEREMAIL="$item" ; fi
                     ;;
 		              
 		              "7" ) #SERVERCN

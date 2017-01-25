@@ -209,6 +209,8 @@ setDiskVariables () {
     setVar disk LOC "$LOC"
     setVar disk SERVEREMAIL "$SERVEREMAIL"
     setVar disk SERVERCN "$SERVERCN"
+    
+    setVar disk USINGCERTBOT "$USINGCERTBOT"
 }
 
 #Reads needed variables from the usb config file
@@ -257,6 +259,9 @@ getDiskVariables () {
     SITESORGSERV=$(getVar disk SITESORGSERV)
 	   SITESNAMEPURP=$(getVar disk SITESNAMEPURP)
     SITESTOKEN=$(getVar disk SITESTOKEN)
+    
+    
+    USINGCERTBOT=$(getVar disk USINGCERTBOT)
 }
 
 
@@ -560,6 +565,7 @@ do
                 
                 
                 "8" ) #SSL certificate
+                    sslModeParameters
                     sslCertParameters
                     action=$?
                     ;;
@@ -803,8 +809,10 @@ do
     
     #Handle SSL certificate
     if [ "$DOINSTALL" -eq 1 ]
-    then        
-	       #Generate the certificate signing request for the SSL connections
+    then
+        #Setup the certbot directory in the persistent drive
+        $PVOPS setupCertbotDir "new"
+        
 	       generateCSR "new"
 	       [ $? -ne 0 ] && continue #Failed, go back to the menu
 	       
@@ -814,7 +822,37 @@ do
         #Store the SSL certificate current state
         setVar disk SSLCERTSTATE "dummy"  #Currently running with a self-signed
     fi
+
+    #Setup the certbot directory symlink
+    $PVOPS setupCertbotDir "reset"
     
+    
+    
+    #If decided to use certbot, override the dummy one
+    if [ "$USINGCERTBOT" -eq 1 ] ; then            
+        $dlg --infobox $"Requesting Let's Encrypt SSL certificate..." 0 0
+
+        err=0
+        #Request the certificate
+        if [ "$DOINSTALL" -eq 1 ] ; then
+            
+            $PVOPS setupCertbot
+            if [ $? -ne 0 ] ; then
+                $dlg --msgbox $"Error requesting certbot certificate. Please, handle this later on the menu." 0 0
+                err=1
+            else
+                setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
+            fi
+            
+        fi
+        
+        #Link working certbot cert and enable automated certificate update
+        if [ "$err" -eq 0 ] ; then
+            $PVOPS enableCertbot
+        fi
+    fi
+    
+         # TODO SEGUIR MAÑANA
     #Set the certificate and key on the route expected by apache and postfix 
     $PVOPS setupSSLcertificate
     
@@ -894,11 +932,12 @@ do
     
     if [ "$DOINSTALL" -eq 1 ] ; then
         
-        #Store certificate request (won't let go until it is written
-        #on a usb)
-        $dlg --msgbox $"Insert a usb device to write the generated SSL certificate request." 0 0
-        fetchCSR
-        
+        if [ "$USINGCERTBOT" -eq 0 ] ; then            
+            #Store certificate request (won't let go until it is written
+            #on a usb)
+            $dlg --msgbox $"Insert a usb device to write the generated SSL certificate request." 0 0
+            fetchCSR
+        fi
         
         
         #Share key and basic config on usbs to be kept by the

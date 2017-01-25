@@ -888,8 +888,12 @@ parseEmailFile () {
 
 
 #Performs the operations to configure the SSL certificate on Apache
-#and Postfix
+#and Postfix, depending on whether we are using certbot or not
 setupSSLcertificate () {
+
+
+    getVar disk USINGCERTBOT
+
     
     #Set the permissions and ownership (yes, every time, just in case)
     chown root:ssl-cert $DATAPATH/webserver/server.key   >>$LOGFILE 2>>$LOGFILE

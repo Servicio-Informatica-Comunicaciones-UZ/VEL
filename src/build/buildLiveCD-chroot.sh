@@ -277,7 +277,6 @@ localectl set-locale LANG="C.UTF-8"
 
 
 
-# TODO automatise user info provision
 
 
 # TODO review all localization system. decide if only one or all scripts are handled
@@ -609,6 +608,14 @@ if [ "$aux" == ""  ]
 fi
 
 
+
+
+##Let's Encrypt certbot
+ctell "***** Installing certbot *****"
+#Enable backports repo and install package
+echo "deb http://ftp.debian.org/debian jessie-backports main" > /etc/apt/sources.list.d/backports.list
+apt-get update
+apt-get install python-certbot-apache -t jessie-backports
 
 
 

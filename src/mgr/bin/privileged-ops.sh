@@ -2254,25 +2254,74 @@ fi     # TODO: recordarb que existe la op 'rootShell'
 
 
 
+
+#Move the certbot directory to the persistence drive
+# $2 -> 'new' o 'reset'
+if [ "$1" == "setupCertbotDir" ] 
+then
+    if [ "$2" != 'new' -a "$2" != 'reset' ] ; then 
+        log "setupCertbot: param ERR: 2=$2"  
+        exit 1
+    fi
+
+    #If installing, move letsencrypt directory to data partition
+    if [ "$2" == 'new' ] ; then
+        rm -rf $DATAPATH/letsencrypt 2>/dev/null >/dev/null
+	       cp -rp /etc/letsencrypt $DATAPATH/
+	       [ $? -ne 0 ] &&  exit 2 # not enough free space
+    fi
+    
+    if [ "$2" == 'reset' ] ; then
+        #Substitute certbot dir with the on in the drive
+        rm -rf /etc/letsencrypt 2>/dev/null >/dev/null
+        ln -s $DATAPATH/letsencrypt /etc/letsencrypt
+    fi
+    
+    exit 0
+fi
+
+
+
+
+
+
+#It performs the certificate request and installation,
+if [ "$1" == "setupCertbot" ] 
+then
+    
+    getVar disk SERVEREMAIL
+    if [ "$SERVEREMAIL" == ""  ] ; then
+        log "No server email variable found"
+	       exit 1
+    fi
+    
+    getVar disk SERVERCN
+    if [ "$SERVERCN" == ""  ] ; then
+        log "No server FQDN variable found"
+	       exit 1
+    fi
+    
+    
+    #Get a Let's Encrypt signed certificate with certbot
+    certbot --standalone certonly -n -m "$SERVEREMAIL" -d "$SERVERCN"  >>$LOGFILE 2>>$LOGFILE
+    exit $?
+fi
+
+
+
+
 if [ "$1" == "enableCertbot" ] 
 then
 
 
-    #Enable backports repo and install package (TODO move to build?)
-echo "deb http://ftp.debian.org/debian jessie-backports main" > /etc/apt/sources.list.d/backports.list
-apt-get update
-apt-get install python-certbot-apache -t jessie-backports
-
-#Get certificate with certbot
-certbot --apache certonly -n -m farago@uji.es --domains lab9056...
-
-#Move letsencrypt directory to data partition
+    # TODO Link the certificate, etc to the datapath of the current certificate, this way, the handling is as always (archive the one being overwritten)
+    # Link the csr? or touch a dummy file?
 
 #Link current certificate/chain/key to the expected location ( TODO overwrite the files in the partition or do a dual apache-postfix config function?)
-/etc/letsencrypt/live/lab9056.../cert.pem
-/etc/letsencrypt/live/lab9056.../privkey.pem
-/etc/letsencrypt/live/lab9056.../chain.pem #para el apache?
-/etc/letsencrypt/live/lab9056.../fullchain.pem # Para el postfix?
+ln -s /etc/letsencrypt/live/lab9056.../cert.pem     $DATAPATH/webserver/
+ln -s /etc/letsencrypt/live/lab9056.../privkey.pem  $DATAPATH/webserver/server.key
+ln -s /etc/letsencrypt/live/lab9056.../chain.pem    $DATAPATH/webserver/
+#/etc/letsencrypt/live/lab9056.../fullchain.pem # Para el postfix? --> dejar que la func haga su trabajo
 
 
 
@@ -2292,6 +2341,7 @@ fi
 if [ "$1" == "disableCertbot" ] 
 then
 
+    #Disable auto update, mark the var as 0, force renew csr and set state to renew
 
 
 

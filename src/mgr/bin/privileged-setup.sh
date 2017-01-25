@@ -715,11 +715,6 @@ fi
 
 
 
-
-
-
-
-
 ## SEGUIR : faltan las ops de backup y restore
    
     
