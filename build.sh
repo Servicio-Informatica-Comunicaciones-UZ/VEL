@@ -9,7 +9,9 @@
 # #<RELEASE> #</RELEASE>  --> All command lines between these two markers will be removed from the debug version
 
 
-#To update the webapp: wget http://dwnl.nisu.org/dwnl/ivot.php.zip # TODO o el del zip?
+#To update the webapp:
+#wget http://dwnl.nisu.org/dwnl/ivot.php.zip -O src/webapp/bundle/ivot.php
+
 
 . src/build/build-tools.sh
 . src/build/build-config.sh

@@ -335,6 +335,32 @@ chooseSSLOperation () {
     else
         log "Bad sslcert status code returned $sslstate"
     fi
+
+    #These ops depend on certbot, if activated, they don't appear
+    sslCsrReadTag="ssl-csr-read"
+    sslCsrReadText=$"Get the certificate sign request."
+    
+    sslCertInstallTag="ssl-cert-install"
+    sslCertInstallText="$certInstallText" 
+    
+    sslKeyRenewTag="ssl-key-renew"
+    sslKeyRenewText=$"Renew the SSL certificate and private key."
+    
+    local usingCertbot=$($PVOPS getPubVar disk USINGCERTBOT)
+    certbotTag=certbot-enable
+    certbotItem=$"Use a Let's Encrypt automated Certificate."                      
+    if [ "$usingCertbot" -eq 1 ] ; then
+        certbotTag=certbot-disable
+        certbotItem=$"Disable Let's Encrypt automated Certificate."
+        
+        sslCsrReadTag=""
+        sslCsrReadText=""
+        sslCertInstallTag=""
+        sslCertInstallText=""
+        sslKeyRenewTag=""
+        sslKeyRenewText=""
+    fi
+    
     
     local title=''
     title=$title$"SSL certificate management""\n"
@@ -342,15 +368,20 @@ chooseSSLOperation () {
     title=$title"  * ""\Zb"$"SSL certificate status"": \Zn\Z$color""$sslstateText""\Zn"
     
     local selec=''
-    selec=$($dlg --cancel-label $"Back" --no-tags --colors \
-                 --menu "$title" 0 90  5  \
-                 ssl-csr-read      $"Get the certificate sign request." \
-                 ssl-cert-install  "$certInstallText" \
-                 ssl-key-renew     $"Renew the SSL certificate and private key." \
-	                2>&1 >&4)
-    
-    #Chose to go back
-    [ $? -ne 0 -o "$selec" == ""  ] && return 1
+    while true ; do
+        selec=$($dlg --cancel-label $"Back" --no-tags --colors \
+                     --menu "$title" 0 90  5  \
+                     "$certbotTag"        "$certbotItem"        \
+                     "$sslCsrReadTag"     "$sslCsrReadText"     \
+                     "$sslCertInstallTag" "$sslCertInstallText" \
+                     "$sslKeyRenewTag"    "$sslKeyRenewText"    \
+	                    2>&1 >&4)
+        #Chose to go back
+        [ $? -ne 0 ] && return 1
+        #When there are deactivated options and one is selected, don't go on
+        [ "$selec" == "" ] && continue
+        break
+    done
     
     #Set the operation code
     MAINTACTION="$selec"
@@ -581,6 +612,16 @@ executeMaintenanceOperation () {
         
         ##### SSL certificate operations #####
         
+        "certbot-enable" )
+            certbot-enable
+            return 0
+            ;;
+        
+        "certbot-disable" )
+            certbot-disable
+            return 0
+            ;;
+
         "ssl-csr-read" )
             ssl-csr-read
             return 0
@@ -942,6 +983,65 @@ ssl-cert-install () {
         continue
         
     done
+}
+
+
+
+
+# TODO SEGUIR MAÑANA
+
+certbot-enable () {
+    
+    $dlg --infobox $"Requesting Let's Encrypt SSL certificate..." 0 0
+    $PVOPS setupCertbot
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error requesting or updating certificate." 0 0
+        log "certbot setup error"
+        return 1
+    fi
+    #No matter it fails, that would only mean certbot was already enabled on this run
+    $PVOPS linkCertbotDir
+    
+    $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
+    $PVOPS enableCertbot
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error enabling certificate service." 0 0
+        log "certbot enable error"
+        return 1
+    fi # TODO asegurarme de que los certs siguen enlazados donde toca
+
+    
+    $PVOPS startApache
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error restarting web server." 0 0
+	       log "Error restarting apache" 
+	       return 1
+	   fi
+    
+    $PVOPS mailServer-reload
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error restarting mail server." 0 0
+	       log "Error restarting postfix" 
+	       return 1
+	   fi
+    
+    setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
+    return 0
+}
+
+
+
+certbot-disable () {
+
+    #Forces a certificate renew
+    $PVOPS disableCertbot
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error on the certificate renewal generation." 0 0
+        log "certbot disable error"
+        return 1
+    fi
+    
+    return 0
 }
 
 

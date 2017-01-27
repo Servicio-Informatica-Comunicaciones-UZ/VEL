@@ -810,9 +810,6 @@ do
     #Handle SSL certificate
     if [ "$DOINSTALL" -eq 1 ]
     then
-        #Setup the certbot directory in the persistent drive
-        $PVOPS setupCertbotDir "new"
-        
 	       generateCSR "new"
 	       [ $? -ne 0 ] && continue #Failed, go back to the menu
 	       
@@ -822,15 +819,11 @@ do
         #Store the SSL certificate current state
         setVar disk SSLCERTSTATE "dummy"  #Currently running with a self-signed
     fi
-
-    #Setup the certbot directory symlink
-    $PVOPS setupCertbotDir "reset"
-    
     
     
     #If decided to use certbot, override the dummy one
     if [ "$USINGCERTBOT" -eq 1 ] ; then            
-        $dlg --infobox $"Requesting Let's Encrypt SSL certificate..." 0 0
+        $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
 
         err=0
         #Request the certificate
@@ -838,21 +831,33 @@ do
             
             $PVOPS setupCertbot
             if [ $? -ne 0 ] ; then
-                $dlg --msgbox $"Error requesting certbot certificate. Please, handle this later on the menu." 0 0
                 err=1
+                log "certbot setup error"
+                $dlg --msgbox $"Error requesting certificate. Please, handle this later on the menu." 0 0
+                
             else
                 setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
             fi
             
         fi
         
-        #Link working certbot cert and enable automated certificate update
+        #Setup the certbot directory symlink
+        $PVOPS linkCertbotDir
+        [ $? -ne 0 ] && err=1
+        
+        #Link working certbot cert and enable automated certificate
+        #update (if previous errors exists, leave the dummy
+        #certificate for now)
         if [ "$err" -eq 0 ] ; then
             $PVOPS enableCertbot
+            [ $? -ne 0 ] && err=1
+        fi
+
+        if [ "$err" -eq 1 ] ; then
+            $dlg --msgbox $"Error configuring certificate. Please, handle this later on the menu." 0 0
         fi
     fi
     
-         # TODO SEGUIR MAÑANA
     #Set the certificate and key on the route expected by apache and postfix 
     $PVOPS setupSSLcertificate
     

@@ -615,7 +615,7 @@ ctell "***** Installing certbot *****"
 #Enable backports repo and install package
 echo "deb http://ftp.debian.org/debian jessie-backports main" > /etc/apt/sources.list.d/backports.list
 apt-get update
-apt-get install python-certbot-apache -t jessie-backports
+apt-get install -y --force-yes python-certbot-apache -t jessie-backports
 
 
 

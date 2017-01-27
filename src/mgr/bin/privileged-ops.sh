@@ -493,7 +493,7 @@ fi
 if [ "$1" == "getPubVar" ]
 then
     # TODO Define list of public variables
-    allowedVars="SSLCERTSTATE SYSFROZEN "
+    allowedVars="SSLCERTSTATE  SYSFROZEN  USINGCERTBOT "
     
     if (! contains "$allowedVars" "$3") ; then
         log "Access denied to variable $3. Clearance needed."
@@ -2256,25 +2256,14 @@ fi     # TODO: recordarb que existe la op 'rootShell'
 
 
 #Move the certbot directory to the persistence drive
-# $2 -> 'new' o 'reset'
-if [ "$1" == "setupCertbotDir" ] 
+if [ "$1" == "linkCertbotDir" ] 
 then
-    if [ "$2" != 'new' -a "$2" != 'reset' ] ; then 
-        log "setupCertbot: param ERR: 2=$2"  
+    #Set the certbot dir with the one in the drive
+    if [ ! -e /etc/letsencrypt -a -e $DATAPATH/letsencrypt ] ; then
+        ln -s $DATAPATH/letsencrypt /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
+    else
+        log "certbot directory exists or datapath certbot directory doesn't."
         exit 1
-    fi
-
-    #If installing, move letsencrypt directory to data partition
-    if [ "$2" == 'new' ] ; then
-        rm -rf $DATAPATH/letsencrypt 2>/dev/null >/dev/null
-	       cp -rp /etc/letsencrypt $DATAPATH/
-	       [ $? -ne 0 ] &&  exit 2 # not enough free space
-    fi
-    
-    if [ "$2" == 'reset' ] ; then
-        #Substitute certbot dir with the on in the drive
-        rm -rf /etc/letsencrypt 2>/dev/null >/dev/null
-        ln -s $DATAPATH/letsencrypt /etc/letsencrypt
     fi
     
     exit 0
@@ -2300,39 +2289,80 @@ then
         log "No server FQDN variable found"
 	       exit 1
     fi
-    
+
+    #If apache is running, stop it temporarily (for when this is
+    #called in maintenance)
+    stoppedApache=0
+    if (ps aux | grep apache | grep -v grep >>$LOGFILE 2>>$LOGFILE) ; then
+        stoppedApache=1
+        /etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE
+    fi
     
     #Get a Let's Encrypt signed certificate with certbot
-    certbot --standalone certonly -n -m "$SERVEREMAIL" -d "$SERVERCN"  >>$LOGFILE 2>>$LOGFILE
-    exit $?
+    certbot --standalone certonly -n --agree-tos -m "$SERVEREMAIL" -d "$SERVERCN"  >>$LOGFILE 2>>$LOGFILE
+    ret=$?
+    
+    if [ "$stoppedApache" -eq 1 ] ; then
+        /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
+    fi
+    
+    # TODO maybe we need here to set the permissions and owner of the cer and key? check on an install
+    
+    #Move the certbot directory to the persistence unit if not done
+    #yet (may have happened on a running system)
+    if [ -e /etc/letsencrypt -a ! -e $DATAPATH/letsencrypt ] ; then
+	       mv /etc/letsencrypt $DATAPATH/   >>$LOGFILE 2>>$LOGFILE
+	       if [ $? -ne 0 ] ; then
+            log "not enough free space"
+            exit 2 # not enough free space
+        fi
+    fi
+    
+    exit $ret
 fi
 
 
 
-
+#It setups the automated renewal and overrides the working certificate
+#if any
 if [ "$1" == "enableCertbot" ] 
 then
+    getVar disk SERVERCN
 
-
-    # TODO Link the certificate, etc to the datapath of the current certificate, this way, the handling is as always (archive the one being overwritten)
-    # Link the csr? or touch a dummy file?
-
-#Link current certificate/chain/key to the expected location ( TODO overwrite the files in the partition or do a dual apache-postfix config function?)
-ln -s /etc/letsencrypt/live/lab9056.../cert.pem     $DATAPATH/webserver/
-ln -s /etc/letsencrypt/live/lab9056.../privkey.pem  $DATAPATH/webserver/server.key
-ln -s /etc/letsencrypt/live/lab9056.../chain.pem    $DATAPATH/webserver/
-#/etc/letsencrypt/live/lab9056.../fullchain.pem # Para el postfix? --> dejar que la func haga su trabajo
-
-
-
-#Test renewal
-certbot renew --dry-run 
-
-
-#Automate renewal
-
-0 3 * * 1       certbot renew
-
+    #If there's any previous cert, archive it
+    if [ -e $DATAPATH/webserver/server.key ] ; then
+        archive="$DATAPATH/webserver/archive/ssl"$(date +%s)
+        mkdir -p "$archive"           >>$LOGFILE 2>>$LOGFILE
+        cp -f $DATAPATH/webserver/* "$archive/"  >>$LOGFILE 2>>$LOGFILE # Only copy the files
+        rm -f $DATAPATH/webserver/*              >>$LOGFILE 2>>$LOGFILE # Only remove the files
+    fi
+    
+    #Link current certificate/chain/key to the expected location
+    ln -s /etc/letsencrypt/live/$SERVERCN/cert.pem     $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
+    ln -s /etc/letsencrypt/live/$SERVERCN/privkey.pem  $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
+    ln -s /etc/letsencrypt/live/$SERVERCN/chain.pem    $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
+    touch   $DATAPATH/webserver/server.csr   >>$LOGFILE 2>>$LOGFILE
+    
+    
+    #Test renewal
+    certbot --apache certonly -n  -d "$SERVERCN"  --dry-run  >>$LOGFILE 2>>$LOGFILE
+    if [ $? -ne 0 ] ; then
+        log "failed certbot certificate renewal test. Check."
+        exit 1
+    fi    
+    # TODO probar una vez construído y ver si he de poner --apache, ya que no sé si inytentará standalone y fallará o deducirá que hay un apache y lo hará con este
+    
+    
+    #Automate renewal
+    aux=$(cat /etc/crontab | grep certbot)
+    if [ "$aux" == "" ]
+    then
+        echo -e "0 3 * * * root  certbot --apache certonly -n -d '$SERVERCN' \n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO check if working, see if the email is needed
+    fi
+    
+    #Set state variable
+    setVar USINGCERTBOT "1" disk
+    
     exit 0
 fi
 
@@ -2340,11 +2370,32 @@ fi
 
 if [ "$1" == "disableCertbot" ] 
 then
+    getVar disk SERVERCN
+    getVar disk COMPANY
+    getVar disk DEPARTMENT
+    getVar disk COUNTRY
+    getVar disk STATE
+    getVar disk LOC
+    getVar disk SERVEREMAIL
+    
+    
+    #Disable auto update
+    cat /etc/crontab | sed -i -re "/certbot/d" /etc/crontab
 
-    #Disable auto update, mark the var as 0, force renew csr and set state to renew
-
-
-
+    #Set state variable
+    setVar USINGCERTBOT "0" disk
+    
+    #Force renew csr
+    $PVOPS generateCSR "renew" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
+    if [ $? -ne 0 ]
+	   then
+		      log "Error on the forced ssl certificate renewal." 0 0
+	       exit 1
+    fi
+    
+    #Set state to renew
+    setVar  SSLCERTSTATE "renew" disk
+    
     exit 0
 fi
 
