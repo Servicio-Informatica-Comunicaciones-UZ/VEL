@@ -2344,14 +2344,27 @@ then
     touch   $DATAPATH/webserver/server.csr   >>$LOGFILE 2>>$LOGFILE
     
     
+    #If apache is running, stop it temporarily (for when this is
+    #called in maintenance)
+    stoppedApache=0
+    if (ps aux | grep apache | grep -v grep >>$LOGFILE 2>>$LOGFILE) ; then
+        stoppedApache=1
+        /etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE
+    fi
+    
     #Test renewal
-    certbot --apache certonly -n  -d "$SERVERCN"  --dry-run  >>$LOGFILE 2>>$LOGFILE
-    if [ $? -ne 0 ] ; then
+    certbot --standalone certonly -n  -d "$SERVERCN"  --dry-run  >>$LOGFILE 2>>$LOGFILE
+    ret=$?
+    
+    if [ "$stoppedApache" -eq 1 ] ; then
+        /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
+    fi
+    
+    if [ $ret -ne 0 ] ; then
         log "failed certbot certificate renewal test. Check."
         exit 1
-    fi    
-    # TODO probar una vez construído y ver si he de poner --apache, ya que no sé si inytentará standalone y fallará o deducirá que hay un apache y lo hará con este
-    
+    fi
+    # TODO probar    
     
     #Automate renewal
     aux=$(cat /etc/crontab | grep certbot)

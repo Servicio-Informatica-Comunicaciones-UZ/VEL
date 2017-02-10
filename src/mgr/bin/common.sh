@@ -470,7 +470,7 @@ checkParameter () {
 	           ;;
 
         "SSLCERTSTATE" )
-	           if [ "$2" -ne "dummy"   -a   "$2" -ne "ok"  -a   "$2" -ne "renew" ]
+	           if [ "$2" != "dummy"   -a   "$2" != "ok"  -a   "$2" != "renew" ]
 	           then
 	               ret=1
 	           fi
