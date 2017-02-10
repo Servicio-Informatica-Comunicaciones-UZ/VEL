@@ -2392,19 +2392,21 @@ then
     getVar disk SERVEREMAIL
     
     
-    #Disable auto update
-    cat /etc/crontab | sed -i -re "/certbot/d" /etc/crontab
-
-    #Set state variable
-    setVar USINGCERTBOT "0" disk
-    
     #Force renew csr
+    log "$PVOPS generateCSR \"renew\" \"$SERVERCN\" \"$COMPANY\" \"$DEPARTMENT\" \"$COUNTRY\" \"$STATE\" \"$LOC\" \"$SERVEREMAIL\""
+
     $PVOPS generateCSR "renew" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
     if [ $? -ne 0 ]
 	   then
 		      log "Error on the forced ssl certificate renewal." 0 0
 	       exit 1
     fi
+    
+    #Disable auto update
+    cat /etc/crontab | sed -i -re "/certbot/d" /etc/crontab
+
+    #Set state variable
+    setVar USINGCERTBOT "0" disk
     
     #Set state to renew
     setVar  SSLCERTSTATE "renew" disk

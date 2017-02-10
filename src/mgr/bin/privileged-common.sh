@@ -221,7 +221,7 @@ getVar () {
 	       return 1
     fi
     
-    value=$(cat $file 2>>$LOGFILE  | grep -e "$2" 2>>$LOGFILE | sed -re "s/$2=\"(.*)\"\s*$/\1/g" 2>>$LOGFILE)
+    value=$(cat $file 2>>$LOGFILE  | grep -Ee "^\s*$2" 2>>$LOGFILE | sed -re "s/^.*$2=\"([^\"]*)\".*$/\1/g" 2>>$LOGFILE)
     export $destvar=$value
     #TODO Verificar que si no existe, no pasa nada.
     #<DEBUG>
