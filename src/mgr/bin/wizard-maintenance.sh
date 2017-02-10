@@ -873,6 +873,7 @@ admin-auth () {
         return 1
     fi
     
+    $dlg --msgbox $"Administrator authentication successful." 0 0
     return 0
 }
 
@@ -902,6 +903,8 @@ misc-shell () {
 	   $PVOPS launchTerminal /home/vtuji/shellSessionRecipients
     
     rm /home/vtuji/shellSessionRecipients >>$LOGFILE 2>>$LOGFILE
+
+    $dlg --msgbox $"Terminal session terminated." 0 0
 }
 
 
@@ -913,6 +916,8 @@ ssl-csr-read () {
     
     $dlg --msgbox $"Insert a usb device to write the current SSL certificate request." 0 0
     fetchCSR cancel
+    
+    $dlg --msgbox $"Certificate request successfully read." 0 0
 }
 
 
@@ -1026,13 +1031,17 @@ certbot-enable () {
 	   fi
     
     setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
+    
+    $dlg --msgbox $"Certbot successfully enabled." 0 0
     return 0
 }
 
 
 
 certbot-disable () {
-
+    
+    $dlg --infobox $"Disabling certbot, generating new certificate request..." 0 0
+    
     #Forces a certificate renew
     $PVOPS disableCertbot
     if [ $? -ne 0 ] ; then
@@ -1041,6 +1050,7 @@ certbot-disable () {
         return 1
     fi
     
+    $dlg --msgbox $"Successfully disabled. Current certbot certificate will keep working until expiration or the new one is installed. Please, get the signing request to complete the process." 0 0
     return 0
 }
 

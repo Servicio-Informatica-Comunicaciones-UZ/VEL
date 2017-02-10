@@ -840,12 +840,12 @@ configureHostDomain () {
     #Set host alias and FQDN
     if (cat /etc/hosts | grep "$IPADDR" 2>>$LOGFILE) ; then
         #If already there, substitute line
-        sed -i -re "s/^$IPADDR.*$/$IPADDR $HOSTNM$DOMNAME $HOSTNM/g" /etc/hosts
+        sed -i -re "s/^$IPADDR.*$/$IPADDR $HOSTNM.$DOMNAME $HOSTNM/g" /etc/hosts
  	  else
         #Add new line at the top
-        #echo "$IPADDR $HOSTNM$DOMNAME $HOSTNM" >  /tmp/hosts.tmp  ## TODO aliasing to localhost, see if there's any problem
-        echo "127.0.0.1 $HOSTNM$DOMNAME $HOSTNM" >  /tmp/hosts.tmp  
-	       cat  /etc/hosts                        >> /tmp/hosts.tmp
+        #echo "$IPADDR $HOSTNM.$DOMNAME $HOSTNM" >  /tmp/hosts.tmp  ## TODO aliasing to localhost, see if there's any problem
+        echo "127.0.0.1 $HOSTNM.$DOMNAME $HOSTNM" >  /tmp/hosts.tmp  
+	       cat  /etc/hosts                           >> /tmp/hosts.tmp
 	       mv   /tmp/hosts.tmp /etc/hosts
 	   fi
     
