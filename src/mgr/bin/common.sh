@@ -110,9 +110,11 @@ log () {
 #Preemptively redirect all STDERR to the log file
 #Save the STDERR file descriptor in descriptor 8, just in case we need
 #it; restore stderr to its descriptor with exec 2>&8
+## Not used anymore. Will hide the errors and prompt of the
+## interactive terminal session.
 redirectError () {
     exec 8>&2
-    exec 2>>$LOGFILE  # TODO check that stderr is not being used anywhere other than being redirected.
+    exec 2>>$LOGFILE
 }
 
 

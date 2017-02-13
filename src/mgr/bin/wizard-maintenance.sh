@@ -1070,7 +1070,7 @@ certbot-disable () {
 ##################
 
 
-redirectError
+#redirectError
 
 
 #Idle screen. Select which action to execute

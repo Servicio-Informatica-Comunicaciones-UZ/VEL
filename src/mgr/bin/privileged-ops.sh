@@ -2229,12 +2229,19 @@ then
 	   fi
 	   
 	   #This session's history will be written on the data partition
-	   export HISTFILE=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S)
+	   #export HISTFILE=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S)
+    sesslogfile=$DATAPATH/terminalLogs/bash_history_$(date +%Y%m%d-%H%M%S)
     
-    #Launch root terminal
+    #Set the proper shell (so 'script' can invoke the adequate shell instead of the wizard)
+    export SHELL=/bin/bash
+    
+    
+    #Launch root terminal (start a scripting session before launching the terminal)
 	   echo $"WRITE exit TO FINISH THE SESION AND GO BACK TO THE MAIN MENU."
-	   /bin/bash
-	   
+	   #/bin/bash
+    script -e -q $sesslogfile  # TODO test again in a clean system. See if the interactive shell is opened and the session registerdd and sent
+    
+    
 	   #Once finished, send bash command history to anyone interested
 	   mailsubject=$"Voting server maintenance session registry"" $(date +%d/%m/%Y-%H:%M)"
 	   mailbody=$"You provided ypour e-mail address to receive the logs of the execution of the maintenance session on a root terminal. Find it on the attached file. Use it to audit the session and detect any fraud."
@@ -2370,7 +2377,7 @@ then
     aux=$(cat /etc/crontab | grep certbot)
     if [ "$aux" == "" ]
     then
-        echo -e "0 3 * * * root  certbot --apache certonly -n -d '$SERVERCN' \n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO check if working, see if the email is needed
+        echo -e "0 3 * * 1 root  certbot --apache certonly -n -d '$SERVERCN' \n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO check if working, see if the email is needed
     fi
     
     #Set state variable
