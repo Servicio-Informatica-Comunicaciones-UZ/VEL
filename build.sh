@@ -11,6 +11,7 @@
 
 #To update the webapp:
 #wget http://dwnl.nisu.org/dwnl/ivot.php.zip -O - | funzip > src/webapp/bundle/ivot.php
+## TODO ELIMINAR LA VERSIÓN ESTÁTICA de index.php antes de actualizar el bundle de nuevo
 
 
 . src/build/build-tools.sh

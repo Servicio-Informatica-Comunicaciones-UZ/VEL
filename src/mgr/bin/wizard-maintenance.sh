@@ -1056,7 +1056,7 @@ certbot-disable () {
 
 
 
-
+## TODO ELIMINAR LA VERSIÓN ESTÁTICA de index.php antes de actualizar el bundle de nuevo
 
 
 
