@@ -1,0 +1,1595 @@
+# Trad File
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: /tmp/eLectionWizard.sh:408
+msgid "Elija una opción."
+msgstr "Trieu una opció"
+
+#: /tmp/eLectionWizard.sh:408
+msgid "Apagar el sistema."
+msgstr "Apagar el sistema."
+
+#: /tmp/eLectionWizard.sh:408
+msgid "Reiniciar el sistema."
+msgstr "Reiniciar el sistema."
+
+#: /tmp/eLectionWizard.sh:408
+msgid "Lanzar terminal de acceso total al sistema."
+msgstr "Llançar terminal d'accés total al sistema."
+
+#: /tmp/eLectionWizard.sh:429
+msgid "Sí"
+msgstr "Sí"
+
+#: /tmp/eLectionWizard.sh:429
+msgid "No"
+msgstr "No"
+
+#: /tmp/eLectionWizard.sh:429
+msgid "ATENCIÓN:\\n\\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que este sea reiniciado. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. ¿Desea continuar?"
+msgstr "ATENCIÓ:\\n\\nHeu triat llançar un terminal. Açò dóna a qui estiga manipulant l'equip, accés a dades sensibles fins que siga reiniciat. Assegureu-vos que s'opera sota supervisió tècnica per a verificar que no es realitza cap acció il·lícita. Desitgeu continuar?"
+
+#: /tmp/eLectionWizard.sh:467
+msgid "Error configurando el acceso al servidor de copia de seguridad."
+msgstr "Error en la configuració de l'accés al servidor de còpia de seguretat."
+
+#: /tmp/eLectionWizard.sh:475
+msgid "Error conectando con el servidor de Copia de Seguridad."
+msgstr "Error en la connexió amb el servidor de còpia de seguretat."
+
+#: /tmp/eLectionWizard.sh:482
+msgid "Error descifrando el fichero de Copia de Seguridad: fichero corrupto o llave incorrecta."
+msgstr "Error en desxifrar el fitxer de còpia de seguretat: fitxer corrupte o clau incorrecta."
+
+#: /tmp/eLectionWizard.sh:492
+msgid "Error desempaquetando el fichero de Copia de Seguridad: fichero corrupto."
+msgstr "Error en desempaquetar el fitxer de còpia de seguretat: fitxer corrupte."
+
+#: /tmp/eLectionWizard.sh:520
+msgid "Error interno. Faltan datos de configuración para realizar la resconstrucción."
+msgstr "Error intern. Falten dades de configuració per a realitzar la reconstrucció."
+
+#: /tmp/eLectionWizard.sh:522
+msgid "No se puede reconstruir la llave. No hay suficientes piezas."
+msgstr "No es pot reconstruir la clau. No hi ha prou fragments."
+
+#: /tmp/eLectionWizard.sh:718
+msgid "Seleccione una acción a llevar a cabo:"
+msgstr "Seleccioneu una acció per a dur a terme:"
+
+#: /tmp/eLectionWizard.sh:718
+msgid "Iniciar el sistema de voto."
+msgstr "Iniciar el sistema de vot."
+
+#: /tmp/eLectionWizard.sh:718
+msgid "Recuperar una instalación del sistema de voto."
+msgstr "Recuperar una instal·lació del sistema de vot."
+
+#: /tmp/eLectionWizard.sh:718
+msgid "Lanzar un terminal de administración."
+msgstr "Llançar un terminal d'administració."
+
+#: /tmp/eLectionWizard.sh:718
+msgid "Apagar el equipo."
+msgstr "Apagar l'equip."
+
+#: /tmp/eLectionWizard.sh:760
+msgid "Cancelar"
+msgstr "Cancel·lar"
+
+#: /tmp/eLectionWizard.sh:760
+msgid "Apagar"
+msgstr "Apagar"
+
+#: /tmp/eLectionWizard.sh:760
+msgid "¿Está seguro de que desea apagar el equipo?"
+msgstr "Esteu segurs que voleu apagar l'equip?"
+
+#: /tmp/eLectionWizard.sh:891
+msgid "Clauer"
+msgstr "Clauer"
+
+#: /tmp/eLectionWizard.sh:924
+msgid "Continuar"
+msgstr "Avançar"
+
+#: /tmp/eLectionWizard.sh:943
+msgid "No lo ha insertado. Hágalo ahora y pulse INTRO."
+msgstr "No l'heu inserit. Feu-ho ara i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:982
+msgid "Refrescar"
+msgstr "Refrescar"
+
+#: /tmp/eLectionWizard.sh:982
+msgid "Múltiples dispositivos detectados.\\nPor favor, seleccione uno."
+msgstr "Diversos dispositius detectats.\\nPer favor, trieu-ne un."
+
+#: /tmp/eLectionWizard.sh:1043
+msgid "$msg\\nIntroduzca la contraseña del Clauer."
+msgstr "$msg\\nEscriviu la contrasenya del Clauer."
+
+#: /tmp/eLectionWizard.sh:1044
+msgid "$msg\\nIntroduzca una contraseña nueva."
+msgstr "$msg\\nEscriviu una contrasenya nova."
+
+#: /tmp/eLectionWizard.sh:1059
+msgid "Contraseña demasiado corta."
+msgstr "La contrasenya és massa curta."
+
+#: /tmp/eLectionWizard.sh:1063
+msgid "Vuelva a escribir su contraseña."
+msgstr "Torneu a escriure la contrasenya."
+
+#: /tmp/eLectionWizard.sh:1067
+msgid "Las contraseñas no coinciden."
+msgstr "Les contrasenyes no coincideixen."
+
+#: /tmp/eLectionWizard.sh:1124
+msgid "Contraseña incorrecta."
+msgstr "Contrasenya incorrecta."
+
+#: /tmp/eLectionWizard.sh:1159
+msgid "Generando llave para la unidad cifrada..."
+msgstr "Generant la clau per a la unitat xifrada..."
+
+#: /tmp/eLectionWizard.sh:1167
+msgid "Fragmentando la llave..."
+msgstr "Fragmentant la clau..."
+
+#: /tmp/eLectionWizard.sh:1188
+msgid "el siguiente"
+msgstr "el següent"
+
+#: /tmp/eLectionWizard.sh:1189
+msgid "el primer"
+msgstr "el primer"
+
+#: /tmp/eLectionWizard.sh:1191
+msgid "Inserte $clauerpos Clauer a escribir ($member de $2) y pulse INTRO."
+msgstr "Inseriu el $clauerpos Clauer on s'ha d'escriure ($member de $2) i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:1197
+msgid "Miembro número $member:\\nIntroduzca una contraseña nueva:"
+msgstr "Membre número $member:\\nEscriviu una contrasenya nova:"
+
+#: /tmp/eLectionWizard.sh:1203
+msgid "Ha abortado el formateo del presente Clauer. Inserte otro para continuar"
+msgstr "Heu avortat la formació d'aquest Clauer. Inseriu-ne un altre per a continuar."
+
+#: /tmp/eLectionWizard.sh:1209
+msgid "Preparando Clauer..."
+msgstr "Preparant el Clauer..."
+
+#: /tmp/eLectionWizard.sh:1213
+msgid "Formateando Clauer..."
+msgstr "Formatant el Clauer..."
+
+#: /tmp/eLectionWizard.sh:1222
+msgid "Escribiendo fragmento de llave..."
+msgstr "Escrivint fragment de clau..."
+
+#: /tmp/eLectionWizard.sh:1235
+msgid "Ha fallado la escritura del fragmento de llave. Inserte otro Clauer para continuar"
+msgstr "Ha fallat l'escriptura del fragment de clau. Inseriu-ne un altre per a continuar."
+
+#: /tmp/eLectionWizard.sh:1246
+msgid "Almacenando la configuración del sistema..."
+msgstr "Emmagatzemant la configuració del sistema..."
+
+#: /tmp/eLectionWizard.sh:1259
+msgid "Ha fallado la escritura de la configuración. Inserte otro Clauer para continuar"
+msgstr "Ha fallat l'escriptura de la configuració. Inseriu-ne un altre per a continuar."
+
+#: /tmp/eLectionWizard.sh:1268
+msgid "Clauer escrito con éxito. Retírelo y pulse INTRO."
+msgstr "Clauer escrit correctament. Traieu-lo i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:1474
+msgid "Configuración de acceso a Internet"
+msgstr "Configuració d'accés a Internet"
+
+#: /tmp/eLectionWizard.sh:1474
+msgid "Automatica por DHCP"
+msgstr "Automàtica per DHCP"
+
+#: /tmp/eLectionWizard.sh:1474
+msgid "Manual"
+msgstr "Manual"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "Atrás"
+msgstr "Enrere"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "Parámetros de acceso a Internet"
+msgstr "Paràmetres d'accés a Internet"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "Campo"
+msgstr "Camp"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "Valor"
+msgstr "Valor"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "Dirección IP"
+msgstr "Adreça IP"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "Máscara de Red"
+msgstr "Màscara de xarxa"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "Puerta de Enlace"
+msgstr "Porta d'enllaç"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "DNS Primario"
+msgstr "DNS Primari"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "DNS Secundario"
+msgstr "DNS Secundari"
+
+#: /tmp/eLectionWizard.sh:1514
+msgid "Nombre del host (FQDN)"
+msgstr "Nom del host (FQDN)"
+
+#: /tmp/eLectionWizard.sh:1565
+msgid "Error. La dirección IP no es válida"
+msgstr "Error. L'adreça IP no és vàlida"
+
+#: /tmp/eLectionWizard.sh:1579
+msgid "Error. La máscara de red no es válida"
+msgstr "Error. La màscara de xarxa no és vàlida."
+
+#: /tmp/eLectionWizard.sh:1593
+msgid "Error. La dirección de la puerta de enlace no es válida"
+msgstr "Error. L'adreça de la porta d'enllaç no és vàlida."
+
+#: /tmp/eLectionWizard.sh:1607
+msgid "Error. La dirección del DNS primario no es válida"
+msgstr "Error. L'adreça del DNS primari no és vàlida"
+
+#: /tmp/eLectionWizard.sh:1621
+msgid "Error. La dirección del DNS secundario no es válida"
+msgstr "Error. L'adreça del DNS secundari no és vàlida"
+
+#: /tmp/eLectionWizard.sh:1635
+msgid "Error. El nombre del servidor no es válido"
+msgstr "Error. El nom del servidor no és vàlid"
+
+#: /tmp/eLectionWizard.sh:1663
+msgid "Error. Faltan campos por rellenar"
+msgstr "Error. Falten camps per omplir"
+
+#: /tmp/eLectionWizard.sh:1706
+msgid "Ubicación de los datos cifrados."
+msgstr "Ubicació de les dades xifrades."
+
+#: /tmp/eLectionWizard.sh:1706
+msgid "Partición en disco local"
+msgstr "Partició en disc local"
+
+#: /tmp/eLectionWizard.sh:1706
+msgid "A través de servidor NFS"
+msgstr "Mitjançant servidor NFS"
+
+#: /tmp/eLectionWizard.sh:1706
+msgid "A través de servidor Samba"
+msgstr "Mitjançant servidor Samba"
+
+#: /tmp/eLectionWizard.sh:1706
+msgid "A través de iSCSI"
+msgstr "Mitjançant iSCSI"
+
+#: /tmp/eLectionWizard.sh:1706
+msgid "Fichero en disco local"
+msgstr "Fitxer en disc local"
+
+#: /tmp/eLectionWizard.sh:1730
+msgid "A continuación se le instará a que seleccione una partición local.\\nNótese que los datos contenidos serán totalmente destruidos.\\n\\n¿Desea continuar?"
+msgstr "A continuació se us demanarà que seleccioneu una partició local.\\nTingueu present que les dades que conté seran totalment destruïdes.\\n\\nDesitgeu continuar?"
+
+#: /tmp/eLectionWizard.sh:1738
+msgid "Seleccione una partición."
+msgstr "Seleccioneu una partició."
+
+#: /tmp/eLectionWizard.sh:1755
+msgid "Parámetros de acceso a la partición cifrada"
+msgstr "Paràmetres d'accés a la partició xifrada."
+
+#: /tmp/eLectionWizard.sh:1755
+msgid "Servidor (IP/DN)"
+msgstr "Servidor (IP/DN)"
+
+#: /tmp/eLectionWizard.sh:1755
+msgid "Puerto"
+msgstr "Port"
+
+#: /tmp/eLectionWizard.sh:1755
+msgid "Ruta de destino"
+msgstr "Ruta de destí"
+
+#: /tmp/eLectionWizard.sh:1755
+msgid "Tamaño del fichero (MB)"
+msgstr "Mida del fitxer (MB)"
+
+#: /tmp/eLectionWizard.sh:1785
+msgid "Error. Debe introducir una IP o nombre válido"
+msgstr "Error. Heu d'introduir una IP o nom vàlid"
+
+#: /tmp/eLectionWizard.sh:1795
+msgid "Error. Debe introducir un número de puerto válido"
+msgstr "Error. Heu d'introduir un número de port vàlid"
+
+#: /tmp/eLectionWizard.sh:1805
+msgid "Error. Debe introducir una ruta válida. Los nombres de directorio pueden contener los caracteres: $ALLOWEDCHARSET"
+msgstr "Error. Heu d'introduir una ruta vàlida. Els noms de directori poden incloure els caràcters: $ALLOWEDCHARSET"
+
+#: /tmp/eLectionWizard.sh:1815
+msgid "Error. Debe introducir un tamaño entero"
+msgstr "Error. Heu d'introduir una mida entera."
+
+#: /tmp/eLectionWizard.sh:1863
+msgid "Nombre del recurso"
+msgstr "Nom del recurs"
+
+#: /tmp/eLectionWizard.sh:1863
+msgid "Usuario"
+msgstr "Usuari"
+
+#: /tmp/eLectionWizard.sh:1863
+msgid "Contraseña"
+msgstr "Contrasenya"
+
+#: /tmp/eLectionWizard.sh:1915
+msgid "Error. Debe introducir una ruta válida. Los nombres de los directorios pueden contener los caracteres: $ALLOWEDCHARSET"
+msgstr "Error. Heu d'introduir una ruta vàlida. Els noms de directori poden incloure els caràcters: $ALLOWEDCHARSET"
+
+#: /tmp/eLectionWizard.sh:1925
+msgid "Error. El nombre de usuario no es válido. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr "Error. El nom d'usuari no és vàlid. Pot incloure els caràcters: $ALLOWEDCHARSET"
+
+#: /tmp/eLectionWizard.sh:1935
+msgid "Error. La contraseña no es válida. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr "Error. La contrasenya no és vàlida. Pot incloure els caràcters: $ALLOWEDCHARSET"
+
+#: /tmp/eLectionWizard.sh:1945
+msgid "Error. El tamaño debe ser entero."
+msgstr "Error. La mida ha de ser un enter."
+
+#: /tmp/eLectionWizard.sh:1998
+msgid "IP/DN del Portal/Target iSCSI"
+msgstr "IP/DN del Portal/Target iSCSI"
+
+#: /tmp/eLectionWizard.sh:2079
+msgid "Error. No se pudo resolver el nombre del servidor."
+msgstr "Error. No s'ha pogut resoldre el nom del servidor."
+
+#: /tmp/eLectionWizard.sh:2109
+msgid "Seleccione un Target."
+msgstr "Seleccioneu un Target."
+
+#: /tmp/eLectionWizard.sh:2125
+msgid "No se ha localizado un Portal iSCSI. Especifique un target manualmente."
+msgstr "No s'ha localitzat un Portal iSCSI. Especifiqueu un target manualment."
+
+#: /tmp/eLectionWizard.sh:2134
+msgid "Debe proporcionar un identificador de target."
+msgstr "Heu de proporcionar un identificador de target."
+
+#: /tmp/eLectionWizard.sh:2142
+msgid "Error. Debe introducir un identificador de target válido"
+msgstr "Error. Heu d'introduir un identificador de target vàlid"
+
+#: /tmp/eLectionWizard.sh:2159
+msgid "A continuación se le instará a seleccionar una partición local.\\nEn su raíz se escribirá un fichero con los datos cifrados.\\nEsta partición debe contener un sistema de ficheros válido."
+msgstr "A continuació se us demanarà que seleccioneu una partició lcal.\\nEn l'arrel d'aquesta s'escriurà un fitxer amb les dades xifrades.\\nAquesta partició ha de contenir un sistema de fitxers vàlid."
+
+#: /tmp/eLectionWizard.sh:2174
+msgid "No existen particiones válidas. Elija otro modo."
+msgstr "No hi ha particions vàlides. Trieu un altre mode."
+
+#: /tmp/eLectionWizard.sh:2209
+msgid "Error. Debe introducir un tamaño de fichero entero positivo"
+msgstr "Error. Heu d'introduir una mida de fitxer enter positiu"
+
+#: /tmp/eLectionWizard.sh:2238
+msgid "Como el modo de almacenamiento elegido se ubica dentro de esta misma máquina, se recomienda proporcionar algún mecanismo de copia de seguridad externo para evitar una pérdida irreparable de los datos. Esta copia se realizará sobre un servidor SSH a su elección, y los datos se almacenarán cifrados.\\n\\n¿Desea emplear un servidor SSH para la copia de seguridad?"
+msgstr "Com que el mode d'emmagatzematge triat s'ubica a la mateixa màquina, es recomana proporcionar algun mecanisme de còpia de seguretat externa per evitar una pèrdua irreparable de dades. Aquesta còpia es realitzarà en el servidor SSH que escolliu, i les dades s'emmagatzemaran xifrades.\\n\\nDesitgeu emprar un servidor SSH per a la còpia de seguretat?"
+
+#: /tmp/eLectionWizard.sh:2254
+msgid "Debe introducir los parámetros de copia de seguridad."
+msgstr "Heu d'introduir els paràmetres de còpia de seguretat."
+
+#: /tmp/eLectionWizard.sh:2258
+msgid "Verificando acceso al servidor de copia de seguridad..."
+msgstr "Verificant l'accés al servidor de còpia de seguretat..."
+
+#: /tmp/eLectionWizard.sh:2265
+msgid "Error conectando con el servidor de copia de seguridad. Revise los datos."
+msgstr "Error en la connexió amb el servidor de còpia de seguretat. Reviseu les dades."
+
+#: /tmp/eLectionWizard.sh:2278
+msgid "Error accediendo al servidor de copia de seguridad. Revise los datos."
+msgstr "Error en l'accés al servidor de còpia de seguretat. Reviseu les dades."
+
+#: /tmp/eLectionWizard.sh:2358
+msgid "Parámetros para realización de copias de seguridad sobre un servidor SSH."
+msgstr "Paràmetres per a realitzar còpies de seguretat en un servidor SSH."
+
+#: /tmp/eLectionWizard.sh:2358
+msgid "Servidor SSH (IP/DN)"
+msgstr "Servidor SSH (IP/DN)"
+
+#: /tmp/eLectionWizard.sh:2472
+msgid "El sistema incluye un servidor de correo para enviar las actas. ¿Necesita su red que este se redirija a un servidor intermedio (relay host)?"
+msgstr "El sistema inclou un servidor de correu per enviar les actes. Necessita la vostra xarxa que aquest siga redirigit a un servidor intermedi (relay host)?"
+
+#: /tmp/eLectionWizard.sh:2477
+msgid "Nombre de dominio del servidor de correo intermedio."
+msgstr "Nom de domini del servidor de correu intermedi."
+
+#: /tmp/eLectionWizard.sh:2486
+msgid "Debe proporcionar un nombre de dominio o una IP."
+msgstr "Heu de proporcionar un nom de domini o una IP."
+
+#: /tmp/eLectionWizard.sh:2494
+msgid "Debe proporcionar un nombre de dominio o una IP válida."
+msgstr "Heu de proporcionar un nom de domini o una IP vàlida."
+
+#: /tmp/eLectionWizard.sh:2513
+msgid "Parámetros de compartición de la clave"
+msgstr "Paràmetres de compartició de la clau"
+
+#: /tmp/eLectionWizard.sh:2513
+msgid "Miembros de la comisión de custodia de la clave"
+msgstr "Membres de la comissió de custòdia de la clau"
+
+#: /tmp/eLectionWizard.sh:2513
+msgid "de los cuales podrán reconstruirla un mínimo de"
+msgstr "dels quals podran reconstruir-la un mínim de"
+
+#: /tmp/eLectionWizard.sh:2542
+msgid "Error. Debe introducir un valor entero"
+msgstr "Error. Heu d'introduir un valor enter"
+
+#: /tmp/eLectionWizard.sh:2586
+msgid "Error. Debe haber al menos dos miembros custodiando la llave"
+msgstr "Error. Hi ha d'haver almenys dos membres custodiant la clau"
+
+#: /tmp/eLectionWizard.sh:2593
+msgid "Error. Un sólo miembro no debe poder reconstruir la llave"
+msgstr "Error. Un sol membre no ha de poder reconstruir la clau"
+
+#: /tmp/eLectionWizard.sh:2600
+msgid "Error. El número de miembros debe ser mayor al mínimo de reconstrucción"
+msgstr "Error. El nombre de membres ha de ser major que el mínim de reconstrucció"
+
+#: /tmp/eLectionWizard.sh:2642
+msgid "Error ($ret) leyendo la configuración del Clauer."
+msgstr "Error ($ret) en la lectura de la configuració del Clauer."
+
+#: /tmp/eLectionWizard.sh:2661
+msgid "Error ($ret) leyendo la pieza de llave del Clauer"
+msgstr "Error ($ret) en la lectura del fragment de clau del Clauer."
+
+#: /tmp/eLectionWizard.sh:2706
+msgid "Inserte $clauerpos Clauer a leer y pulse INTRO."
+msgstr "Inseriu el $clauerpos Clauer que es vol llegir i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:2706
+msgid "Abortar"
+msgstr "Avortar"
+
+#: /tmp/eLectionWizard.sh:2714
+msgid "Debe elegir un dispositivo que sea Clauer"
+msgstr "Heu d'elegir un dispositiu que siga Clauer"
+
+#: /tmp/eLectionWizard.sh:2715
+msgid "Inserte el siguiente Clauer a leer y pulse INTRO."
+msgstr "Inseriu el següent Clauer que es vol llegir i premeu INTRO"
+
+#: /tmp/eLectionWizard.sh:2738
+msgid "Clauer leido con éxito. Retírelo y pulse INTRO."
+msgstr "Clauer llegit correctament. Retireu-lo i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:2875
+msgid "Uno de los parámetros está corrupto o manipulado."
+msgstr "Un dels paràmetres està corrupte o manipulat."
+
+#: /tmp/eLectionWizard.sh:2980
+msgid "Inicio"
+msgstr "Inici"
+
+#: /tmp/eLectionWizard.sh:2980
+msgid "Formatear"
+msgstr "Formatar"
+
+#: /tmp/eLectionWizard.sh:2980
+msgid "$1\\nEsto implica que, o el sistema esta vacio, o desea reinstalarlo. \\nSi elige continuar, se destruirán todos los datos\\n del sistema si los hubiese y se instalará\\nel sistema de voto totalmente de cero. \\n\\n¿Desea continuar o desea volver al inicio?"
+msgstr "$1\\nAixò implica que, o el sistema està buit o que desitgeu reinstal·lar-lo. \\nSi trieu continuar es destruiran totes les dades\\n del sistema, si n'hi ha, i s'instal·larà\\nel sistema de vot totalment de zero. \\n\\nVoleu continuar o preferiu tornar a l'inici?"
+
+#: /tmp/eLectionWizard.sh:2993
+msgid "¿Seguro que desea continuar?"
+msgstr "Esteu segurs que voleu continuar?"
+
+#: /tmp/eLectionWizard.sh:3022
+msgid "No existe el dispositivo"
+msgstr "No existeix el dispositiu"
+
+#: /tmp/eLectionWizard.sh:3039
+msgid "Error durante el particionado: Dispositivo inválido."
+msgstr "Error mentre es feia la partició: dispositiu invàlid."
+
+#: /tmp/eLectionWizard.sh:3123
+msgid "Error durante el particionado"
+msgstr "Error mentre es feia la partició"
+
+#: /tmp/eLectionWizard.sh:3147
+msgid "Error durante el formateo"
+msgstr "Error durant la formatació"
+
+#: /tmp/eLectionWizard.sh:3202
+msgid "No lo ha retirado. Hágalo y pulse INTRO."
+msgstr "No l'heu tret. Feu-ho i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:3218
+msgid "Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\\n(Puede ser uno de los Clauer que acaban de emplear)"
+msgstr "Inseriu un dispositiu USB per a emmagatzemar la petició de certificat i premeu INTRO.\\n(Pot ser un dels Clauers que acabeu d'emprar)"
+
+#: /tmp/eLectionWizard.sh:3227
+msgid "Otro"
+msgstr "Un altre"
+
+#: /tmp/eLectionWizard.sh:3227
+msgid "Este dispositivo no es válido. ¿Desea insertar otro o prefiere formatear este?"
+msgstr "Aquest dispositiu no és vàlid. Voleu inserir-ne un altre o preferiu formatar aquest?"
+
+#: /tmp/eLectionWizard.sh:3230
+msgid "¿Seguro que desea formatear? Todos los datos SE PERDERÁN."
+msgstr "Esteu segurs que el voleu formatar? Totes les dades ES PERDRAN."
+
+#: /tmp/eLectionWizard.sh:3234
+msgid "Formateando dispositivo..."
+msgstr "Formatant el dispositiu..."
+
+#: /tmp/eLectionWizard.sh:3243
+msgid "Este dispositivo es de sólo lectura. ¿Desea insertar otro o prefiere formatear este?"
+msgstr "Aquest dispositiu es només de lectura. Voleu inserir-ne un altre o preferiu formatar aquest?"
+
+#: /tmp/eLectionWizard.sh:3259
+msgid "Escribiendo petición de certificado..."
+msgstr "Escrivint petició de certificat..."
+
+#: /tmp/eLectionWizard.sh:3283
+msgid "Error de escritura. Inserte otro dispositivo"
+msgstr "Error d'escriptura. Inseriu un altre dispositiu"
+
+#: /tmp/eLectionWizard.sh:3289
+msgid "Petición de certificado escrita con éxito.\\nRetire el dispositivo y pulse INTRO."
+msgstr "Petició de certificat escrita correctament.\\nTraieu el dispositiu i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:3344
+msgid "Error: el fichero esta vacio."
+msgstr "Error: el fitxer és buit."
+
+#: /tmp/eLectionWizard.sh:3358
+msgid "Error de lectura."
+msgstr "Error de lectura."
+
+#: /tmp/eLectionWizard.sh:3363
+msgid "Error: el fichero no contiene certificados PEM."
+msgstr "Error: el fitxer no conté certificats PEM."
+
+#: /tmp/eLectionWizard.sh:3369
+msgid "Error procesando el fichero de certificado."
+msgstr "Error en el processament del fitxer de certificat."
+
+#: /tmp/eLectionWizard.sh:3379
+msgid "El fichero sólo debe contener el certificado de servidor."
+msgstr "El fitxer només ha de contenir el certificat de servidor."
+
+#: /tmp/eLectionWizard.sh:3393
+msgid "Error: certificado no válido."
+msgstr "Error: certificat no vàlid."
+
+#: /tmp/eLectionWizard.sh:3428
+msgid "Error: el certificado no corresponde con la llave."
+msgstr "Error: el certificat no es correspon amb la clau."
+
+#: /tmp/eLectionWizard.sh:3443
+msgid "Vamos a generar un certificado para las conexiones seguras.\\n Debe proporcionar los datos de la entidad propietaria de este servidor (el nombre de dominio bajo el que operará el servidor)"
+msgstr "Anem a generar un certificat per a les connexions segures.\\nHeu de proporcionar les dades de l'entitat propietària d'aquest servidor (el nom de domini sota el qual opera el servidor)"
+
+#: /tmp/eLectionWizard.sh:3466
+msgid "Nombre de dominio del servidor:"
+msgstr "Nom de domini del servidor:"
+
+#: /tmp/eLectionWizard.sh:3476
+msgid "Debe proporcionar un nombre de dominio."
+msgstr "Heu de proporcionar un nom de domini."
+
+#: /tmp/eLectionWizard.sh:3492
+msgid "Debe introducir un nombre de dominio válido."
+msgstr "Heu d'introduir un nom de domini vàlid."
+
+#: /tmp/eLectionWizard.sh:3498
+msgid "Revisar"
+msgstr "Revisar"
+
+#: /tmp/eLectionWizard.sh:3499
+msgid "Datos adquiridos. ¿Desea revisarlos o desea continuar con la generación de la petición de certificado?"
+msgstr "Dades adquirides. Voleu revisar-les o preferiu continuar amb la generació de la petició de certificat?"
+
+#: /tmp/eLectionWizard.sh:3505
+msgid "Generando petición de certificado..."
+msgstr "Generant petició de certificat..."
+
+#: /tmp/eLectionWizard.sh:3516
+msgid "Error generando la petición de certificado."
+msgstr "Error durant la generació de la petició de certificat."
+
+#: /tmp/eLectionWizard.sh:3534
+msgid "Inserte un dispositivo USB del que leer el certificado de servidor y pulse INTRO."
+msgstr "Inseriu un dispositiu USB des d'on llegir el certificat del servidor i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:3534
+msgid "Seleccione el certificado de servidor"
+msgstr "Seleccioneu el certificat del servidor"
+
+#: /tmp/eLectionWizard.sh:3550
+msgid "Inserte un dispositivo USB del que leer el fichero con la cadena de certificación y pulse INTRO. (puede dejar el mismo)"
+msgstr "Inseriu un dispositiu USB des d'on llegir el fitxer amb la cadena de certificació i premeu INTRO (podeu deixar el mateix)."
+
+#: /tmp/eLectionWizard.sh:3550
+msgid "Seleccione la cadena de certificación"
+msgstr "Seleccioneu la cadena de certificació"
+
+#: /tmp/eLectionWizard.sh:3565
+msgid "Fallo de verificación de la cadena de certificación.\\nEsto puede ser debido a que el sistema no reconoce la CA raíz. Se aborta el proceso"
+msgstr "Error de verificació de la cadena de certificació.\\nPot deure's a que el sistema no reconeix la CA arrel. S'aborta el procés."
+
+#: /tmp/eLectionWizard.sh:3601
+msgid "Preparando espacio de almacenamiento..."
+msgstr "Preparant l'espai d'emmagatzematge..."
+
+#: /tmp/eLectionWizard.sh:3614
+msgid "Error grave: no se puede acceder a ningún dispositivo loopback"
+msgstr "Error greu: no es pot accedir a cap dispositiu loopback"
+
+#: /tmp/eLectionWizard.sh:3633
+msgid "Creando zona de datos cifrados..."
+msgstr "Creant zona de dades xifrades..."
+
+#: /tmp/eLectionWizard.sh:3635
+msgid "Accediendo a datos cifrados..."
+msgstr "Accedint a dades xifrades..."
+
+#: /tmp/eLectionWizard.sh:3668
+msgid "Error grave: no se pudo activar el cliente de iSCSI."
+msgstr "Error greu: no s'ha pogut activar el client iSCSI."
+
+#: /tmp/eLectionWizard.sh:3679
+msgid "Error: imposible acceder al target iSCSI."
+msgstr "Error: impossible accedir al target iSCSI."
+
+#: /tmp/eLectionWizard.sh:3699
+msgid "Error: el target iSCSI no devolvió ninguna unidad lógica."
+msgstr "Error: el target iSCSI no ha tornat unitats lògiques."
+
+#: /tmp/eLectionWizard.sh:3728
+msgid "Error accediendo al directorio compartido."
+msgstr "Error en l'accés al directori compartit."
+
+#: /tmp/eLectionWizard.sh:3734
+msgid "Error: el directorio montado no tiene acceso de escritura."
+msgstr "Error: el directori muntat no té permís d'escriptura."
+
+#: /tmp/eLectionWizard.sh:3753
+msgid "Error accediendo al recurso compartido."
+msgstr "Error en l'accés al recurs compartit."
+
+#: /tmp/eLectionWizard.sh:3760
+msgid "Error: el recurso compartido es de sólo lectura."
+msgstr "Error: el recurs compartit és només de lectura."
+
+#: /tmp/eLectionWizard.sh:3775
+msgid "No se ha podido montar la partición."
+msgstr "No s'ha pogut muntar la partició."
+
+#: /tmp/eLectionWizard.sh:3787
+msgid "No se ha reconocido el modo de acceso a los datos cifrados. Configuración probablemente manipulada."
+msgstr "No s'ha reconegut el mode d'accés a les dades xifrades. Configuració probablement manipulada."
+
+#: /tmp/eLectionWizard.sh:3797
+msgid "Cifrando zona de almacenamiento..."
+msgstr "Xifrant zona d'emmagatzematge..."
+
+#: /tmp/eLectionWizard.sh:3803
+msgid "Error grave: no se pudo cifrar la zona de almacenamiento."
+msgstr "Error greu: no s'ha pogut xifrar la zona d'emmagatzematge."
+
+#: /tmp/eLectionWizard.sh:3810
+msgid "Error grave: no se pudo acceder a la zona de almacenamiento."
+msgstr "Error greu: no s'ha pogut accedir a la zona d'emmagatzematge."
+
+#: /tmp/eLectionWizard.sh:3815
+msgid "Creando sistema de ficheros..."
+msgstr "Creant sistema de fitxers..."
+
+#: /tmp/eLectionWizard.sh:3817
+msgid "Error grave: no se pudo dar formato al sistema de ficheros."
+msgstr "Error greu: no s'ha pogut donar format al sistema de fitxers."
+
+#: /tmp/eLectionWizard.sh:3823
+msgid "Error grave: no se pudo montar el sistema de ficheros."
+msgstr "Error greu: no s'ha pogut muntar el sistema de fitxers."
+
+#: /tmp/eLectionWizard.sh:3844
+msgid "Escriba el listado de destinatarios (uno por línea)."
+msgstr "Escriviu la llista de destinataris (un per línia)."
+
+#: /tmp/eLectionWizard.sh:3851
+msgid "Debe especificar al menos una dirección."
+msgstr "Heu d'especificar almenys una adreça."
+
+#: /tmp/eLectionWizard.sh:3864
+msgid "Existen direcciones de correo no válidas."
+msgstr "Hi ha adreces electròniques no vàlides."
+
+#: /tmp/eLectionWizard.sh:3946
+msgid "Configurando servidor de correo..."
+msgstr "Configurant el servidor de correu..."
+
+#: /tmp/eLectionWizard.sh:3968
+msgid "Error grave: no se pudo activar el servidor de correo."
+msgstr "Error greu: no s'ha pogut activar el servidor de correu."
+
+#: /tmp/eLectionWizard.sh:3985
+msgid "Vamos a definir los datos de acceso como administrador al programa Web de gestión del sistema de voto. Deberá recordarlos para poder acceder en el futuro.\\n\\nRecuerde que el acceso a las funciones de administración privilegiadas sólo podrá llevarse a cabo previa autorización de la comisión de custodia por medio de esta aplicación."
+msgstr "Anem a definir les dades d'accés com a administrador del programa de gestió del sistema de vot. Heu de recordar-los per a poder accedir en el futur.\\n\\nRecordeu que l'accés a les funcions d'administració privilegiades només podrà realitzar-se amb l'autorització prèvia de la comissió de custòdia per mitjà d'aquesta aplicació."
+
+#: /tmp/eLectionWizard.sh:4002
+msgid "Nombre de usuario del administrador del sistema de voto."
+msgstr "Nom de l'usuari administrador del sistema de vot."
+
+#: /tmp/eLectionWizard.sh:4008
+msgid "Debe proporcionar un nombre de usuario."
+msgstr "Heu de proporcionar un nom d'usuari."
+
+#: /tmp/eLectionWizard.sh:4016
+msgid "Debe introducir un nombre de usuario válido. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr "Heu de proporcionar un nom d'usuari vàlid. Pot contenir els caràcters: $ALLOWEDCHARSET"
+
+#: /tmp/eLectionWizard.sh:4023
+msgid "Introduzca la contraseña para\\nel administrador del sistema de voto.\\nEs imprescindible que la recuerde."
+msgstr "Escriviu la contrasenya per a\\nl'administrador del sistema de vot.\\nÉs imprescindible que la recordeu."
+
+#: /tmp/eLectionWizard.sh:4029
+msgid "Nombre completo del administrador del sistema de voto."
+msgstr "Nom complet de l'administrador del sistema de vot."
+
+#: /tmp/eLectionWizard.sh:4035
+msgid "Debe proporcionar un nombre."
+msgstr "Heu de proporcionar un nom."
+
+#: /tmp/eLectionWizard.sh:4044
+msgid "Debe introducir un nombre válido. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr "Heu de proporcionar un nom vàlid. Pot contenir els caràcters: $ALLOWEDCHARSET"
+
+#: /tmp/eLectionWizard.sh:4051
+msgid "DNI del administrador del sistema de voto."
+msgstr "DNI de l'administrador del sistema de vot."
+
+#: /tmp/eLectionWizard.sh:4057
+msgid "Debe proporcionar un DNI."
+msgstr "Heu de proporcionar un DNI."
+
+#: /tmp/eLectionWizard.sh:4065
+msgid "Debe introducir un numero de DNI válido. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr "Heu de proporcionar un DNI vàlid. Pot contenir els caràcters: $ALLOWEDCHARSET"
+
+#: /tmp/eLectionWizard.sh:4072
+msgid "Correo electrónico del administrador del sistema de voto.\\nSe empleará para notificar incidencias del sistema."
+msgstr "Adreça electrònica de l'administrador del sistema de vot.\\nS'utilitzarà per a notificar les incidències del sistema."
+
+#: /tmp/eLectionWizard.sh:4078
+msgid "Debe proporcionar un correo electrónico."
+msgstr "Heu de proporcionar una adreça electrònica."
+
+#: /tmp/eLectionWizard.sh:4086
+msgid "Debe introducir una dirección de correo válida."
+msgstr "Heu d'introduir una adreça de correu vàlida."
+
+#: /tmp/eLectionWizard.sh:4094
+msgid "Seleccione la zona horaria en la que se ubica el servidor de voto:"
+msgstr "Seleccioneu la zona horària en què s'ubica el servidor de vot:"
+
+#: /tmp/eLectionWizard.sh:4099
+msgid "Debe seleccionar una zona horaria."
+msgstr "Heu de seleccionar una zona horària."
+
+#: /tmp/eLectionWizard.sh:4109
+msgid "Seleccione un tamaño para las llaves del sistema\\n(a mayor valor, más robustez, pero más coste computacional):"
+msgstr "Seleccioneu una mida per a les claus del sistema\\n(com més valor, més robustesa, però més cost computacional):"
+
+#: /tmp/eLectionWizard.sh:4123
+msgid "Datos adquiridos. ¿Desea revisarlos o desea continuar con la configuración del sistema?"
+msgstr "Dades adquirides. Desitgeu revisar-les o desitgeu seguir configurant el sistema?"
+
+#: /tmp/eLectionWizard.sh:4158
+msgid "Vamos a definir los datos para registrar el sistema como miembro válido de la red eSurvey. Si ya está registrado como usuario de eSurveySites, introduzca los datos correctos. Si no, puede crear una nueva cuenta ahora introduciendo los datos deseados."
+msgstr "Anem a definir les dades per a enregistrar el sistema com a membre de la xarxa eSurvey. Si ja esteu registrats com a usuari d'eSurveySites, escriviu les dades correctes. Si no, podeu crear un nou compte ara introduint les dades desitjades."
+
+#: /tmp/eLectionWizard.sh:4177
+msgid "Correo electrónico, identificador de usuario para eSurveySites."
+msgstr "Adreça electrònica, identificadora d'usuari per a eSurveySites."
+
+#: /tmp/eLectionWizard.sh:4183
+msgid "Debe proporcionar una dirección de correo."
+msgstr "Heu de proporcionar una adreça de correu electrònic."
+
+#: /tmp/eLectionWizard.sh:4198
+msgid "Especificar"
+msgstr "Especificar"
+
+#: /tmp/eLectionWizard.sh:4198
+msgid "Generar"
+msgstr "Generar"
+
+#: /tmp/eLectionWizard.sh:4199
+msgid "Desea especificar una contraseña para eSurveySites (si ya posee una cuenta elija 'especificar') o prefiere que se genere automáticamente (la recibirá en su correo)?"
+msgstr "Voleu especificar una contrasenya per a eSurveySites (si ja teniu un compte trieu 'especificar') o preferiu que es genere automàticament (la rebreu al vostre correu)?"
+
+#: /tmp/eLectionWizard.sh:4207
+msgid "Contraseña de acceso a eSurveySites.\\nSi ya posee una cuenta, escriba la contraseña."
+msgstr "Contrasenya d'accés a eSurveySites.\\nSi ja teniu un compte, escriviu la contrasenya."
+
+#: /tmp/eLectionWizard.sh:4219
+msgid "Nombre de su organización o del servidor."
+msgstr "Nom de la vostra organització o del servidor."
+
+#: /tmp/eLectionWizard.sh:4239
+msgid "Nombre o propósito del sistema de voto."
+msgstr "Nom o propòsit del sistema de vot."
+
+#: /tmp/eLectionWizard.sh:4259
+msgid "País en que se ubica su organización o su servidor (2 letras)."
+msgstr "País en què s'ubica la vostra organització o el vostre servidor (2 lletres)."
+
+#: /tmp/eLectionWizard.sh:4265
+msgid "Debe proporcionar un código de país de 2 letras."
+msgstr "Heu de proporcionar un codi de país de 2 lletres."
+
+#: /tmp/eLectionWizard.sh:4273
+msgid "Debe introducir un código válido."
+msgstr "Heu d'introduir un codi vàlid."
+
+#: /tmp/eLectionWizard.sh:4335
+msgid "Generando certificado para eSurveySites..."
+msgstr "Generant el certificat per a eSurveySites..."
+
+#: /tmp/eLectionWizard.sh:4340
+msgid "Error grave: no se pudo generar el certificado de sites."
+msgstr "Error greu: no s'ha pogut generar el certificat de sites."
+
+#: /tmp/eLectionWizard.sh:4360
+msgid "Conectando con eSurveySites..."
+msgstr "Connectant amb eSurveySites..."
+
+#: /tmp/eLectionWizard.sh:4374
+msgid "Error conectando con eSurveySites."
+msgstr "Error durant la connexió amb eSurveySites."
+
+#: /tmp/eLectionWizard.sh:4388
+msgid "Error al entregar la solicitud de certificado en eSurveySites. Tal vez la dirección de correo ya pertenece a una cuenta registrada."
+msgstr "Error en lliurar la sol·licitud de certificat en eSurveySites. Potser l'adreça de correu ja pertany a un altre compte registrat."
+
+#: /tmp/eLectionWizard.sh:4402
+msgid "Error: ya existe una solicitud en eSurveySites con estos datos. Modifíquelos."
+msgstr "Error: ja hi ha una sol·licitud en eSurveySites amb aquestes dades. Modifíque-les."
+
+#: /tmp/eLectionWizard.sh:4417
+msgid "Error en eSurveySites: diferencias entre los datos enviados y los devueltos por el servidor."
+msgstr "Error en eSurveySites: diferències entre les dades enviades i les tornades pel servidor."
+
+#: /tmp/eLectionWizard.sh:4450
+msgid "Ha habido un error al descargar la lista de nodos. No podemos verificar si existen al menos dos nodos para garantizar el anonimato."
+msgstr "Hi ha hagut un error en descarregar la llista de nodes. No podem verificar si hi ha almenys dos nodes per a garantir l'anonimat."
+
+#: /tmp/eLectionWizard.sh:4456
+msgid "No existen suficientes nodos en la red de latencia para garantizar un nivel mínimo de anonimato. Opere este sistema bajo su propia responsabilidad."
+msgstr "No hi ha suficients nodes en la xarxa de latència per a garantir un nivell mínim d'anonimat. Opereu en aquest sistema sota la vostra responsabilitat."
+
+#: /tmp/eLectionWizard.sh:4465
+msgid "Generando llaves de la urna..."
+msgstr "Generant les claus de l'urna..."
+
+#: /tmp/eLectionWizard.sh:4485
+msgid "Configurando servidor de base de datos..."
+msgstr "Configurant el servidor de bases de dades..."
+
+#: /tmp/eLectionWizard.sh:4498
+msgid "Error copiando la base de datos al directorio cifrado. Destino inaccesible o espacio insuficiente."
+msgstr "Error en la còpia la base de dades al directori xifrat. Destí inaccessible o espai insuficient."
+
+#: /tmp/eLectionWizard.sh:4517
+msgid "Error grave: no se pudo activar el servidor de base de datos."
+msgstr "Error greu: no s'ha pogut activar el servidor de bases de dades."
+
+#: /tmp/eLectionWizard.sh:4677
+msgid "Configurando servidor web..."
+msgstr "Configurant el servidor web..."
+
+#: /tmp/eLectionWizard.sh:4689
+msgid "Seleccione un modo de operación para el servidor web:"
+msgstr "Seleccioneu un mode d'operació per al servidor web:"
+
+#: /tmp/eLectionWizard.sh:4689
+msgid "Con certificado SSL"
+msgstr "Amb certificat SSL"
+
+#: /tmp/eLectionWizard.sh:4689
+msgid "Conexión no cifrada"
+msgstr "Connexió no xifrada."
+
+#: /tmp/eLectionWizard.sh:4698
+msgid "Añade un nivel más de privacidad y autenticidad del servidor. Requiere la solicitud de un certificado digital, un proceso relativamente costoso temporal y económicamente."
+msgstr "Afegeix un nivell més de privacitat i autenticitat del servidor. Requereix la sol·licitud d'un certificat digital, un procés relativament costós temporalment i econòmicament."
+
+#: /tmp/eLectionWizard.sh:4704
+msgid "La información viajará desprotegida. El sistema podrá emplearse inmediatamente y sin coste adicional. Aunque la seguridad del voto no se verá afectada, si se emplea autenticación local las contraseñas viajarán desprotegidas."
+msgstr "La informació viatjarà desprotegida. El sistema podrà emprar-se immediatament i sense cap cost addicional. Encara que la seguretat del vot no es veurà afectada, si utilitzeu autenticació local les contrasenyes viatjaran desprotegides."
+
+#: /tmp/eLectionWizard.sh:4712
+msgid "Ha elegido el modo:\\n\\n$wwwmodename\\n\\n$wwwmodemsg\\n\\n¿Continuar?"
+msgstr "Heu triat el mode:\\n\\n$wwwmodename\\n\\n$wwwmodemsg\\n\\nContinuar?"
+
+#: /tmp/eLectionWizard.sh:4728
+msgid "Error generando el certificado de pruebas."
+msgstr "Error en generar el certificat de proves."
+
+#: /tmp/eLectionWizard.sh:4769
+msgid "Error grave: no se pudo generar la petición de certificado."
+msgstr "Error greu: no es pot generar la petició del certificat."
+
+#: /tmp/eLectionWizard.sh:4772
+msgid "Se ha generado una petición de certificado SSL para este servidor.\\nPor favor, prepare un dispositivo USB para almacenarla (puede ser uno de los Clauers empleados ahora).\\nEsta petición deberá ser entregada a una Autoridad de Certificacion confiable para su firma.\\n\\nHaga notar al encargado de este proceso que en un fichero adjunto debe proporcionarse toda la cadena de certificación."
+msgstr "S'ha generat una petició de certificat SSL per a aquest servidor.\\nPer favor, prepareu un dispositiu USB per a emmagatzemar-la (pot ser un dels Clauers emprats ara).\\nAquesta petició s'ha d'entregar a una autoritat de certificació confiable per a la seua firma.\\n\\nComuniqueu a l'encarregat d'aquest procés que en un fitxer adjunt ha de proporcionar-se tota la cadena de certificació."
+
+#: /tmp/eLectionWizard.sh:4786
+msgid "Vamos a generar un certificado de pruebas para poder operar el sistema durante el proceso de firma del válido"
+msgstr "Anem a generar un certificat de proves perquè puga operar el sistema mentre dure el procés de firma del vàlid"
+
+#: /tmp/eLectionWizard.sh:4823
+msgid "Error grave: no se pudo activar el servidor web."
+msgstr "Error greu: no s'ha pogut activar el servidor web."
+
+#: /tmp/eLectionWizard.sh:4864
+msgid "Prepare ahora los Clauers del sistema anterior. Vamos a recuperar los datos."
+msgstr "Prepareu ara els Clauers del sistema anterior. Anem a recuperar les dades."
+
+#: /tmp/eLectionWizard.sh:4872
+msgid "Error durante la recuperación del backup. Vuelva a intentarlo."
+msgstr "Error en la recuperació del backup. Torneu a intentar-ho."
+
+#: /tmp/eLectionWizard.sh:4971
+msgid "Verificando piezas de la llave..."
+msgstr "Verificant fragments de la clau..."
+
+#: /tmp/eLectionWizard.sh:4978
+msgid "Se detectaron piezas corruptas.\\n\\nPara evitar una pérdida de datos, debería reunirse la comisión al completo en el menor tiempo posible y proceder a cambiar la llave."
+msgstr "S'han detectat fragments corruptes.\\n\\nPer a evitar una pèrdua de dades hauríeu de reunir la comissió al complet en el menor temps possible i procedir a renovar la clau."
+
+#: /tmp/eLectionWizard.sh:4992
+msgid "Ahora puede operar como administrador a través de la aplicación web de voto.\\n\\nRecuerde que esto debe realizarse bajo la supervisión de la comisión.\\n\\nPulse INTRO para retirar estos privilegios."
+msgstr "Ara podeu operar com a administrador en l'aplicació web de vot.\\n\\nRecordeu que això ha de realitzar-se sota supervisió de la comissió.\\n\\nPremeu INTRO per a retirar aquests privilegis."
+
+#: /tmp/eLectionWizard.sh:4994
+msgid "Retirar"
+msgstr "Retirar"
+
+#: /tmp/eLectionWizard.sh:4994
+msgid "¿Desea retirar los privilegios de administrador?"
+msgstr "Voleu retirar els privilegis d'administrador?"
+
+#: /tmp/eLectionWizard.sh:5008
+msgid "Va a resetear la contraseña del usuario administrador."
+msgstr "Va a restablir la contrasenya de l'usuari administrador."
+
+#: /tmp/eLectionWizard.sh:5016
+msgid "Adicionalmente, el sistema ha otorgado privilegios para el administrador. Estos se invalidarán en cuanto realice alguna otra operación de mantenimiento."
+msgstr "A més, el sistema ha donat privilegis a l'administrador. Aquests s'invalidaran quan es realitze alguna operació de manteniment."
+
+#: /tmp/eLectionWizard.sh:5024
+msgid "Va a crear un usuario administrador nuevo."
+msgstr "Va a generar un nou usuari administrador."
+
+#: /tmp/eLectionWizard.sh:5056
+msgid "ATENCIÓN:\\n\\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que finalice la sesión. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. Sus acciones serán registradas y enviadas a la lista de destinatarios interesados, que se solicita a continuación."
+msgstr "ATENCIÓ:\\n\\nHeu triat llançar un terminal. Això dóna a qui està manipulant l'equip, accés a dades sensibles fins que finalitze la sessió. Assegureu-vos que s'opera sota supervisió tècnica per a verificar que no es realitza cap acció il·lícita. Voleu continuar?"
+
+#: /tmp/eLectionWizard.sh:5063
+msgid "Se ha cancelado la sesión de terminal."
+msgstr "S'ha cancel·lat la sessió de terminal."
+
+#: /tmp/eLectionWizard.sh:5072
+msgid "ESCRIBA exit PARA VOLVER AL MENÚ DE ESPERA."
+msgstr "ESCRIVIU exit PER A TORNAR AL MENÚ D'ESPERA."
+
+#: /tmp/eLectionWizard.sh:5078
+msgid "Registro de la sesión de mantenimiento sobre el servidor de voto vtUJI del $(date +%d/%m/%Y-%H:%M)"
+msgstr "Registre de la sessió de manteniment sobre el servidor de vot vtUJI del $(date +%d/%m/%Y-%H:%M)"
+
+#: /tmp/eLectionWizard.sh:5079
+msgid "Usted ha proporcionado su dirección como interesado en recibir una copia de la secuencia de comandos introducida por el técnico designado sobre el terminal del servidor de voto. Esta se encuentra en el fichero adjunto. Puede emplear este fichero para realizar o encargar personalmente una auditoría de la seguridad del mismo."
+msgstr "Heu proporcionat la vostra adreça com a interessat a rebre una còpia de la seqüència de comandaments introduïda pel tècnic designat en el terminal del servidor de vot. La podeu trobar en el fitxer adjunt. Podeu emprar aquest fitxer per a realitzar o encarregar personalment una auditoria de la seguretat d'aquest."
+
+#: /tmp/eLectionWizard.sh:5094
+msgid "¿Seguro que desea reiniciar la recogida de estaditicas del sistema?"
+msgstr "Esteu segurs que desitgeu reiniciar la recollida d'estadístiques del sistema?"
+
+#: /tmp/eLectionWizard.sh:5107
+msgid "Reinicio completado con éxito."
+msgstr "Reinici completat correctament."
+
+#: /tmp/eLectionWizard.sh:5131
+msgid "Certificado instalado correctamente."
+msgstr "Certificat instal·lat correctament."
+
+#: /tmp/eLectionWizard.sh:5133
+msgid "Error instalando el certificado."
+msgstr "Error en la instal·lació del certificat."
+
+#: /tmp/eLectionWizard.sh:5200
+msgid "Petición de certificado generada correctamente."
+msgstr "Petició de certificat generada correctament."
+
+#: /tmp/eLectionWizard.sh:5202
+msgid "Error generando la nueva petición de certificado."
+msgstr "Error generant la nova petició de certificat."
+
+#: /tmp/eLectionWizard.sh:5213
+msgid "Ha elegido utilizar el servidor con certificado SSL. Si completa esta acción, ya no se permitir acceder al servidor de voto sin cifrado. Deberá solicitar y comprar un certificado de una autoridad confiable. ¿Desea continuar?"
+msgstr "Heu triat utilitzar el servidor amb certificat SSL. Si completeu aquesta acció, ja no podreu accedir al servidor de vot sense xifrat. Heu de sol·licitar i comprar un certificat d'una autoritat confiable. Voleu continuar?"
+
+#: /tmp/eLectionWizard.sh:5271
+msgid "Servidor web configurado correctamente."
+msgstr "Servidor web configurat correctament."
+
+#: /tmp/eLectionWizard.sh:5273
+msgid "Error configurando el servidor web."
+msgstr "Error en la configuració del servidor web."
+
+#: /tmp/eLectionWizard.sh:5319
+msgid "Dado que se van a modificar parámeros de configuración básicos, estos deben ser escritos en los Clauers.\\n\\nAsegúrese de que se reuna toda la comisión.\\n\\nPrepare un conjunto de Clauers nuevo, diferente al actual.\\n\\nLa llave de cifrado será renovada, invalidando la actual.\\n\\n¿Seguro que desea continuar?"
+msgstr "Ja que van a modificar-se paràmetres de configuració bàsics, aquests s'han d'escriure en els Clauers.\\n\\nAssegureu-vos de que tota la comissió és present.\\n\\nPrepareu un conjunt de Clauers nou, diferent a l'actual.\\n\\nLa clau de xifrat serà renovada i s'invalidarà l'actual.\\n\\nEsteu segurs que voleu continuar?"
+
+#: /tmp/eLectionWizard.sh:5369
+msgid "Ahora se procederá a construir el nuevo conjunto de Clauers. Podrá elegir los parámetros de compartición de la nueva llave."
+msgstr "Ara construirem el nou conjunt de Clauers. Podreu triar els paràmetres de compartició de la nova clau."
+
+#: /tmp/eLectionWizard.sh:5383
+msgid "Realizando copia de seguridad con la nueva llave..."
+msgstr "Realitzant còpia de seguretat amb la nova clau..."
+
+#: /tmp/eLectionWizard.sh:5433
+msgid "Error grave: no se pudo reiniciar el servidor de correo."
+msgstr "Error greu: no s'ha pogut reiniciar el servidor de correu."
+
+#: /tmp/eLectionWizard.sh:5462
+msgid "Se detectaron piezas corruptas. Por seguridad, procederemos a generar una nueva llave de acceso."
+msgstr "S'han detecta fragments corruptes. Per seguretat, generarem una nova clau d'accés."
+
+#: /tmp/eLectionWizard.sh:5469
+msgid "Las piezas de la llave son correctas."
+msgstr "Els fragments de la clau són correctes."
+
+#: /tmp/eLectionWizard.sh:5480
+msgid "Vamos a generar una nueva llave de acceso.\\n\\n Dispongan de un nuevo conjunto de Clauers. BAJO NINGÚN CONCEPTO empleen los Clauers que contienen los fragmentos de la llave actual, dado que un error durante la escritura dejaría el sistema inaccesible.\\n\\n Estos Clauers podrán ser descartados en cuanto se acceda al sistema con la nueva clave."
+msgstr "Anem a generar una nova clau d'accés.\\n\\nPrepareu un nou conjunt de Clauers. SOTA CAP CONCEPTE podeu emprar els Clauers que contenen els fragments de la clau actual, ja que un error en el procés deixaria el sistema inaccessible.\\n\\nAquests Clauers podran ser descartats quan s'haja accedit al sistema amb la nova clau."
+
+#: /tmp/eLectionWizard.sh:5495
+msgid "Modificar"
+msgstr "Modificar"
+
+#: /tmp/eLectionWizard.sh:5495
+msgid "¿Desea modificar los datos introducidos?"
+msgstr "Voleu modificar les dades introduïdes?"
+
+#: /tmp/eLectionWizard.sh:5508
+msgid "Generando una nueva llave..."
+msgstr "Generant una clau nova..."
+
+#: /tmp/eLectionWizard.sh:5512
+msgid "Ahora procederemos a repartir la nueva información del sistema en los dispositivos de la comisión de custodia.\\n\\nLos dispositivos que se empleen NO DEBEN CONTENER NINGUNA INFORMACIÓN, porque VAN A SER FORMATEADOS."
+msgstr "Ara repartirem la nova informació del sistema en els dispositius de la comissió de custòdia.\\n\\nEls dispositius que s'empren NO HAN DE CONTENIR CAP INFORMACIÓ, perquè VAN A SER FORMATATS."
+
+#: /tmp/eLectionWizard.sh:5518
+msgid "Se ha repartido la nueva llave con éxito, pero aún no se ha realizado la sustitución. Si falla el proceso, reinícielo con la llave antigua."
+msgstr "S'ha repartit la nova clau correctament, però encara no s'ha realitzat la substitució. Si falla el procés, reinicieu-lo amb la clau antiga."
+
+#: /tmp/eLectionWizard.sh:5523
+msgid "Error: no se puede acceder a la zona de datos cifrada."
+msgstr "Error: no es pot accedir a la zona de dades xifrades."
+
+#: /tmp/eLectionWizard.sh:5534
+msgid "Error: no queda espacio de llaves. Ejecute un traslado de datos cifrados a otra ubicación."
+msgstr "Error: no queda espai de claus. Executeu un trasllat de dades a una altra ubicació."
+
+#: /tmp/eLectionWizard.sh:5536
+msgid "Error: no se puede añadir una nueva llave a la zona de datos. Ejecute un traslado de datos cifrados a otra ubicación."
+msgstr "Error: no es pot afegir una nova clau a la zona de dades. Executeu un trasllat de dades a una altra ubicació."
+
+#: /tmp/eLectionWizard.sh:5550
+msgid "El cambio de llave se ha completado con éxito. Ya puede descartar los antiguos Clauers."
+msgstr "El canvi de claus s'ha completat correctament. Ja podeu descartar els antics Clauers."
+
+#: /tmp/eLectionWizard.sh:5564
+msgid "Vamos a trasladar los datos cifrados a una nueva ubicación.\\n\\n Dispongan de un nuevo conjunto de Clauers. BAJO NINGÚN CONCEPTO empleen los Clauers que contienen los fragmentos de la clave actual, dado que un error durante la escritura dejaría el sistema inaccesible.\\n\\n Estos Clauers podrán ser descartados en cuanto se acceda al sistema con la nueva clave."
+msgstr "Anem a traslladar les dades xifrades a una nova ubicació.\\n\\n Prepareu un nou conjunt de Clauers. SOTA CAP CONCEPTE podeu emprar els Clauers que contenen els fragments de la clau actual, ja que un error en el procés deixaria el sistema inaccessible.\\n\\nAquests Clauers podran ser descartats quan s'haja accedit al sistema amb la nova clau."
+
+#: /tmp/eLectionWizard.sh:5654
+msgid "La partición indicada coincide con la de la zona de datos antigua. Debe cambiarla."
+msgstr "La partició indicada coincideix amb la de la zona de dades antiga. Heu de canviar-la."
+
+#: /tmp/eLectionWizard.sh:5663
+msgid "Este error no puede aparecer. Se ha manipulado el nombre del fichero de datos."
+msgstr "Aquest error no pot eixir. S'ha manipulat el nom del fitxer de dades."
+
+#: /tmp/eLectionWizard.sh:5681
+msgid "El Target iSCSI coincide con el de la zona de datos antigua. Debe cambiarlo."
+msgstr "El Target iSCSI coincideix amb el de la zona de dades antiga. Heu de canviar-lo."
+
+#: /tmp/eLectionWizard.sh:5715
+msgid "Se han repartido la nueva llave y configuración con éxito, pero aún no se ha realizado la sustitución. Si falla el proceso, reinícielo con la llave antigua."
+msgstr "S'han repartit la nova clau i configuració correctament, però encara no s'ha realitzat la substitució. Si falla el procés, reinicieu-lo amb la clau antiga."
+
+#: /tmp/eLectionWizard.sh:5736
+msgid "Copiando datos a la nueva ubicación..."
+msgstr "Copiant dades a la nova ubicació..."
+
+#: /tmp/eLectionWizard.sh:5742
+msgid "Verificando copia de los datos..."
+msgstr "Verificant la còpia de les dades..."
+
+#: /tmp/eLectionWizard.sh:5753
+msgid "La copia de la zona de datos no coincide con la original. Puede tratarse de un error del sistema o un error físico del nuevo soporte. En cualquier caso, no se borrará la zona antigua, a la que se podrá seguir accediendo con los Clauers antiguos. Puede evaluar mirando los logs si la diferencia de datos no es significativa y emplear esta copia o reiniciar el proceso de cambio de llave interna. Se continua con el proceso actual."
+msgstr "La còpia de la zona de dades no coincideix amb l'original. Pot tractar-se d'un error del sistema o d'un error físic del nou suport. En qualsevol cas, no s'esborrarà la zona antiga, a la qual es podrà seguir accedint amb els Clauers antics. Podeu avaluar mirant els logs si la diferència de dades no és significativa i emprar aquesta còpia o reiniciar el procés de canvi de clau interna. Es continua amb el procés actual."
+
+#: /tmp/eLectionWizard.sh:5768
+msgid "Borrado seguro de los datos de la vieja ubicación..."
+msgstr "Esborrament segur de les dades de la ubicació antiga..."
+
+#: /tmp/eLectionWizard.sh:5793
+msgid "Ahora se realizará una copia de seguridad del sistema con la nueva llave, para evitar pérdida de datos."
+msgstr "Ara es realitzarà una còpia de seguretat del sistema amb la nova clau, per a evitar pèrdua de dades."
+
+#: /tmp/eLectionWizard.sh:5828
+msgid "Ya puede descartar los antiguos Clauers."
+msgstr "Ja podeu descartar els Clauers antics."
+
+#: /tmp/eLectionWizard.sh:5830
+msgid "La transferencia de datos se ha completado con éxito. Continuaremos con la carga normal del sistema. $disposeMsg"
+msgstr "La transferència de dades s'ha completat correctament. Continuem amb la càrrega normal del sistema. $disposeMsg"
+
+#: /tmp/eLectionWizard.sh:5884
+msgid "Error durante la recuperación del backup de la base de datos."
+msgstr "Error en la recuperació del backup de la base de dades."
+
+#: /tmp/eLectionWizard.sh:5968
+msgid "Sistema iniciado correctamente y a la espera."
+msgstr "Sistema correctament iniciat i a l'espera."
+
+#: /tmp/eLectionWizard.sh:5991
+msgid "Volver"
+msgstr "Tornar"
+
+#: /tmp/eLectionWizard.sh:6013
+msgid "Nombre de usuario del administrador:\\n\\n $ADMINNAME"
+msgstr "Nom de l'usuari administrador del sistema de vot:\\n\\n $ADMINNAME"
+
+#: /tmp/eLectionWizard.sh:6123
+msgid "Datos adquiridos. ¿Desea revisarlos?"
+msgstr "Dades adquirides. Voleu revisar-les?"
+
+#: /tmp/eLectionWizard.sh:6199
+msgid "Operaciones sobre el certificado SSL del servidor web."
+msgstr "Operacions sobre el certificat SSL del servidor web."
+
+#: /tmp/eLectionWizard.sh:6200
+msgid "Cambiar a modo de servidor web con certificado SSL."
+msgstr "Canviar a mode de servidor web amb certificat SSL."
+
+#: /tmp/eLectionWizard.sh:6205
+msgid "Cambiar parámetros de copia de seguridad remota."
+msgstr "Canviar paràmetres de còpia de seguretat remota."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "El sistema está en marcha.\\nSi lo desean pueden realizar alguna de estas acciones:"
+msgstr "El sistema està en marxa.\\nSi ho desitgeu podeu realitzar alguna d'aquestes accions:"
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Otorgar privilegios al administrador del sistema de voto temporalmente."
+msgstr "Atorgar privilegis a l'administrador del sistema de vot temporalment."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Resetear credenciales del administrador del sistema de voto."
+msgstr "Restablir credencials de l'administrador del sistema de vot."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Crear nuevo administrador del sistema de voto."
+msgstr "Crear un nou administrador del sistema de vot."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Verificar la integridad de las piezas de la llave."
+msgstr "Verificar la integritat dels fragments de la clau."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Cambiar llave de cifrado de disco."
+msgstr "Canviar clau de xifrat del disc."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Trasladar datos cifrados a otra ubicación."
+msgstr "Traslladar les dades xifrades a una altra ubicació."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Cambiar parámetros del servidor de correo"
+msgstr "Canviar paràmetres del servidor de correu."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Cambiar parámetros de acceso a la red"
+msgstr "Canviar paràmetres d'accés a la xarxa"
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Resetear estadísticas de uso del sistema."
+msgstr "Reinicialitzar estadístiques d'ús del sistema."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Monitor del estado del sistema."
+msgstr "Monitor d'estat del sistema..."
+
+#: /tmp/eLectionWizard.sh:6210
+msgid "Suspender el equipo."
+msgstr "Suspendre l'equip."
+
+#: /tmp/eLectionWizard.sh:6318
+msgid "Por razones de seguridad no se puede suspender el equipo, al no hallarse el disco copiado en RAM."
+msgstr "Per raons de seguretat vosté no pot suspendre l'equip, ja que el disc no es troba copiat a la RAM."
+
+#: /tmp/eLectionWizard.sh:6323
+msgid "Suspender"
+msgstr "Suspendre"
+
+#: /tmp/eLectionWizard.sh:6323
+msgid "¿Está seguro de que desea suspender el equipo?"
+msgstr "Esteu segurs que desitgeu suspendre l'equip?"
+
+#: /tmp/eLectionWizard.sh:6376
+msgid "El sistema está funcionando con un certificado de prueba."
+msgstr "El sistema està funcionant amb un certificat de prova."
+
+#: /tmp/eLectionWizard.sh:6378
+msgid "Releer petición de certificado."
+msgstr "Rellegir la petició de certificat."
+
+#: /tmp/eLectionWizard.sh:6380
+msgid "Instalar certificado."
+msgstr "Instal·lar certificat."
+
+#: /tmp/eLectionWizard.sh:6384
+msgid "El sistema está funcionando con un certificado válido."
+msgstr "El sistema està funcionant amb un certificat vàlid."
+
+#: /tmp/eLectionWizard.sh:6386
+msgid "Instalar un certificado renovado sin cambiar la llave privada."
+msgstr "Instal·lar certificat renovat sense canviar la clau privada."
+
+#: /tmp/eLectionWizard.sh:6388
+msgid "Renovar el certificado y la llave privada."
+msgstr "Renovar el certificat i la clau privada."
+
+#: /tmp/eLectionWizard.sh:6392
+msgid "El sistema está esperando la renovación del certificado."
+msgstr "El sistema està esperant la renovació del certificat."
+
+#: /tmp/eLectionWizard.sh:6396
+msgid "Instalar certificado renovado."
+msgstr "Instal·lar certificat renovat."
+
+#: /tmp/eLectionWizard.sh:6521
+msgid "Esta operación no requiere autorización para ser ejecutada."
+msgstr "Aquesta operació no precisa autorització per a ser executada."
+
+#: /tmp/eLectionWizard.sh:6527
+msgid "Para verificar la autoridad para realizar esta acción, procedemos a pedir los fragmentos de llave."
+msgstr "Per a verificar l'autoritat per a realitzar aquesta acció, procedim a demanar els fragments de la clau."
+
+#: /tmp/eLectionWizard.sh:6540
+msgid "No se ha logrado reconstruir la llave. Acceso denegado."
+msgstr "No s'ha pogut reconstruir la clau. Accés denegat."
+
+#: /tmp/eLectionWizard.sh:6545
+msgid "No se ha obtenido ninguna llave. Acceso denegado."
+msgstr "No s'ha obtingut cap clau. Accés denegat."
+
+#: /tmp/eLectionWizard.sh:6550
+msgid "La llave obtenida no es correcta. Acceso denegado."
+msgstr "La clau obtinguda no és correcta. Accés denegat."
+
+#: /tmp/eLectionWizard.sh:6615
+msgid "Error: no se activaron las unidades RAID debido a errores o inconsistencias. Solucione el problema antes de continuar."
+msgstr "Error: no s'han pogut activar les unitats RAID a causa d'errors o inconsitències. Solucione aquest problema abans de continuar."
+
+#: /tmp/eLectionWizard.sh:6841
+msgid "Configurando la red..."
+msgstr "Configurant la xarxa..."
+
+#: /tmp/eLectionWizard.sh:6868
+msgid "Error: no se encuentran interfaces ethernet accesibles."
+msgstr "Error: no es troben interfícies ethernet accessibles."
+
+#: /tmp/eLectionWizard.sh:6891
+msgid "Comprobando conectividad..."
+msgstr "Comprovant la connectivitat..."
+
+#: /tmp/eLectionWizard.sh:6904
+msgid "Error: no se pudo comunicar con la puerta de enlace. Revise conectividad."
+msgstr "Error: no s'ha pogut comunicar amb la porta d'enllaç. Reviseu la connectivitat."
+
+#: /tmp/eLectionWizard.sh:6920
+msgid "Error: no se pudo obtener la configuración IP. Revise conectividad."
+msgstr "Error: no s'ha pogut obtenir la configuració IP. Reviseu la connectivitat."
+
+#: /tmp/eLectionWizard.sh:6940
+msgid "No se ha podido deducir el nombre de dominio del servidor.\\nEspecifique uno:"
+msgstr "No s'ha pogut deduir el nom de domini del servidor.\\nEspecifiqueu-ne un:"
+
+#: /tmp/eLectionWizard.sh:7018
+msgid "Inserte un dispositivo USB."
+msgstr "Inseriu un dispositiu USB."
+
+#: /tmp/eLectionWizard.sh:7029
+msgid "El dispositivo no pudo ser accedido."
+msgstr "El dispositiu no és accessible."
+
+#: /tmp/eLectionWizard.sh:7064
+msgid "Ruta inválida. Los nombres de directorio pueden contener los caracteres: $ALLOWEDCHARSET"
+msgstr "Ruta invàlida. Els noms de directori poden contenir els caràcters: $ALLOWEDCHARSET"
+
+#: /tmp/eLectionWizard.sh:7071
+msgid "Ruta inválida. Debe ser subdirectorio de /media/USB/"
+msgstr "Ruta invàlida. Ha de ser un subdirectori de /media/USB/"
+
+#: /tmp/eLectionWizard.sh:7078
+msgid "Ruta inválida. No puede acceder a directorios superiores."
+msgstr "Ruta invàlida. No pot accedir a directoris superiors."
+
+#: /tmp/eLectionWizard.sh:7110
+msgid "Error al copiar el fichero."
+msgstr "Error en copiar el fitxer."
+
+#: /tmp/eLectionWizard.sh:7168
+msgid "Reanudar"
+msgstr "Reprendre"
+
+#: /tmp/eLectionWizard.sh:7168
+msgid "Finalizar"
+msgstr "Finalitzar"
+
+#: /tmp/eLectionWizard.sh:7168
+msgid "Ha cancelado la inserción de un Clauer.\\n¿Desea finalizar la inserción de dispositivos?"
+msgstr "Heu cancel·lat la inserció d'un Clauer.\\nDesitgeu finalitzar la inserció de dispositius?"
+
+#: /tmp/eLectionWizard.sh:7178
+msgid "Error de lectura. Pruebe con otro dispositivo"
+msgstr "Error de lectura. Proveu amb un altre dispositiu"
+
+#: /tmp/eLectionWizard.sh:7188
+msgid "Configuración actual:\\n"
+msgstr "Configuració actual:\\n"
+
+#: /tmp/eLectionWizard.sh:7189
+msgid "-------------------- \\n\\n"
+msgstr "-------------------- \\n\\n"
+
+#: /tmp/eLectionWizard.sh:7191
+msgid "\\n\\n\\nConfiguración nueva:\\n"
+msgstr "\\n\\n\\nConfiguració nova:\\n"
+
+#: /tmp/eLectionWizard.sh:7192
+msgid "------------------------- \\n\\n"
+msgstr "------------------------- \\n\\n"
+
+#: /tmp/eLectionWizard.sh:7195
+msgid "Se han encontrado diferencias entre la última configuración leida y la que se está empleando actualmente.\\nVamos a mostrar ambas para su comparación."
+msgstr "S'han trobat diferències entre l'última configuració llegida i la que s'està emprant actualment.\\nAnem a mostrar les dues per a comparar-les."
+
+#: /tmp/eLectionWizard.sh:7199
+msgid "Actual"
+msgstr "Actual"
+
+#: /tmp/eLectionWizard.sh:7199
+msgid "Nueva"
+msgstr "Nova"
+
+#: /tmp/eLectionWizard.sh:7199
+msgid "¿Desea emplear la actual o la nueva?"
+msgstr "Voleu emprar l'actual o la nova?"
+
+#: /tmp/eLectionWizard.sh:7209
+msgid "¿Quedan más Clauers por leer?"
+msgstr "Queden més Clauers per llegir?"
+
+#: /tmp/eLectionWizard.sh:7224
+msgid "Reconstruyendo la llave de cifrado..."
+msgstr "Reconstruint la clau de xifrat..."
+
+#: /tmp/eLectionWizard.sh:7236
+msgid "Se ha producido un error durante la reconstrucción de la llave por la presencia de fragmentos defectuosos. El sistema intentará recuperarse."
+msgstr "S'ha produït un error en la reconstrucció de la clau per la presència de fragments defectuosos. El sistema intentarà recuperar-se."
+
+#: /tmp/eLectionWizard.sh:7252
+msgid "No se ha podido reconstruir la llave."
+msgstr "No s'ha pogut reconstruir la clau."
+
+#: /tmp/eLectionWizard.sh:7264
+msgid "Se ha logrado reconstruir la llave."
+msgstr "S'ha pogut reconstruir la clau."
+
+#: /tmp/eLectionWizard.sh:7662
+msgid "Para evitar suplantaciones del CD que hace funcionar este sistema de voto, se va a copiar todo su contenido en memoria RAM."
+msgstr "Per a evitar suplantacions del CD que fa funcionar aquest sistema de vot, es va a copiar tot el contingut en memòria RAM."
+
+#: /tmp/eLectionWizard.sh:7670
+msgid "Se ha detectado que la cantidad de memoria RAM presente en el sistema es peligrosamente baja. No se realizará este procedimiento"
+msgstr "S'ha detectat que la quantitat de memòria RAM present al sistema és perillosament baixa. No es realitzarà aquest procediment."
+
+#: /tmp/eLectionWizard.sh:7672
+msgid "Copiar en RAM"
+msgstr "Copiar en RAM"
+
+#: /tmp/eLectionWizard.sh:7672
+msgid "No copiar en RAM"
+msgstr "No copiar en RAM"
+
+#: /tmp/eLectionWizard.sh:7672
+msgid "Se ha detectado que la cantidad de memoria RAM presente en el sistema puede resultar insuficiente para su correcto funcionamiento en un período prolongado:\\n\\nMemoria disponible para sistema de ficheros: $aufsSize MB\\nTamaño estimado del sistema de ficheros del CD: $ESTIMATEDCDFSSIZE MB\\n\\n¿Desea copiarlo o desea operar desde el CD?"
+msgstr "S'ha detectat que la quantitat de memòria RAM present al sistema pot resultar insuficient per al seu correcte funcionament en un període prolongat:\\n\\nMemòria disponible per al sistema de fitxers: $aufsSize MB\\nMida estimada del sistema de fitxers del CD: $ESTIMATEDCDFSSIZE MB\\n\\nDesitgeu copiar-lo o preferiu operar des del CD?"
+
+#: /tmp/eLectionWizard.sh:7681
+msgid "Copiando el CD en memoria..."
+msgstr "Copiant el CD en memòria..."
+
+#: /tmp/eLectionWizard.sh:7688
+msgid "Copia finalizada con éxito.\\n\\nEl sistema de ficheros en RAM dispone todavía de: $aufsSize MB."
+msgstr "Còpia finalitzada correctament.\\n\\nEl sistema de fitxers en RAM disposa encara de: $aufsSize MB."
+
+#: /tmp/eLectionWizard.sh:7690
+msgid "No se copiará el CD en memoria.\\n\\nEl sistema no puede garantizar su integridad ante una violación de la seguridad física. Tomen las medidas pertinentes: aumenten la cantidad de memoria RAM para poder realizar el procedimiento o restrinjan el acceso a la ubicación física del servidor."
+msgstr "No es copiarà el CD en memòria.\\n\\nEl sistema no pot garantir la seua integritat davant una violació de la seguretat física. Preneu les mesures pertinents: augmenteu la quantitat de RAM per a poder realitzar el procediment o restringiu l'accés a la ubicació física del servidor."
+
+#: /tmp/eLectionWizard.sh:7733
+msgid "Inserte un dispositivo Clauer que contenga \\nlos datos de configuración del sistema para iniciarlo.\\n\\nSi desea realizar una primera instalación\\ndel sistema o formatearlo, inserte un dispositivo USB vacio o pulse formatear."
+msgstr "Inseriu un dispositiu Clauer que continga\\nles dades de configuració del sistema per a iniciar-lo.\\n\\nSi desitgeu realitzar una primera instal·lació o formatar el sistema, inseriu un dispositiu USB buit o premeu Formatar."
+
+#: /tmp/eLectionWizard.sh:7743
+msgid "Ha pulsado formatear."
+msgstr "Heu triat formatar."
+
+#: /tmp/eLectionWizard.sh:7750
+msgid "Este dispositivo no es un Clauer."
+msgstr "Aquest dispositiu no és un Clauer."
+
+#: /tmp/eLectionWizard.sh:7766
+msgid "Ha elegido no proporcionar una contraseña."
+msgstr "Heu triat no proporcionar una contrasenya."
+
+#: /tmp/eLectionWizard.sh:7773
+msgid "Leyendo configuración del sistema..."
+msgstr "Llegint la configuració del sistema..."
+
+#: /tmp/eLectionWizard.sh:7799
+msgid "No se han podido leer los datos de configuración de este Clauer."
+msgstr "No s'han pogut llegir les dades de configuració d'aquest Clauer."
+
+#: /tmp/eLectionWizard.sh:7808
+msgid "La información de configuración leida estaba corrupta o manipulada."
+msgstr "La informació de configuració llegida estava corrupta o manipulada."
+
+#: /tmp/eLectionWizard.sh:7828
+msgid "Formatear sistema"
+msgstr "Formatar sistema"
+
+#: /tmp/eLectionWizard.sh:7828
+msgid "Ha elegido FORMATEAR el sistema.\\nEs muy importante que comprenda que, en caso de continuar, \\nsi había una instalación previa del sistema de voto será totalmente destruida.\\n\\n¿Está seguro de que desea continuar, o desea volver al inicio?"
+msgstr "Heu triat FORMATAR el sistema.\\nÉs molt important que comprengueu que, si continueu,\\nsi hi havia una instal·lació prèvia del sistema de vot serà totalment destruïda.\\n\\nEsteu segurs que voleu continuar, o preferiu tornar a l'inici?"
+
+#: /tmp/eLectionWizard.sh:7948
+msgid "Examinando los datos de configuración..."
+msgstr "Examinant les dades de configuració..."
+
+#: /tmp/eLectionWizard.sh:7956
+msgid "El fichero de configuración elegido no existe o está vacio."
+msgstr "El fitxer de configuració elegit no existeix o està buit."
+
+#: /tmp/eLectionWizard.sh:7961
+msgid "Los datos de configuración están corruptos o manipulados."
+msgstr "Les dades de configuració estan corruptes o manipulades."
+
+#: /tmp/eLectionWizard.sh:7995
+msgid "No se ha podido reconstruir la llave de la zona cifrada."
+msgstr "No s'ha pogut reconstruir la clau de la zona xifrada."
+
+#: /tmp/eLectionWizard.sh:8001
+msgid "Se ha logrado reconstruir la llave. Se prosigue con la carga del sistema."
+msgstr "S'ha pogut reconstruir la clau. Es continua amb la càrrega del sistema."
+
+#: /tmp/eLectionWizard.sh:8028
+msgid "No acepto la licencia"
+msgstr "No accepte la llicència"
+
+#: /tmp/eLectionWizard.sh:8028
+msgid "Acepto la licencia"
+msgstr "Accepte la llicència"
+
+#: /tmp/eLectionWizard.sh:8037
+msgid "Ha elegido restaurar una copia de seguridad del sistema. Primero se instalará un sistema totalmente limpio. Podrá alterar los parámetros básicos. Emplee un conjunto de Clauers NUEVOS. Al final se le solicitarán los clauers antiguos para proceder a restaurar los datos."
+msgstr "Ha triat restaurar una còpia de seguretat del sistema. Primer s'instal·larà un sistema totalment net. Podreu canviar els paràmetres bàsics. Utilitzeu un conjunt de clauers NOU. Al final se us demanaran els clauers antics per a fer la restauració de les dades."
+
+#: /tmp/eLectionWizard.sh:8087
+msgid "Ha acabado de definir los parámetros del servidor de voto. ¿Desea modificar los datos introducidos?"
+msgstr "Heu acabat de definir els paràmetres del servidor de vot. Voleu modificar les dades introduïdes?"
+
+#: /tmp/eLectionWizard.sh:8097
+msgid "Sincronizando hora del servidor..."
+msgstr "Sincronitzant l'hora del servidor..."
+
+#: /tmp/eLectionWizard.sh:8143
+msgid "Se ha terminado de repartir las nuevas llave y configuración. Vamos a proceder a configurar el sistema"
+msgstr "S'ha acabat de repartir la nova clau i configuració. Procedim a configurar el sistema."
+
+#: /tmp/eLectionWizard.sh:8154
+msgid "Omitir este paso"
+msgstr "Ometre aquest pas"
+
+#: /tmp/eLectionWizard.sh:8154
+msgid "Formatear dispositivo"
+msgstr "Formatar el dispositiu"
+
+#: /tmp/eLectionWizard.sh:8154
+msgid "El administrador del sistema de voto necesita poseer un dispositivo Clauer propio con fines identificativos frente a la aplicación, aunque no contenga certificados. Si no posee ya uno, tiene la posibilidad de insertar ahora un dispositivo USB y formatearlo como Clauer."
+msgstr "L'administrador del sistema de vot necessita posseir un dispositiu Clauer propi amb fins identificatius davant de l'aplicació, encara que no continga certificats. Si no en té ja un, té la possibilitat d'inserir ara un dispositiu USB i formatar-lo com a Clauer."
+
+#: /tmp/eLectionWizard.sh:8168
+msgid "Inserte el dispositivo USB a escribir y pulse INTRO."
+msgstr "Inseriu el dispositiu USB que s'ha d'escriure i premeu INTRO."
+
+#: /tmp/eLectionWizard.sh:8174
+msgid "Introduzca una contraseña nueva:"
+msgstr "Escriviu una contrasenya nova:"
+
+#: /tmp/eLectionWizard.sh:8180
+msgid "Ha abortado el formateo del Clauer. Inserte otro para continuar"
+msgstr "Heu avortat la formatació del Clauer. Inseriu-ne un altre per a continuar"
+
+#: /tmp/eLectionWizard.sh:8199
+msgid "Error durante el formateo."
+msgstr "Error durant la formatació."
+
+#: /tmp/eLectionWizard.sh:8233
+msgid "El sistema se ha iniciado con privilegios para el administrador. Estos se invalidarán en cuanto realice alguna operación de mantenimiento (tal como instalar el certificado SSL del servidor)."
+msgstr "El sistema s'ha iniciat amb privilegis d'administrador. Aquests s'invalidaran quan es realitze alguna operació de manteniment (com ara instal·lar el certificat SSL del servidor)."
+
+#~ msgid "Reinstalar certificado."
+#~ msgstr "Reinstal·lar certificat."
