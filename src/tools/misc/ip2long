@@ -1,4 +1,0 @@
-#!/usr/bin/php
-<?php
-echo ip2long($argv[1]);
-?>

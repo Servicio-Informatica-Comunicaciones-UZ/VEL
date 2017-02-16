@@ -1,8 +1,0 @@
-[Plymouth Theme]
-Name=vtUJI - Theme
-Description=Custom theme for the vtUJI telematic voting system
-ModuleName=script
-
-[script]
-ImageDir=/lib/plymouth/themes/vtuji
-ScriptFile=/lib/plymouth/themes/vtuji/vtuji.script
