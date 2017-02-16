@@ -1252,24 +1252,18 @@ fi
 
 
 
-
-
-
-
-#Store the certificate and auth token to communicate with the
-#anonymity network
-#2 -> authentication token
-#3 -> private key (PEM)
-#4 -> self-signed certificate (B64), later to be signed by the anonyimity central authority
-#5 -> public exponent (B64)
-#6 -> modulus (B64)
-if [ "$1" == "storeLcnCreds" ]
+#Store the certificate to sign votes
+#2 -> private key (PEM)
+#3 -> self-signed certificate (B64), later to be signed by the anonyimity central authority
+#4 -> public exponent (B64)
+#5 -> modulus (B64)
+if [ "$1" == "storeVotingCert" ]
 then
-    checkParameterOrDie SITESTOKEN "${2}"
-    checkParameterOrDie SITESPRIVK "${3}"
-    checkParameterOrDie SITESCERT "${4}"
-    checkParameterOrDie SITESEXP "${5}"
-    checkParameterOrDie SITESMOD "${6}"
+    
+    checkParameterOrDie SITESPRIVK "${2}"
+    checkParameterOrDie SITESCERT "${3}"
+    checkParameterOrDie SITESEXP "${4}"
+    checkParameterOrDie SITESMOD "${5}"
     
     
     #Insert keys and the self-signed certificate sent to eSurveySites.
@@ -1279,7 +1273,19 @@ then
     # modS  -> modulus of the certificate (B64)
 	   dbQuery "update eVotDat set keyyS='$SITESPRIVK', "\
             "certS='$SITESCERT', expS='$SITESEXP', modS='$SITESMOD';"
-	   
+fi
+
+
+
+
+
+#Store the auth token to communicate with the anonymity network
+#2 -> authentication token
+if [ "$1" == "storeLcnCreds" ]
+then
+    checkParameterOrDie SITESTOKEN "${2}"
+    
+    
     #Insert authentication token used to communicate with eSurveySites
 	   dbQuery "update eVotDat set tkD='$SITESTOKEN';"
 fi

@@ -586,11 +586,32 @@ do
                         lcnRegisterParams
                         #If go to menu pressed
                         [ $? -ne 0 ] && action=1 && break
+
+                        #Generate the certificate and key
+                        $dlg --infobox $"Generating signing certificate for the Anonimity Network Central Authority..." 0 0
+                        esurveyGenerateReq
+                        if [ $? -ne 0 ] ; then  #If failed
+                            action=1
+                            $dlg --msgbox $"Error generating Anonimity Service certificate." 0 0
+                        fi
                         
                         #Perform the registration
                         esurveyRegisterReq
                         #If failed
                         [ $? -ne 0 ] && action=1
+                    else
+                        #If skipped, generate a generic certificate
+                        #for internal usage
+                        SITESEMAIL="-"
+                        SITESORGSERV="-"
+                        SITESNAMEPURP="-"
+                        SITESCOUNTRY="-"
+                        $dlg --infobox $"Generating vote signing certificate" 0 0
+                        esurveyGenerateReq
+                        if [ $? -ne 0 ] ; then  #Failed
+                            action=1
+                            $dlg --msgbox $"Error generating voting service certificate." 0 0
+                        fi
                     fi
                     ;;
                 
@@ -766,9 +787,14 @@ do
         $dlg --infobox $"Configuring web application data..." 0 0
         $PSETUP setWebAppDbConfig
         
-        #If anonymity network registration process was performed, insert data
+        
+        #Insert vote signing certificate (independently of whether we are using anonimity)
+        $PVOPS storeVotingCert "$SITESPRIVK" "$SITESCERT" "$SITESEXP" "$SITESMOD"
+        
+        
+        #If anonymity network registration process was performed, insert authority auth token
         if [ "$SITESTOKEN" != "" ] ; then
-            $PVOPS storeLcnCreds "$SITESTOKEN" "$SITESPRIVK" "$SITESCERT" "$SITESEXP" "$SITESMOD"
+            $PVOPS storeLcnCreds "$SITESTOKEN"
         fi
         
         #Insert webapp administrator into the database

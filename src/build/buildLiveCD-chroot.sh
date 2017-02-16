@@ -221,8 +221,8 @@ cp -fv /root/src/webapp/bundle/ivot.php          /var/www/tmp/
 cp -fv /root/src/webapp/tools/mkInstaller.php    /var/www/tmp/
 cp -fv /root/src/webapp/tools/markVariables.py   /var/www/tmp/
 
-#Copy the static web app tree
-cp -fvr /root/src/webapp/www/*                   /var/www/
+#Copy the static web app tree to a temp position
+cp -fvr /root/src/webapp/www                     /root/www # TODO see if it works fine on clean build and on rebuild
 
 
 
@@ -628,17 +628,12 @@ pushd /var/www/tmp
 #Extract installer
 php mkInstaller.php -r ./ ivot.php
 
+
 #Move SQL file responsible of building database (will be built when installed)
 mv dump*.sql buildDB.sql
 mv buildDB.sql       $BINDIR/
 chmod 660 $BINDIR/buildDB.sql
 
-#Parse necessary files to add app config  (login scripts are parsed on runtime)
-for i in $(ls *.php)
-  do 
-  cat $i | python ./markVariables.py > aux
-  mv aux $i
-done
 
 #Remove all files not needed
 rm -rf ins/
@@ -647,11 +642,31 @@ rm eVotingBdd.html
 rm ivot.php
 rm *mkInstaller*
 rm vars-*.php
-rm markVariables.py
 rm jmp*
+
 
 #Move all remaining files to the webserver root
 mv * /var/www/
+
+popd
+rm -rf /var/www/tmp/
+
+
+
+#Put the static scripts on the webserver tree. It will override any
+#matching script from the webapp. Be careful. # TODO check if it works
+mv /root/www/* /var/www/
+
+
+#Parse necessary files to add app config (on lines marked with #!
+#followed by a var)
+for i in $(find /var/www/ -iname "*.php")
+do 
+    cat "$i" | python /var/www/markVariables.py > /var/www/aux
+    mv /var/www/aux "$i"
+done
+rm /var/www/markVariables.py
+
 
 
 #Fix permissions (read for files, access for dirs) and ownership
@@ -661,9 +676,6 @@ setPerm /var/www 440 110
 chmod 550 /var/www/
 
 
-# TODO pre-install uji skin
-popd
-rm -rf /var/www/tmp/
 
 
 

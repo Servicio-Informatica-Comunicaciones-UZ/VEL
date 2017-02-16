@@ -1559,7 +1559,7 @@
 	  echo "<td colspan=8><input type=checkbox $disa name=\"vlog[$idE]\" id=vlog$idE value=1 ".(($el['vlog']) ? 'checked' : '').
 		"> <label for=vlog$idE>".__('Ver logs')."</label> <input type=checkbox $disa name=\"audit[$idE]\" id=audit$idE value=1 ".(($el['audit']) ? 'checked' : '').
 		" <label for=audit$idE>".__('Auditable')."</label> <input type=checkbox $disa name=\"clien[$idE]\" id=clien$idE value=1 ".(($el['clien']) ? 'checked' : '').
-		" <label for=clien$idE>".__('Cliente local')."</label> <input type=checkbox $disa name=\"ayupap[$idE]\" id=ayupap$idE value=1 ".(($el['ayupap']) ? 'checked' : '').
+		" <label for=clien$idE>".__('Cliente remoto')."</label> <input type=checkbox $disa name=\"ayupap[$idE]\" id=ayupap$idE value=1 ".(($el['ayupap']) ? 'checked' : '').
 		" <label for=ayupap$idE>".__('Ayuda en papeleta')."</label> <tr><td colspan=3><td colspan=8><input type=checkbox $disa name=\"censoP[$idE]\" id=censoP$idE value=1 ".(($el['censoP']) ? 'checked>' : '>').
 		" <label for=censoP$idE>".__('Censo público').'</label>';
 	  if (!$mesa['exclu'])
@@ -3598,7 +3598,7 @@
 	  if ($_SESSION['saltar'][$idE])
 	    continue;
 	  $unesu=true;
-	  echo '<script id=cgESvy language="JavaScript" type="text/javascript" charset="UTF-8" src="'.(($vot['clien']) ? '' : 'https://esurvey.nisu.org/').'eSurvey.js"></script>',
+	  echo '<script id=cgESvy language="JavaScript" type="text/javascript" charset="UTF-8" src="'.(($vot['clien']) ? 'https://esurvey.nisu.org/' : '').'eSurvey.js"></script>',
 		"<script language=\"JavaScript\" type=\"text/javascript\">if (typeof eSurvey == 'undefined') document.write('<script language=\"JavaScript\" type=\"text/javascript\" charset=\"UTF-8\" src=\"eSurvey.js\"><\/script>');</script>",
 		'<div id=vota class=sect><div class=cab>'.__('Votación pendiente (puede haber más)').'</div>',
 		'<script>function epo() { var o=document.getElementById("vota"), c=0; if (o.offsetParent) do { c += o.offsetTop } while (o=o.offsetParent); window.scrollBy(0,c); } window.onload=epo; </script>';

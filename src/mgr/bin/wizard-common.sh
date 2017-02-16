@@ -1475,34 +1475,27 @@ lcnRegisterParams () {
 
 
 
-
-
-#Issues a register request to the anonimity network central
-#authority. Will produce an authentication token to communicate with
-#them.
+#Generates a certificate request and key that will later be used for
+#the anonimity network registration
 #Global variables accessed:
+#KEYSIZE
 #SITESEMAIL
-#SITESPWD
 #SITESORGSERV
 #SITESNAMEPURP
 #SITESCOUNTRY
-#KEYSIZE
 #Will set the following global variables:
-#SITESTOKEN
 #SITESPRIVK
 #SITESCERT
 #SITESEXP
 #SITESMOD
-esurveyRegisterReq () {
-    
-	   $dlg --infobox $"Generating signing certificate for the Anonimity Network Central Authority..." 0 0
+esurveyGenerateReq () {
     
 	   #Generate service's package signing certificate with the provided info
 	   local pair=$(openssl req -x509 -newkey rsa:$KEYSIZE -keyout /dev/stdout -nodes -days 3650 \
-		  -subj "/C=$SITESCOUNTRY/O=$SITESORGSERV/CN=$SITESNAMEPURP/emailAddress=$SITESEMAIL" 2>>$LOGFILE)
-	      
+		                       -subj "/C=$SITESCOUNTRY/O=$SITESORGSERV/CN=$SITESNAMEPURP/emailAddress=$SITESEMAIL" 2>>$LOGFILE)
+	   
 	   if [ "$pair" == "" ] ; then
-        $dlg --msgbox $"Error generating certificate." 0 0
+        log "Error generating sites cert"
         return 1
     fi
 	   
@@ -1513,12 +1506,36 @@ esurveyRegisterReq () {
 	   SITESEXP=$(echo -n "$SITESPRIVK" | openssl rsa -text 2>/dev/null | sed -n -e "s/^publicExponent.*(0x\(.*\))/\1/p" | hex2b64)
 	   SITESMOD=$(echo -n "$SITESPRIVK" | openssl rsa -text 2>/dev/null | sed -e "1,/^modulus/ d" -e "/^publicExponent/,$ d" | tr -c -d 'a-f0-9' | sed -e "s/^00//" | hex2b64)
     
-	   #Generate certificate sign request for the self-signed certificate and then, urlencode it
+    #SITESPRIVK=""
+    #SITESCERT=""
+    #SITESEXP=""
+    #SITESMOD=""
+}
+
+
+
+
+
+
+#Issues a register request to the anonimity network central
+#authority. Will produce an authentication token to communicate with
+#them.
+#Global variables accessed:
+#SITESEMAIL
+#SITESPWD
+#SITESPRIVK
+#SITESCERT
+#Will set the following global variables:
+#SITESTOKEN
+esurveyRegisterReq () {
+    
+    #Generate certificate sign request from the self-signed certificate and then, urlencode it
 	   local certReq=$(echo "$SITESCERT" >/tmp/crt$$; echo "$SITESPRIVK" |
 		                      openssl x509 -signkey /dev/stdin -in /tmp/crt$$ -x509toreq 2>>$LOGFILE |
                         sed -n -e "/BEGIN/,/END/p" |
 		                      sed -e :a -e N -e 's/\//%2F/g;s/=/%3D/g;s/+/%2B/g;s/\n/%0A/;ta' ; rm /tmp/crt$$);
-	   
+    
+    
 	   #Urlencode email and pwd:
 	   local mail=$($urlenc "$SITESEMAIL" 2>>$LOGFILE)
 	   local pwd=$($urlenc "$SITESPWD" 2>>$LOGFILE)
@@ -1536,10 +1553,7 @@ esurveyRegisterReq () {
     
 	   if [ "$result" == "" ] ; then
 		      $dlg --msgbox $"Error connecting with the Anonimity Network Central Authority." 0 0
-        SITESPRIVK=""
-        SITESCERT=""
-        SITESEXP=""
-        SITESMOD=""
+        SITESTOKEN=""
         return 1
 	   fi
     
@@ -1576,10 +1590,7 @@ esurveyRegisterReq () {
     
     if [ "$errmsg" != "" ] ; then
         $dlg --msgbox "$errmsg" 0 0
-        SITESPRIVK=""
-        SITESCERT=""
-        SITESEXP=""
-        SITESMOD=""
+        SITESTOKEN=""
         return 1
     fi
     
