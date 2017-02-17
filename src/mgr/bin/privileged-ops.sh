@@ -259,7 +259,7 @@ listHDDPartitions () {
 checkKeyMatch () {
     
     #Get the known key
-    local base=$(cat $ROOTTMP/dataBackupPassword 2>>$LOGFILE)
+    local base=$(cat $DATABAKPWDFILE 2>>$LOGFILE)
     
     
     #Get the challenging key

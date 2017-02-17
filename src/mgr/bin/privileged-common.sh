@@ -9,8 +9,7 @@
 
 OPSEXE=/usr/local/bin/ssOperations
 
-#The base non-persistent directory for Root operation
-ROOTTMP="/root"
+
 
 
 #############
@@ -18,7 +17,7 @@ ROOTTMP="/root"
 #############
 
 #All root executed scripts will not give other permissions
-umask 027  # TODO verificar cuando vuelva ainstalar de cero que los ficheros creados, tipo los logs, no tienen o+r
+umask 027
 
 
 #############
@@ -623,8 +622,8 @@ EOF
     [ $? -ne 0 ] &&  return 8
     
     #If everything went fine, leave a copy of the password in a RAM file, so backups and op authorisation can be executed
-    echo -n "$PARTPWD" > $ROOTTMP/dataBackupPassword
-    chmod 400  $ROOTTMP/dataBackupPassword   >>$LOGFILE 2>>$LOGFILE
+    echo -n "$PARTPWD" > $DATABAKPWDFILE
+    chmod 400  $DATABAKPWDFILE   >>$LOGFILE 2>>$LOGFILE
     
     #Return final encrypted device path (needed if using loopback to delete the loopback)
     CRYPTDEV="$cryptdev"

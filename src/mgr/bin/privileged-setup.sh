@@ -604,8 +604,8 @@ then
         #Generate and store root database password
         MYSQLROOTPWD=$(randomPassword 20)
         [ "$MYSQLROOTPWD" == ""  ] &&  exit 4
-        echo -n "$MYSQLROOTPWD" > $DATAPATH/root/DatabaseRootPassword
-        chmod 600 $DATAPATH/root/DatabaseRootPassword >>$LOGFILE 2>>$LOGFILE
+        echo -n "$MYSQLROOTPWD" > $DBROOTPWDFILE
+        chmod 600 $DBROOTPWDFILE >>$LOGFILE 2>>$LOGFILE
         
         
         #Change database default root password
@@ -732,7 +732,7 @@ if [ "$1" == "recoverSSHBackup_phase2" ]
 then
     
     #restore database dump
-    mysql -f -u root -p$(cat $DATAPATH/root/DatabaseRootPassword) eLection  <"$ROOTTMP/tmp/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
+    mysql -f -u root -p$(cat $DBROOTPWDFILE) eLection  <"$ROOTTMP/tmp/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
     [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos." # TODO extinguir system Panic, al menos en el wizard. cambiar por msgbox y ya
     
     #Delete backup directory # TODO. this may change

@@ -66,6 +66,16 @@ DEFSSHPORT=22
 
 
 
+#The base non-persistent directory for Root operation
+ROOTTMP="/root"
+
+#File where the database root password is stored
+DBROOTPWDFILE=$DATAPATH/root/DatabaseRootPassword
+
+#File where the password to cipher backup is stored during operation
+DATABAKPWDFILE=$ROOTTMP/dataBackupPassword
+
+
 #Tools aliases
 urlenc="/usr/local/bin/urlencode"
 addslashes="/usr/local/bin/addslashes"

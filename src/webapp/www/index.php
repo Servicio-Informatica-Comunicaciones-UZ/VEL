@@ -844,7 +844,9 @@
   $jefe='<div id=jefe class=sect><div class=cab>'.__('Operaciones como administrador/a de mesas').'</div>';
   $jefp='<div id=jefp class=sect><div class=cab>'.__('Operaciones como operador/a del registro').'</div>';
   $miem='<div id=miem class=sect><div class=cab>'.__('Operaciones como miembro de mesa').'</div>';
-  $scro='onsubmit="cubre(); scroll_top = function() { if(window.pageYOffset) return window.pageYOffset; else return Math.max(document.body.scrollTop,document.documentElement.scrollTop); }; if (elscroll.value==0) elscroll.value=scroll_top();"><input type=hidden name=elscroll>';
+  $scro1='cubre(); scroll_top = function() { if(window.pageYOffset) return window.pageYOffset; else return Math.max(document.body.scrollTop,document.documentElement.scrollTop); }; if (elscroll.value==0) elscroll.value=scroll_top();';
+  $scro2='<input type=hidden name=elscroll>';
+  $scro='onsubmit="'.$scro1.'">'.$scro2;
   $pacien=' onclick="pthis=this; setTimeout(\'pthis.value=\\\''.str_replace('\\','\\\\\\',jsesc(__('Paciencia, puede tardar bastante'))).'\\\';\',3000)" ';
   // }}}
 
@@ -2090,9 +2092,9 @@
 	  } // }}}
 	  if ($el['anulable']) {
 	    $anulds='';
-	    $q=mysql_query("select v.nom vnom,m.nom mnom,momAn from eVotAnLog, eVotPob as v, eVotPob as m where eleAn = $idE and miemAn = m.idP and persAn = v.idP");
+	    $q=mysql_query("select v.nom vnom, v.dni vdni, m.nom mnom, m.dni mdni, momAn from eVotAnLog, eVotPob as v, eVotPob as m where eleAn = $idE and miemAn = m.idP and persAn = v.idP");
 	    while ($anu1=mysql_fetch_assoc($q)) {
-	      $anulds.=sprintf(__('La papeleta de "%s" fue anulada por "%s" %s').'<br>',$anu1['vnom'],$anu1['mnom'],strftime('el %d/%m/%Y a las %H:%M:%S',$anu1['momAn']));
+	      $anulds.=sprintf(__('La papeleta de "%s (%s)" fue anulada por "%s (%s)" %s').'<br>',$anu1['vnom'],$anu1['vdni'],$anu1['mnom'],$anu1['mdni'],strftime('el %d/%m/%Y a las %H:%M:%S',$anu1['momAn']));
 	    }
 	    if ($anulds)
 	      echo '<br><hr><br>',__('Se realizaron las siguientes anulaciones de papeletas:'),'<br>',$anulds;
@@ -2398,7 +2400,7 @@
 	  else
 	    $q=mysql_query("select * from eVotPart,eVotPob where elecPart = $idE and partElec = idP order by nom");
 	  while ($p=mysql_fetch_assoc($q))
-	    $lista.=(($p['votante'] and $fin < $now) ? "<input type=submit name=\"acc[mModMes][$idE][${p['idP']}]\" value=\"".__('Anular').'">' : '').(($p['info']) ? '* ' : '').'<font color='.(($p['acude']) ? 'green' : 'red').">{$p['nom']}</font><br>";
+	    $lista.=(($p['votante'] and $fin < $now) ? "<input type=submit name=\"acc[mModMes][$idE][${p['idP']}]\" value=\"".__('Anular').'" onclick="this.form.submited=this.nextSibling.innerHTML;">' : '').(($p['info']) ? '* ' : '').'<font color='.(($p['acude']) ? 'green' : 'red').">{$p['nom']}</font><br>";
 	}
 	echo $miem;
 	// }}}
@@ -2444,7 +2446,9 @@
 	    mysql_query("optimize table eVotPart,eVotElecs");
 	  }
 	}
-	echo "<form name=formu method=post $scro<table style=\"height: 80%;  width: 100%\"><tr><td><input name=wrkf type=hidden value=\"$wrkf\"><table border=0>";
+    #Here, form of the poll officer. Adding code to confirm deletion of votes
+    $votDelConfirm="if (this.submited != null && this.submited != '' ){ var dodeletevote=confirm('\n-== '+this.submited+' ==-\n\n'+'¿Está seguro de que desea borrar la participación de este votante?\nEsta acción no se puede deshacer.\n\n');if (!dodeletevote){this.submited = ''; return false;}this.submited = '';}";
+	echo "<form name=formu method=post ".'onsubmit="'.$votDelConfirm.$scro1.'">'.$scro2."<table style=\"height: 80%;  width: 100%\"><tr><td><input name=wrkf type=hidden value=\"$wrkf\"><table border=0>";
 	$mesa=mysql_fetch_assoc(mysql_query("select * from eVotMes where idM = '$idM'")); $est=$mesa['est'];
 	echo '<tr><td class=lab width="25%">'.__('Mesa').' <td colspan=6 width="75%">'.$mesa['nomMes'];
 	$mesa['now']=$now;

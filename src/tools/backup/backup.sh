@@ -1,31 +1,54 @@
 #!/bin/bash
 
-LOGFILE=/tmp/wizardLog
 
-ROOTTMP="/root/"
+#Common functions for privileged and unprivileged scripts.
+. /usr/local/bin/common.sh
 
-DATAPATH="/media/crypStorage"
-VARFILE="$DATAPATH/root/vars.conf"
-
-# TODO load common scripts and try to avoid code multiplicity
-# # TODO use sshpass -p pwd ssh...
-# extinguish askBackupPasswd.sh script
+#Common functions for privileged scripts
+. /usr/local/bin/privileged-common.sh
 
 
 
-DBPWD=$(cat $DATAPATH/root/DatabaseRootPassword)
-DATAPWD=$(cat $ROOTTMP/dataBackupPassword)
 
-#Leer el fich de variables y grep de la correspondiente
-SSHBAKSERVER=$(cat $VARFILE | grep -Ee "^SSHBAKSERVER=" | sed -re "s/^.+?=\"(.+)\"$/\1/g")
-SSHBAKPORT=$(cat $VARFILE | grep -Ee "^SSHBAKPORT=" | sed -re "s/^.+?=\"(.+)\"$/\1/g")
-SSHBAKUSER=$(cat $VARFILE | grep -Ee "^SSHBAKUSER=" | sed -re "s/^.+?=\"(.+)\"$/\1/g")
-
-MGREMAIL=$(cat $VARFILE | grep -Ee "^MGREMAIL=" | sed -re "s/^.+?=\"(.+)\"$/\1/g")
-
-
-
+# TODO Add here any new file or directory that needs backup: or simply backup the whole partition after stopping mysql and apache?
+#-->instead of stopping apache, mask the app behind a temp page?
+#do stop here the services? remember that stopping the services is a maint op too, make reusable code.
+#Store full mysql dir and also the dump? just in case?
+#design recovery to be simpler: start as a new system setup but ask the ssh recovery params (limit the params to be configured to network and data drive? the rest should be inside the recovery just steps 2-4, maybe make another flow and duplicate them). once there is network and a data drive, retrieve the bak file and untar on it. Then, go on with setup. remember to read the vars from disk as if it was a restart, also ask for the usbs to get the recovery key and at the end rewrite them? --> drive and network params must be updated on the recovered config files/usbs, so the order is:
+# * Get new network info,
+# * setup network
+# * get new drive info
+# * setup new drive
+# * get recovery ssh info.
+# * download recovery file on the new drive
+# * get usbs and rebuild key
+# * extract recovery file on its location and delete the file
+# * update disk variables regarding network
+# * update usb variables regarding drive
+# * go on with the normal setup after the load drive part (including reading the variables)
+# * write the usbs with the updated drive config (or do this earlier? No, reuse the code)
 FILESTOBAK="$DATAPATH/webserver/ $DATAPATH/terminalLogs $DATAPATH/root/ $DATAPATH/wizard/ $DATAPATH/rrds/ $DATAPATH/log $LOGFILE"
+
+
+
+
+
+#Read needed passwords
+DBPWD=$(cat $DBROOTPWDFILE)
+DATAPWD=$(cat $DATABAKPWDFILE)
+
+#Read the needed variables
+getVar disk SSHBAKSERVER
+getVar disk SSHBAKPORT
+getVar disk SSHBAKUSER
+getVar disk SSHBAKPASSWD
+
+getVar disk MGREMAIL
+
+
+
+
+
 
 
 
@@ -53,13 +76,15 @@ trap "rm $ROOTTMP/dump.$$  2>/dev/null" exit
 #Saca el dump de la bd
 mysqldump -u root -p"$DBPWD" eLection >$ROOTTMP/dump.$$
 
-export DISPLAY=none:0.0
-export SSH_ASKPASS=/usr/local/bin/askBackupPasswd.sh
-
 
 #Añadimos las llaves del servidor SSH al known_hosts
 mkdir -p /root/.ssh/ 
 ssh-keyscan -p "$SSHBAKPORT" -t rsa1,rsa,dsa "$SSHBAKSERVER" > /root/.ssh/known_hosts 2>/dev/null
+
+
+
+# # TODO use sshpass -p pwd ssh...
+
 
 
 #Ejecuta el empaquetado
