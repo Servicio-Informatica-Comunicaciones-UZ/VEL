@@ -2447,7 +2447,7 @@
 	  }
 	}
     #Here, form of the poll officer. Adding code to confirm deletion of votes
-    $votDelConfirm="if (this.submited != null && this.submited != '' ){ var dodeletevote=confirm('\n-== '+this.submited+' ==-\n\n'+'¿Está seguro de que desea borrar la participación de este votante?\nEsta acción no se puede deshacer.\n\n');if (!dodeletevote){this.submited = ''; return false;}this.submited = '';}";
+    $votDelConfirm="if (this.submited != null && this.submited != '' ){ var dodeletevote=confirm('\\n-== '+this.submited+' ==-\\n\\n'+'¿Está seguro de que desea borrar la participación de este votante?\\nEsta acción no se puede deshacer.\\n\\n');if (!dodeletevote){this.submited = ''; return false;}this.submited = '';}";
 	echo "<form name=formu method=post ".'onsubmit="'.$votDelConfirm.$scro1.'">'.$scro2."<table style=\"height: 80%;  width: 100%\"><tr><td><input name=wrkf type=hidden value=\"$wrkf\"><table border=0>";
 	$mesa=mysql_fetch_assoc(mysql_query("select * from eVotMes where idM = '$idM'")); $est=$mesa['est'];
 	echo '<tr><td class=lab width="25%">'.__('Mesa').' <td colspan=6 width="75%">'.$mesa['nomMes'];
