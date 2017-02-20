@@ -192,6 +192,11 @@ cp -fv /root/src/sys/config/misc/.bashrc               /root/
 cp -fv  /root/src/sys/firewall/*.sh       $BINDIR/
 cp -fv  /root/src/sys/firewall/whitelist  /etc/whitelist
 
+
+#Simple http/s server
+cp -fvr /root/src/tools/backup/simpleWWW   /usr/local/share/simpleWeb
+
+
 #Set owner and permissions
 ctell "***** Setting file owners and permissions of scripts and executables"
 chown root:root $BINDIR/*
@@ -208,6 +213,13 @@ chmod 500 $BINDIR/privileged-setup.sh
 
 #Removing permissions for others on some critical tools
 chmod 750 /sbin/cryptsetup 
+
+
+chown -R root:root /usr/local/share/simpleWeb
+chmod 750       /usr/local/share/simpleWeb/*
+chmod 750       /usr/local/share/simpleWeb
+chmod 750       /usr/local/share/simpleWeb/html
+chmod 750       /usr/local/share/simpleWeb/html/*
 
 #Setuid the sginfo executable for the non-privileged user  #//// TODO Creo que no hace falta. pruebo a ver (he quitado el setuid en al vm).
 #chmod ug+s /usr/bin/sginfo

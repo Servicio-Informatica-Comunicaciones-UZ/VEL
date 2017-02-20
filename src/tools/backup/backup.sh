@@ -89,6 +89,16 @@ sshScanAndTrust "$SSHBAKSERVER" "$SSHBAKPORT"
 
 
 
+#Gather information for the success e-mail
+filelist=$(ls -lR $DATAPATH/)
+
+
+
+#Stop all services that may alter the persistent data
+stopServers
+
+# TODO SEGUIR MAÑANA integrar el servidor https/s temporal
+
 
 #stream pack, encrypt and upload the backup file to the backup server
 #(not overwriting the previous one)
@@ -97,6 +107,8 @@ tar --ignore-failed-read -zcf - $DATAPATH/*  2>/tmp/backupErrorLog |
     sshpass -p"$SSHBAKPASSWD" ssh -p "$SSHBAKPORT" "$SSHBAKUSER"@"$SSHBAKSERVER" "cat > vtUJI_backup-$now.tgz.aes" 2>/tmp/backupErrorLog
 ret=$?
 
+#Restart services again
+startServers
 
 
 #If error on backup, notify administrator
@@ -105,8 +117,10 @@ if [ $ret -ne 0 ] ; then
     
     echo -e "WARNING:\n\nSSH Backup performed on\n\n$(date +%c)\n\nhas failed. Please, check the attached file for errors and then reschedule the backup or do it manually." | mutt -s "vtUJI backup failed" -a /tmp/backupErrorLog --  $MGREMAIL root
     
-    exit 1    
+    exit 1
 fi
 
+#Backup successful. Send summary e-mail.
+echo -e "Successful SSH Backup performed on\n\n$(date +%c)\n\n. Check the list of backupped files on the attached file. Size of backupped data is as follows: "$(du -hs $DATAPATH)"\n And per directory: "$(du -hs $DATAPATH/*) | mutt -s "vtUJI backup failed" -a /tmp/backupErrorLog --  $MGREMAIL root
 
 exit 0
