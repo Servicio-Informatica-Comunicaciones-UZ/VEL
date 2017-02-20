@@ -2396,7 +2396,7 @@
 	  $lista='<p>';
 	  list($anul)=mysql_fetch_row(mysql_query("select anulable from eVotElecs where idE = $idE"));
 	  if ($anul)
-	    $q=mysql_query("select * from eVotPart,eVotPob left join eVotBBx on votante = idP where elecPart = $idE and partElec = idP order by nom");
+	    $q=mysql_query("select * from eVotPart join eVotPob on partElec=idP left join eVotBBx on votante = idP and elecPart=eleccion where elecPart = $idE order by nom");
 	  else
 	    $q=mysql_query("select * from eVotPart,eVotPob where elecPart = $idE and partElec = idP order by nom");
 	  while ($p=mysql_fetch_assoc($q))
