@@ -10,9 +10,9 @@
 
 
 
-# TODO Add here any new file or directory that needs backup: or simply backup the whole partition after stopping mysql and apache?
-#-->instead of stopping apache, mask the app behind a temp page?
-#do stop here the services? remember that stopping the services is a maint op too, make reusable code.
+
+# TODO backup the whole partition after stopping mysql and apache -->instead of stopping apache, mask the app behind a temp page?
+# --> do stop here the services? remember that stopping the services is a maint op too, make reusable code.
 #Store full mysql dir and also the dump? just in case?
 #design recovery to be simpler: start as a new system setup but ask the ssh recovery params (limit the params to be configured to network and data drive? the rest should be inside the recovery just steps 2-4, maybe make another flow and duplicate them). once there is network and a data drive, retrieve the bak file and untar on it. Then, go on with setup. remember to read the vars from disk as if it was a restart, also ask for the usbs to get the recovery key and at the end rewrite them? --> drive and network params must be updated on the recovered config files/usbs, so the order is:
 # * Get new network info,
@@ -27,14 +27,13 @@
 # * update usb variables regarding drive
 # * go on with the normal setup after the load drive part (including reading the variables)
 # * write the usbs with the updated drive config (or do this earlier? No, reuse the code)
-FILESTOBAK="$DATAPATH/webserver/ $DATAPATH/terminalLogs $DATAPATH/root/ $DATAPATH/wizard/ $DATAPATH/rrds/ $DATAPATH/log $LOGFILE"
 
 
 
 
 
 #Read needed passwords
-DBPWD=$(cat $DBROOTPWDFILE)
+DBROOTPWD=$(cat $DBROOTPWDFILE)
 DATAPWD=$(cat $DATABAKPWDFILE)
 
 #Read the needed variables
@@ -49,71 +48,65 @@ getVar disk MGREMAIL
 
 
 
-
-
-
-
-
-
-#Mira la fecha y la marca (una fecha) de la bd que indica si se debe hacer el backup
+#Read current date
 now=$(date +%s)
-bck=$(echo "select backup from eVotDat;"| mysql -u root -p"$DBPWD"  eLection | grep -Ee "[0-9]+" )
 
+#Read the date where the next backup is scheduled
+backupTime=$(dbQuery "select backup from eVotDat;")
 
-#Si el valor leido es 0 o es una fecha del futuro, salimos
-[ "$bck" -eq "0" ] && exit
-[ "$bck" -gt "$now" ] && exit
-
-
-#Sino, hace el bak
-
-ser="$SSHBAKSERVER"
-us="$SSHBAKUSER"
-
-#Borra el dump de la bd en cuanto el programa acabe
-trap "rm $ROOTTMP/dump.$$  2>/dev/null" exit
-
-#Saca el dump de la bd
-mysqldump -u root -p"$DBPWD" eLection >$ROOTTMP/dump.$$
-
-
-#Añadimos las llaves del servidor SSH al known_hosts
-mkdir -p /root/.ssh/ 
-ssh-keyscan -p "$SSHBAKPORT" -t rsa1,rsa,dsa "$SSHBAKSERVER" > /root/.ssh/known_hosts 2>/dev/null
+#If zero (no backup scheduled) or still a future date, leave
+[ "$backupTime" -eq "0" ] && exit
+[ "$backupTime" -gt "$now" ] && exit
 
 
 
-# # TODO use sshpass -p pwd ssh...
 
 
 
-#Ejecuta el empaquetado
-tar --ignore-failed-read -zcf - $FILESTOBAK $ROOTTMP/dump.$$ 2>/dev/null | openssl enc -aes-256-cfb -pass "pass:$DATAPWD" | ssh -p "$SSHBAKPORT" $us@$ser "cat > vtUJI_backup.tgz.aes" 2>/dev/null
+#If we are doing a backup, mark the backup as done, so a new run of
+#the cron doesn't collide with this one (if it fails, the admin will
+#be notified and he will have to reschedule or run it manually)
+dbQuery "update  eVotDat set backup=0;"
 
 
-#Error? enviar e-mail al admin
-if [ $? -ne 0 ] ; then
 
-    echo  -e "WARNING:\n\nSSH Backup performed on\n\n$(date +%c)\n\nhas failed. Please, check remote server connectivity or change backup parameters on the election server." | mail  -s "vtUJI election server WARNING" $MGREMAIL
 
-    echo  -e "WARNING:\n\nSSH Backup performed on\n\n$(date +%c)\n\nhas failed. Please, check remote server connectivity or change backup parameters on the election server." | mail  -s "vtUJI election server WARNING" root
+#Set for the temporary files to be deleted on program exit
+trap "rm $DATAPATH/dump.$$  2>/dev/null" exit
+trap "rm /tmp/backupErrorLog  2>/dev/null" exit
+
+
+
+#Dump database onto temp file (in the data partition instead of on
+#memory, to avoid overflowing)
+mysqldump -u root -p"$DBROOTPWD" eLection > "$DATAPATH/dump.$$"
+
+
+
+
+#Trust the destination ssh server
+sshScanAndTrust "$SSHBAKSERVER" "$SSHBAKPORT"
+
+
+
+
+#stream pack, encrypt and upload the backup file to the backup server
+#(not overwriting the previous one)
+tar --ignore-failed-read -zcf - $DATAPATH/*  2>/tmp/backupErrorLog |
+    openssl enc -aes-256-cfb -pass "pass:$DATAPWD" |
+    sshpass -p"$SSHBAKPASSWD" ssh -p "$SSHBAKPORT" "$SSHBAKUSER"@"$SSHBAKSERVER" "cat > vtUJI_backup-$now.tgz.aes" 2>/tmp/backupErrorLog
+ret=$?
+
+
+
+#If error on backup, notify administrator
+if [ $ret -ne 0 ] ; then
+    log "WARNING: SSH Backup has failed. Errors below: "$(cat /tmp/backupErrorLog)
     
-    echo  -e "WARNING:\n\nSSH Backup performed on\n\n$(date +%c)\n\nhas failed. Please, check remote server connectivity or change backup parameters on the election server." >> $LOGFILE
-
-
-    rm -f $ROOTTMP/dump.$$ 2>/dev/null
-
+    echo -e "WARNING:\n\nSSH Backup performed on\n\n$(date +%c)\n\nhas failed. Please, check the attached file for errors and then reschedule the backup or do it manually." | mutt -s "vtUJI backup failed" -a /tmp/backupErrorLog --  $MGREMAIL root
     
-    exit 1
-
-else
-    #Si no falla, marcamos el backup como completado. (Así, si falla se reintentará de nuevo.)
-    echo "update  eVotDat set backup=0" | mysql -u root -p"$DBPWD"  eLection
-    
+    exit 1    
 fi
-
-
-rm -f $ROOTTMP/dump.$$
 
 
 exit 0
