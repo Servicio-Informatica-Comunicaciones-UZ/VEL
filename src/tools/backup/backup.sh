@@ -73,7 +73,7 @@ dbQuery "update  eVotDat set backup=0;"
 
 #Set for the temporary files to be deleted on program exit
 trap "rm $DATAPATH/dump.$$  2>/dev/null" exit
-trap "rm /tmp/backupErrorLog  2>/dev/null" exit
+trap "rm /tmp/backupLog  2>/dev/null" exit
 
 
 
@@ -89,22 +89,24 @@ sshScanAndTrust "$SSHBAKSERVER" "$SSHBAKPORT"
 
 
 
-#Gather information for the success e-mail
-filelist=$(ls -lR $DATAPATH/)
-
-
-
 #Stop all services that may alter the persistent data
 stopServers
 
-# TODO SEGUIR MAÑANA integrar el servidor https/s temporal
+
+#Launch a substitution  webserver with a static info page TODO SEGUIR MAÑANA integrar el servidor https/s temporal
 
 
-#stream pack, encrypt and upload the backup file to the backup server
+#Gather information for the success e-mail
+filelist=$(ls -lR $DATAPATH/)
+overallSize=$(du -hs $DATAPATH)
+detailedSize=$(du -hs $DATAPATH/*)
+
+
+#Stream pack, encrypt and upload the backup file to the backup server
 #(not overwriting the previous one)
-tar --ignore-failed-read -zcf - $DATAPATH/*  2>/tmp/backupErrorLog |
+tar --ignore-failed-read -zcf - $DATAPATH/*  2>>/tmp/backupLog |
     openssl enc -aes-256-cfb -pass "pass:$DATAPWD" |
-    sshpass -p"$SSHBAKPASSWD" ssh -p "$SSHBAKPORT" "$SSHBAKUSER"@"$SSHBAKSERVER" "cat > vtUJI_backup-$now.tgz.aes" 2>/tmp/backupErrorLog
+    sshpass -p"$SSHBAKPASSWD" ssh -p "$SSHBAKPORT" "$SSHBAKUSER"@"$SSHBAKSERVER" "cat > vtUJI_backup-$now.tgz.aes" 2>>/tmp/backupLog
 ret=$?
 
 #Restart services again
@@ -113,14 +115,15 @@ startServers
 
 #If error on backup, notify administrator
 if [ $ret -ne 0 ] ; then
-    log "WARNING: SSH Backup has failed. Errors below: "$(cat /tmp/backupErrorLog)
+    log "WARNING: SSH Backup has failed. Errors below: "$(cat /tmp/backupLog)
     
-    echo -e "WARNING:\n\nSSH Backup performed on\n\n$(date +%c)\n\nhas failed. Please, check the attached file for errors and then reschedule the backup or do it manually." | mutt -s "vtUJI backup failed" -a /tmp/backupErrorLog --  $MGREMAIL root
+    echo -e "WARNING:\n\nSSH Backup performed on\n\n$(date +%c)\n\nhas failed. Please, check the attached file for errors and then reschedule the backup or do it manually." | mutt -s "vtUJI backup failed" -a /tmp/backupLog --  $MGREMAIL root
     
     exit 1
 fi
 
 #Backup successful. Send summary e-mail.
-echo -e "Successful SSH Backup performed on\n\n$(date +%c)\n\n. Check the list of backupped files on the attached file. Size of backupped data is as follows: "$(du -hs $DATAPATH)"\n And per directory: "$(du -hs $DATAPATH/*) | mutt -s "vtUJI backup failed" -a /tmp/backupErrorLog --  $MGREMAIL root
+echo "$filelist" >> /tmp/backupLog
+echo -e "Successful SSH Backup performed on\n\n$(date +%c)\n\nCheck the list of backupped files on the attached file.\n\nSize of backupped data is as follows:\n$overallSize\n\nAnd per directory:\n$detailedSize" | mutt -s "vtUJI backup successful" -a /tmp/backupLog --  $MGREMAIL root
 
 exit 0

@@ -12,7 +12,8 @@
 basePath=/usr/local/share/simpleWeb
 
 #Get own public IP address (where services will be bound)
-IPADDR=$(getOwnIP)
+#IPADDR=$(getOwnIP)
+IPADDR="" #This way it will listen on all IPs
 
 serverCrt="/etc/ssl/certs/server.crt"
 serverKey="/etc/ssl/private/server.key"
@@ -22,36 +23,32 @@ serverKey="/etc/ssl/private/server.key"
 case "$1" in
 	   "start" )
         
-        pushd "$basePath/html" >>$LOGFILE 2>>$LOGFILE
-        
-        if [ ! -s "./index.html" ] ; then
+        if [ ! -s "$basePath/html/index.html" ] ; then
             log "maintenance web page not found. Not launching webservers."
             exit 1
         fi
-
+        
         #Plain http server
-        python -m SimpleHTTPServer 80 >>$LOGFILE 2>/dev/null &
+        $basePath/simpleHttps.py plain "$IPADDR"  80  "$basePath/html/index.html"  >>$LOGFILE 2>>$LOGFILE &
         httpPid=$!
         echo "HTTP service PID: "$httpPid >>$LOGFILE 2>>$LOGFILE
         
         #Store PID
         echo -n "$httpPid" > $basePath/http.pid
         
-
+        
         #Https server
-        $basePath/simpleHttps.py "$IPADDR"  443  "$serverKey"  "$serverCrt" >>$LOGFILE 2>/dev/null &
+        $basePath/simpleHttps.py ssl "$IPADDR"  443  "$basePath/html/index.html"  "$serverKey"  "$serverCrt" >>$LOGFILE 2>>$LOGFILE &
         httpsPid=$!
         echo "HTTPS service PID: "$httpsPid >>$LOGFILE 2>>$LOGFILE
-
+        
         #Store PID
         echo -n "$httpsPid" > $basePath/https.pid
         
         
-        #Detach the services from this terminal
+        #Detach the services from this terminal # TODO is this needed?
         disown -ar
-        
-        popd >>$LOGFILE 2>>$LOGFILE
-        ;; 
+        ;;
     
     
     "stop" )
@@ -71,3 +68,6 @@ esac
 
 #This one fails on a url without the index.html
 #openssl s_server -accept 8443 -cert server.cert -key server.key -WWW
+
+#This one fails to guess *.php from  *.html
+#python -m SimpleHTTPServer 80 >>$LOGFILE 2>>$LOGFILE &
