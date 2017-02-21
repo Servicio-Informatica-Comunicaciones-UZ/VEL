@@ -194,6 +194,7 @@ cp -fv  /root/src/sys/firewall/whitelist  /etc/whitelist
 
 
 #Simple http/s server
+rm -rf /usr/local/share/simpleWeb
 cp -fvr /root/src/tools/backup/simpleWWW   /usr/local/share/simpleWeb
 
 
