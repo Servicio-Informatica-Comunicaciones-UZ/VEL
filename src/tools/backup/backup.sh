@@ -65,6 +65,10 @@ sshScanAndTrust "$SSHBAKSERVER" "$SSHBAKPORT"
 
 
 
+#Mark the system as frozen
+setVar mem SYSFROZEN "1"
+
+
 #Stop all services that may alter the persistent data
 stopServers
 
@@ -72,10 +76,13 @@ stopServers
 #Launch a substitution webserver with a static info page
 bash /usr/local/share/simpleWeb/simpleHttp.sh start
 
+
+
 #Gather information for the success e-mail
 filelist=$(ls -lR $DATAPATH/)
 overallSize=$(du -hs $DATAPATH)
 detailedSize=$(du -hs $DATAPATH/*)
+
 
 
 #Stream pack, encrypt and upload the backup file to the backup server
@@ -86,11 +93,15 @@ tar --ignore-failed-read -zcf - $DATAPATH/*  2>>/tmp/backupLog |
 ret=$?
 
 
+
 #Stop substitution webserver
 bash /usr/local/share/simpleWeb/simpleHttp.sh stop
 
 #Restart services again
 startServers
+
+#Mark the system as unfrozen
+setVar mem SYSFROZEN "0"
 
 
 #Delete database dump

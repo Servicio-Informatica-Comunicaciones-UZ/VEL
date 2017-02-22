@@ -213,6 +213,20 @@ setDiskVariables () {
     setVar disk USINGCERTBOT "$USINGCERTBOT"
 }
 
+#Set vars that will be put to the usb store (only the basic ones,
+#needed to load the encrypted drive)
+setUsbVars () {
+    
+    setVar usb DRIVEMODE "$DRIVEMODE"
+    setVar usb DRIVELOCALPATH "$DRIVELOCALPATH"
+	   setVar usb FILEPATH "$FILEPATH"
+	   setVar usb FILEFILESIZE "$FILEFILESIZE"
+    setVar usb CRYPTFILENAME "$CRYPTFILENAME"
+    
+    setVar usb SHARES "$SHARES"
+    setVar usb THRESHOLD "$THRESHOLD"
+}
+
 #Reads needed variables from the usb config file
 getUsbVariables () {
     
@@ -316,6 +330,30 @@ selectKeySize () {
     log "KEYSIZE: $KEYSIZE"  
     
     return 0
+}
+
+
+
+
+
+#Returns which parameter gathering section to access next to retake
+#base flow on the recovery application flow
+#Returns 254 on cancel
+selectRecoveryParameterSection () {
+    exec 4>&1
+    local selec=''
+    while true; do
+        selec=$($dlg --cancel-label $"Go back to the main menu" \
+                     --no-tags \
+                     --menu $"Select parameter section:" 0 80  11  \
+	                    1  $"Network configuration." \
+	                    2  $"Encrypted drive configuration." \
+	                    3  $"Backup file retrieval parameters." \
+                     99 $"Go on with system recovery" \
+	                    2>&1 >&4)
+        [ "$selec" != "" ] && return $selec
+        return 254
+    done
 }
 
 
@@ -464,14 +502,14 @@ do
 
     #On restore, inform about the procedure # TODO CHECK IF THE PROCEDURE IS RIGHT, review that all sections of the restore are right and well ordered
     if [ "$DORESTORE" -eq 1 ] ; then
-        $dlg --msgbox $"You chose to restore a backup. A fresh installation will be performed first, where you will be able to change basic configuration. Please, use a NEW SET of usb drives on it. You will be asked to insert the OLD SET at the end to perform the restoration." 0 0
+        $dlg --msgbox $"You chose to restore a backup. You will setup network and data drive before recovery. Please, use a NEW SET of usb drives at the end. You will be asked to insert the OLD SET first to perform the restoration." 0 0
     fi
     
     
     
     
     ##### Ask for the configuration parameters #####
-    if [ "$DOINSTALL" -eq 1  -o  "$DORESTORE" -eq 1 ]
+    if [ "$DOINSTALL" -eq 1 ]
     then
         
         # Get all configuration parameters [some perform ad-hoc configurations]
@@ -642,33 +680,18 @@ do
             fi
         done
         
-        #Set vars that will be put to the usb store (only the basic
-        #ones, needed to load the encrypted drive)
-        setVar usb DRIVEMODE "$DRIVEMODE"
-        setVar usb DRIVELOCALPATH "$DRIVELOCALPATH"
-	       setVar usb FILEPATH "$FILEPATH"
-	       setVar usb FILEFILESIZE "$FILEFILESIZE"
-        setVar usb CRYPTFILENAME "$CRYPTFILENAME"
-        
-        setVar usb SHARES "$SHARES"
-        setVar usb THRESHOLD "$THRESHOLD"
-        
-        #Generate and fragment persistence drive cipherkey (on the active slot)
-        $dlg --infobox $"Generating shared key for the encrypted disk drive..." 0 0
-        $PVOPS genNfragKey $SHARES $THRESHOLD
-        if [ $? -ne 0 ] ; then
-            $dlg --msgbox $"Error while fragmenting key." 0 0
-            continue #Failed, go back to the menu
-        fi
+        #On install, set now the variables that will be stored on the
+        #usb (as they are used on the rebuildkey)
+        setUsbVars
     fi
     
     
     
     
-    
-    
-    ######## Get parameters and key from usb drives ##########  # TODO review this block while implementing backup recovery
-    if [ "$DOSTART" -eq 1  -o  "$DORESTORE" -eq 1 ] ; then
+    ######## Get parameters and key from usb drives ##########
+    if [ "$DOSTART" -eq 1  -o  "$DORESTORE" -eq 1 ] ;
+    then
+        
         #We need to obtain a cipherkey and config parameters from a set of usb stores
         $dlg --msgbox $"We need to rebuild the shared cipher key.""\n"$"You will be asked to insert all available usb devices holding key fragments" 0 0
         
@@ -690,7 +713,7 @@ do
 	               $dlg --msgbox $"Corrupt key shares detected. Please, generate and share a new key as soon as possible." 0 0 
 	           fi
         fi
-        #echo "Press RETURN to continue..." && read #breakpoint # TODO remove # TODO SEGUIR imprime valores de variables y temo que no se estén seteando. Revisar bien
+        
         #Read (as globals) the configuration variables needed on the setup
         getUsbVariables
     fi
@@ -698,36 +721,210 @@ do
     
     
     
+    ##### Ask for the configuration parameters that are needed during recovery #####
+    if [ "$DORESTORE" -eq 1 ]
+    then
+        
+        #Request new drive and network parameters, also parameters
+        #where to retrieve the backup from (including a path!)
+        nextSection=1
+        while true
+        do
+            
+            case "$nextSection" in     
+                
+                "1" ) #Network
+                    while true ; do
+                        networkParams
+                        action=$?
+                        
+                        #User selected to show the menu
+                        [ $action -eq 1 ] && break
+                        
+                        #Setup network and try connectivity
+                        configureNetwork
+                        if [ $? -ne 0 ] ; then
+                            $dlg --yes-label $"Review" --no-label $"Keep" \
+                                 --yesno  $"Network connectivity error. Go on or review the parameters?" 0 0
+                            #Review them, loop again
+                            [ $? -eq 0 ] && continue
+                        fi
+                        break
+                    done
+                    ;;
+                
+                
+                "2" ) #Persistence encrypted data drive 
+                    selectCryptoDriveMode
+                    action=$?
+                    ;;
+                
+                
+                "3" ) #SSH backup recovery
+
+                    $dlg --msgbox $"Specify now the remote SSH location where the backup copy must be retrieved, and the path of the proper copy to restore." 0 0
+                    while true; do
+                        #Get backup parameters
+                        sshBackupParameters
+                        action=$?
+                        #If go to menu pressed
+                        [ $action -ne 0 ] && break
+
+                        #Check link with ssh server
+                        $dlg --infobox $"Checking connectivity with SSH server:"" $SSHBAKSERVER" 0 0
+                        checkSSHconnectivity
+                        #No link
+                        if [ $? -ne 0 ] ; then
+                            #Ask to continue or go back
+                            $dlg --no-label $"Continue"  --yes-label $"Review parameters" \
+                                 --yesno  $"SSH server connectivity error. Continue or review parameters?" 0 0
+                            #Selected back"
+                            [ $? -eq 0 ] && continue
+                        fi
+
+                        ## TODO SEGUIR MAÑANA
+                        
+                        #Get the path on the server where the backup
+                        #copy can be found
+                        
+
+                        #Check if the file exists, is not empty and is
+                        #readable.
+                        
+                        
+                        #Error
+                        if [ $? -ne 0 ] ; then
+                            #Ask to continue or go back
+                            $dlg --no-label $"Continue"  --yes-label $"Review path" \
+                                 --yesno  "$errmsg" 0 0
+                            #Selected back"
+                            [ $? -eq 0 ] && continue
+                        fi
+                        
+                        break
+                    done
+                    ;;
+                
+              
+                
+                * ) #Confirmation to proceed with setup
+                    $dlg --no-label $"Proceed with Recovery"  --yes-label $"Back to the Menu" \
+                         --yesno  $"Now the backup copy will be retrieved and restored. Are you sure you want to go on?" 0 0
+                    #Go on with recovery
+                    [ $? -eq "1" ] && break
+                    
+                    #Go back to the menu
+                    action=1
+                    ;;
+            esac
+            
+            #Go to next section
+            if [ $action -eq 0 ] ; then
+                nextSection=$((nextSection+1))
+            else
+                #Show parameter sections menu
+                selectRecoveryParameterSection
+                ret=$?
+                nextSection=$ret
+                
+                #Go back to the main menu
+                [ $ret -eq 254 ] && continue 2
+            fi
+        done
+        
+        
+        #Overwrite usb read variables with the new values
+        setUsbVars
+        
+        
+        #Switch key slot (this way, on 'new' the new key will generate
+        #on slot 1 as usual, but on recovery, we will have the old key
+        #in slot 1 and the new key in slot 2)
+        $PVOPS storops-switchSlot 2
+    fi
+    
+    
+    
+    
+    if [ "$DOINSTALL" -eq 1  -o  "$DORESTORE" -eq 1 ]
+    then
+        #Generate and fragment persistence drive cipherkey (on the active slot)
+        $dlg --infobox $"Generating shared key for the encrypted disk drive..." 0 0
+        $PVOPS genNfragKey $SHARES $THRESHOLD
+        if [ $? -ne 0 ] ; then
+            $dlg --msgbox $"Error while fragmenting key." 0 0
+            continue #Failed, go back to the menu
+        fi
+    fi
+
+    
+    
     
     
     ######## Setup system #########
     
     
+    #On restore and install, operations below are the same
     mode='new'
-    [ "$DOINSTALL" -eq 0 ] && mode='reset'
+    [ "$DOSTART" -eq 1 ] && mode='reset'
     
     
     #Setup ciphered persistence drive
     configureCryptoPartition "$mode"
     [ $? -ne 0 ] && continue #Failed, go back to the menu
+    
+    
+    
+    ## TODO SEGUIR MAÑANA
 
+    # TODO here, do the recovery
+    ### Don't forget to  rm -rf $DATAPATH/*  , as the configureCryptoPartition will have created the dir structure
+
+    
+    
+    #From this point on, all operations in restore mode are treated as
+    #a restart and not as an install
+    [ "$DORESTORE" -eq 1 ] && mode='reset'
+    
     
     #Move system logs to the drive
     relocateLogs "$mode"
     
     
-    
-    #Save config variables on the persistent ciphered drive after installing it
-    if [ "$DOINSTALL" -eq 1  -o  "$DORESTORE" -eq 1 ] ; then
-        setDiskVariables
-    fi
-    
+        
     #On startup, get the required vars instead
     if [ "$DOSTART" -eq 1 ] ; then 
         getDiskVariables
     fi
+    #Save config variables on the persistent ciphered drive after installing it
+    if [ "$DOINSTALL" -eq 1 ] ; then
+        setDiskVariables
+    fi
+    #On restore, read the variables, overwrite the ones that could be
+    #changed on recovery and the write them again
+    if [ "$DORESTORE" -eq 1 ] ; then 
+        auxIPMODE="$IPMODE"
+	       auxHOSTNM="$HOSTNM"
+        auxDOMNAME="$DOMNAME"
+        auxIPADDR="$IPADDR"
+	       auxMASK="$MASK"
+	       auxGATEWAY="$GATEWAY"
+	       auxDNS1="$DNS1"
+	       auxDNS2="$DNS2"
+        getDiskVariables
+        
+        IPMODE="$auxIPMODE"
+	       HOSTNM="$auxHOSTNM"
+        DOMNAME="$auxDOMNAME"
+        IPADDR="$auxIPADDR"
+	       MASK="$auxMASK"
+	       GATEWAY="$auxGATEWAY"
+	       DNS1="$auxDNS1"
+	       DNS2="$auxDNS2"
+        setDiskVariables
+    fi
     
-    
+    # SEGUIR review the rest of the procedure works according to the restore
     
     
     #Configure network [only on reload]
@@ -980,7 +1177,7 @@ do
     
     
     
-    #Force a backup after installation is complete
+    #Force a backup after installation is complete (if enabled)
     $PVOPS forceBackup
     
     
@@ -988,7 +1185,7 @@ do
     setVar mem LOCALAUTH "0"
 
     #Mark the system services as running, so no maintenance under progress
-    setVar mem SYSFROZEN "0" # TODO check that it is written, and also localauth
+    setVar mem SYSFROZEN "0"
     
     
     #Lock privileged operations. Any privileged action invoked from

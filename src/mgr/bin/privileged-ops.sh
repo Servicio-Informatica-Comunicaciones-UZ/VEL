@@ -979,7 +979,8 @@ fi
 
 
 
-#Mark system to force a backup
+#Mark system to force a backup (it will be performed a minute after
+#this)
 if [ "$1" == "forceBackup" ]
 then
 
@@ -995,7 +996,7 @@ then
     #Backup cron reads database for next backup date. Set date to now.
     dbQuery "update eVotDat set backup="$(date +%s)";"
     
-    # TODO launch the bak script here or wait for the cron?
+    
     exit $?
 fi    
     
@@ -2445,7 +2446,14 @@ fi
 if [ "$1" == "freezeSystem" ] 
 then
 
+#Stop all services that may alter the persistent data
+stopServers
 
+
+#Launch a substitution webserver with a static info page
+bash /usr/local/share/simpleWeb/simpleHttp.sh start
+
+    
     # TODO disbale servers (well, the web server, others are hidden), for security reasons, or disable the apps only and put a static front page?
 
     # inform of the remaining downtime and schedule the unfreeze op (if not executed by the user before)
@@ -2456,6 +2464,11 @@ fi
 if [ "$1" == "unfreezeSystem" ] 
 then
 
+#Stop substitution webserver
+bash /usr/local/share/simpleWeb/simpleHttp.sh stop
+
+#Restart services again
+startServers
 
 
 

@@ -681,7 +681,7 @@ then
     cat /usr/local/bin/buildDB.sql |
         mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
     
-    #Configure the Certificate authentication method # TODO SEGUIR MAÑANA, verificar que se instala el script y que se configura y se puede usar
+    #Configure the Certificate authentication method
     getVar disk SERVERCN
     dbQuery "update eVotMetAut set nomA='Certificate'," \
             "tipEx=1, disp=1," \
