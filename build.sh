@@ -113,6 +113,9 @@ fi
 if [ "$RUNCHROOT" -eq 1 ]
 then
     tell "*** Preparing chroot environment ***"
+
+    tell "Delete backup edit files on source"
+    find src/ -iname "*~" | xargs rm -fv
     
     tell "Copy voting system tools to the chroot workdir"
     rm -rf target/rootfs/root/src
