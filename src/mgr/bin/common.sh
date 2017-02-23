@@ -811,19 +811,28 @@ sshScanAndTrust () {
     return $ret
 }
 
-#Does a test connection on a given SSH server and user
+#Does a SSH connection on a given server and user and executes a
+#remote command. If no command is specified, it simply does a test
+#connection.
 #1 -> SSH server address
 #2 -> SSH server port
 #3 -> Username
 #4 -> Remote user password
-sshTestConnect () {
+#5 -> (optional) Remote command to execute
+#Return: the return code of the executed command if connection was successful
+#STDOUT: the output of the command
+sshRemoteCommand () {
     local ret=0
+
+    remoteCommand="$5"
+    [ "$remoteCommand" == "" ] && remoteCommand="ls"
     
-    #Do a SSH connection and execute a harmless command
-		  log "ssh -t -t -n  -p '$2'  '$3'@'$1'"
-		  sshpass -p"$4" ssh -n -p "$2"  "$3"@"$1" "ls" >>$LOGFILE 2>>$LOGFILE # Ver si quito o dejo el -t-t y el -n, ver si vuelvo a quitar el ls
-		  ret=$?
-		  if [ $ret  -ne 0 ] ; then
+    #Do a SSH connection and execute the command
+		  #log "ssh -n  -p '$2'  '$3'@'$1'"
+		  sshpass -p"$4" ssh -n -p "$2"  "$3"@"$1" "$remoteCommand" 2>>$LOGFILE
+    ret=$?
+    
+    if [ $ret  -ne 0 ] ; then
         log "SSH Connection error: $ret"
         ret=1
 		  fi

@@ -1017,7 +1017,7 @@ checkSSHconnectivity () {
 		  fi
     
     #Perform test connection
-    sshTestConnect "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"
+    sshRemoteCommand "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"  >>$LOGFILE 
     return $?
 }
 
@@ -1876,5 +1876,37 @@ into the text-entry window."
     done
     
     chosenFilepath="$selPath"
+    return 0
+}
+
+
+
+
+
+#tries to access and test-read a remote file through SSH
+#1 -> Remote file path
+#Return: 0 if OK, non-zero if any problem happened (see inside)
+checkSSHRemoteFile () {
+    
+		  #Set trust on the server
+    sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
+    if [ $? -ne 0 ] ; then
+        log "SSH Keyscan error."
+        return 1
+		  fi
+    
+    #Check if file exists (and we have permissions to the containing directory)
+    sshRemoteCommand "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD" "[ -e  '$1' ]" >>$LOGFILE 
+    [ $? -ne 0 ] && return 2
+    
+    #Check if file is not empty
+    sshRemoteCommand "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD" "[ -s '$1' ]" >>$LOGFILE 
+    [ $? -ne 0 ] && return 3
+    
+    #Check if file can be read
+    readProof=$(sshRemoteCommand "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD" "head -c 1 '$1'" | wc -c)
+    [ $readProof -ne 1 ] && return 4
+    
+    #All tests passed
     return 0
 }

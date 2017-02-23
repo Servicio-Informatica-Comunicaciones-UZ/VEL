@@ -769,43 +769,45 @@ do
                         action=$?
                         #If go to menu pressed
                         [ $action -ne 0 ] && break
-
+                        
+                        
+                        #Get the path on the server where the backup
+                        #copy can be found
+                        BAKRETRIEVEPATH=$($dlg --colors --cancel-label $"Back"  --inputbox \
+                                               "\Zu"$"Path of the file at the backup server:""\Zn\n\n"$"(a non-absolute path will be considered relative to the indicated user home directory)" 14 70 "$BAKRETRIEVEPATH"  2>&1 >&4)
+                        #If back, show the first dialog again
+                        [ "$?" -ne 0 ] && continue
+                        
+                        
                         #Check link with ssh server
                         $dlg --infobox $"Checking connectivity with SSH server:"" $SSHBAKSERVER" 0 0
                         checkSSHconnectivity
                         #No link
                         if [ $? -ne 0 ] ; then
-                            #Ask to continue or go back
-                            $dlg --no-label $"Continue"  --yes-label $"Review parameters" \
-                                 --yesno  $"SSH server connectivity error. Continue or review parameters?" 0 0
-                            #Selected back"
-                            [ $? -eq 0 ] && continue
+                            $dlg --msgbox $"SSH server connectivity error. Review parameters." 0 0
+                            continue
                         fi
-
-                        ## TODO SEGUIR MAÑANA
                         
-                        #Get the path on the server where the backup
-                        #copy can be found
-                        
-
                         #Check if the file exists, is not empty and is
                         #readable.
-                        
-                        
+                        errmsg=''
+                        checkSSHRemoteFile
+                        ret=$?
                         #Error
-                        if [ $? -ne 0 ] ; then
-                            #Ask to continue or go back
-                            $dlg --no-label $"Continue"  --yes-label $"Review path" \
-                                 --yesno  "$errmsg" 0 0
-                            #Selected back"
-                            [ $? -eq 0 ] && continue
+                        [ $ret -eq 1 ] &&  errmsg=$"SSH connection error."
+                        [ $ret -eq 2 ] &&  errmsg=$"File not found or no permission to access directory."
+                        [ $ret -eq 3 ] &&  errmsg=$"File is empty."
+                        [ $ret -eq 4 ] &&  errmsg=$"No permission to read file."
+                        if [ $ret -ne 0 ] ; then
+                            $dlg --msgbox $"Error checking availability of backup file."" $errmsg" 0 0
+                            continue
                         fi
                         
                         break
                     done
                     ;;
                 
-              
+                
                 
                 * ) #Confirmation to proceed with setup
                     $dlg --no-label $"Proceed with Recovery"  --yes-label $"Back to the Menu" \
@@ -875,23 +877,44 @@ do
     
     
     
-    ## TODO SEGUIR MAÑANA
+    
+    #Now do the recovery
+    if [ "$DORESTORE" -eq 1 ]
+    then
+        
+        #Clear the newly created drive from any default preset structures.
+        rm -rf $DATAPATH/*   >>$LOGFILE 2>>$LOGFILE
+        
 
-    # TODO here, do the recovery
-    ### Don't forget to  rm -rf $DATAPATH/*  , as the configureCryptoPartition will have created the dir structure
-
+        #Switch to the slot where the old key is
+        $PVOPS storops-switchSlot 1
+        
+        
+        #Stream download and extract recovery file on its location on the new drive
+        $dlg --infobox $"Restoring remote backup copy..." 0 0
+        ## TODO SEGUIR MAÑANA revisar todo el proceso
+        $PSETUP restoreBackup  "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"  "$BAKRETRIEVEPATH"
+        
+        
+        #Reset the slot where the old key was rebuilt
+        $PVOPS storops-resetSlot
+        
+        #Switch back to the slot where the new key is
+        $PVOPS storops-switchSlot 2
+        
+        
+        #From this point on, all operations in restore mode are
+        #treated as a restart and not as an install
+        mode='reset'
+    fi
     
     
-    #From this point on, all operations in restore mode are treated as
-    #a restart and not as an install
-    [ "$DORESTORE" -eq 1 ] && mode='reset'
     
     
     #Move system logs to the drive
     relocateLogs "$mode"
     
     
-        
     #On startup, get the required vars instead
     if [ "$DOSTART" -eq 1 ] ; then 
         getDiskVariables

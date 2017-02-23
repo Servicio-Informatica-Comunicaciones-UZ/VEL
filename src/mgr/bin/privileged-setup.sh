@@ -271,113 +271,6 @@ privilegedSetupPhase5 () {
 
 
 
-## SEGUIR: faltan las funcs de backup y restore
-
-
-
-# TODO review this better when implementing and testing  the backup recovery
-# TODO: on backup: overwrite file? add a new file with unique name such as timestamp? implement a round robin?
-#Gets all needed recover parameters and calls the backup download and
-#decipher procedure, then restores files and variables
-recoverSSHBackupFileOp () {
-
-        #Get backup data ciphering password (the shared hard drive cipher password)
-        getVar mem CURRENTSLOT
-        slotPath=$ROOTTMP/slot$CURRENTSLOT/
-        DATABAKPWD=$(cat $slotPath/key)  #TODO review slot system
-        #Get backup file SSH location parameters
-        getVar slot SSHBAKUSER    
-        getVar slot SSHBAKSERVER
-        getVar slot SSHBAKPORT
-
-
-        #Temporarily save all config variables that must be preserved (as now
-        #we need to overwrite some for the restore)
-        getVar disk SSHBAKPASSWD
-        SSHBAKPASSWDaux=$SSHBAKPASSWD
-
-
-        #Get the ssh password for the location where we must get the backup file
-        getVar slot SSHBAKPASSWD
-        #Write it on the disk password file (askBackupPasswd script will search for it there).
-        setVar SSHBAKPASSWD "$SSHBAKPASSWD" disk
-        
-        #Recover backup
-        recoverSSHBackupFile "" "$DATABAKPWD" "$SSHBAKUSER" "$SSHBAKSERVER" "$SSHBAKPORT" "$ROOTTMP/tmp/backupRecovery"
-        ret="$?"
-        if [ "$ret" -ne 0 ] 
-        then
-            exit $ret  #TODO exit o return?
-        fi
-
-        #Recover backup files. It is important to do this before
-        #writing any variables in vars.conf. This enables us to
-        #recover those that are not going to be overwritten (ssh,
-        #dbpwd and mailrelay will be written later with their new
-        #values).
-        mv -f "$ROOTTMP/tmp/backupRecovery/$DATAPATH/*"  $DATAPATH/  # TODO change this. aufs may not be big enough to hold all of this. Write directly on the peristent data dev, also download the encrypted bak file there
-        
-        #Restore temporarily saved variables
-        setVar SSHBAKPASSWD "$SSHBAKPASSWDaux" disk 
-}
-
-# TODO review this better when implementing and testing  the backup recovery. Also, try to remove the dialogs
-#Downloads backup file and untars it on the specified dir
-# $2 -> Password de cifrado de los datos
-# $3 -> user
-# $4 -> ssh server
-# $5 -> port
-# $6 -> backup data destination folder path
-recoverSSHBackupFile () {
-    
-    export DISPLAY=none:0.0
-    export SSH_ASKPASS=/usr/local/bin/askBackupPasswd.sh
-    
-    #Añadimos las llaves del servidor SSH al known_hosts
-    mkdir -p /root/.ssh/  >>$LOGFILE 2>>$LOGFILE
-    ssh-keyscan -p "$5" -t rsa1,rsa,dsa "$4" > /root/.ssh/known_hosts  2>>$LOGFILE
-    if [ "$?" -ne 0 ] 
-	   then
-	       $dlg --msgbox $"Error configurando el acceso al servidor de copia de seguridad." 0 0
-	       return 1
-    fi
-    
-    mkdir $ROOTTMP/tmp/bak
-    
-    scp -P "$5" "$3"@"$4":vtUJI_backup.tgz.aes "$ROOTTMP/tmp/bak/"  >>$LOGFILE 2>>$LOGFILE
-    if [ "$?" -ne 0 ]
-	   then
-	       $dlg --msgbox $"Error conectando con el servidor de Copia de Seguridad." 0 0
-	       return 1
-    fi
-    
-    openssl enc -d  -aes-256-cfb  -pass "pass:$2" -in "$ROOTTMP/tmp/bak/vtUJI_backup.tgz.aes" -out "$ROOTTMP/tmp/bak/vtUJI_backup.tgz"
-    if [ "$?" -ne 0 ] 
-	   then
-	       $dlg --msgbox $"Error descifrando el fichero de Copia de Seguridad: fichero corrupto o llave incorrecta." 0 0 
-	       return 1
-    fi
-
-# TODO hacer que se guarden copias en round robin o infinitas. Sea como sea, aquí hacer un ls y sacar un selector de qué fichero de bak usar
-    
-    rm -rf "$ROOTTMP/tmp/bak/vtUJI_backup.tgz.aes"
-    rm -rf "$6"
-    mkdir  "$6"
-    
-    tar xzf "$ROOTTMP/tmp/bak/vtUJI_backup.tgz" -C "$6"
-    if [ "$?" -ne 0 ] 
-	   then
-	       $dlg --msgbox $"Error desempaquetando el fichero de Copia de Seguridad: fichero corrupto." 0 0 
-	       return 1
-    fi
-    
-    rm -rf "$ROOTTMP/tmp/bak/vtUJI_backup.tgz"
-    
-    rmdir $ROOTTMP/tmp/bak
-    
-    return 0
-}
-
 
 
 ######################
@@ -714,31 +607,69 @@ fi
 
 
 
-
-## SEGUIR : faltan las ops de backup y restore
-   
+#Recover the system persistent data from a backup file retrieved
+#through SSH
+#2 -> ssh server address
+#3 -> ssh server port
+#4 -> ssh server user
+#5 -> ssh server user password
+#6 -> path of the backup file to retrieve (on the remote ssh server)
+#RETURN:  0 if OK, 1 if error
+if [ "$1" == "restoreBackup" ]
+then 
+    
+    sshserver="$2"
+    sshport="$3"
+    sshuser="$4"
+    sshpasswd="$5"
+    sshfilepath="$6"
     
     
-#Recover the system from a backup file retrieved through SSH  #  TODO test
-if [ "$1" == "recoverSSHBackup_phase1" ]
-then
-    recoverSSHBackupFileOp # TODO backup recovery process: get parameters from user when recovering, forget clauer conf move ssh bak paramsfrom clauer conf to disk conf and allow to modify them during operation theough a menu option
+    #Get the active slot
+    getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+    
+    #Get the old key (the one used to encrypt the file we are
+    #about to retrieve) from the active key slot
+    DATABAKPWD=$(cat $slotPath/key)
+    
+    
+    #Set trust on the server
+    sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
+    if [ $? -ne 0 ] ; then
+        log "SSH Keyscan error."
+        exit 1
+		  fi
+    
+    
+    #Retrieve the backup file, decrypt and untar it on the persistence
+    #drive. All of this, streamlined.
+    sshRemoteCommand  "$sshserver"  "$sshport"  "$sshuser"  "$sshpasswd" "cat '$sshfilepath'" | 
+        openssl enc -d  -aes-256-cfb  -pass "pass:$DATABAKPWD" |
+        tar xzf - -C /
+    
+    # TODO asegurarme de que la base folder es /, para ello, el tar debe contener un /media/crypStorage, que creo que sí porque en el tar de backup, la ruta es absoluta
+        
+        # TODO SEGUIR MAÑANA revisar  todo el proceso de restore y build a ver. poner algún código de guard aaquí por si algo sale mal (el tar, el decrypt, etc.)
+    
+        
+    
+    #Move database dump to volatile memory. This way, if any
+    #intervention is necessary, the dump is available, otherwise, it
+    #will be deleted on system shutdown and it won't be accumulated on
+    #future backups
+    mv  $DATAPATH/dump.*  /root/
+    
+    #Also, add a help readme for the admin
+    echo "#Commands to restore the database dump." >/root/dump.readme
+    echo "#If needed, drop database first and recreate it." >>/root/dump.readme
+    echo 'mysql -f -u root -p$(cat '$DBROOTPWDFILE') eLection  <"/root/dump.*"' >>/root/dump.readme
+    
     exit 0
 fi    
 
 
-
-if [ "$1" == "recoverSSHBackup_phase2" ]
-then
-    
-    #restore database dump
-    mysql -f -u root -p$(cat $DBROOTPWDFILE) eLection  <"$ROOTTMP/tmp/backupRecovery/$ROOTTMP/dump.*" 2>>$LOGFILE    
-    [ $? -ne 0 ] && systemPanic $"Error durante la recuperación del backup de la base de datos." # TODO extinguir system Panic, al menos en el wizard. cambiar por msgbox y ya
-    
-    #Delete backup directory # TODO. this may change
-    rm -rf "$ROOTTMP/tmp/backupRecovery/"
-    exit 0
-fi    
 
 
 

@@ -15,12 +15,14 @@
 # * get new drive info
 # * get recovery ssh info.
 # * check recovery info
+# * update **usb** variables regarding drive
 # * regenerate drive key or use the same?? --> regenerate
 # * setup new drive --> remember: only setup the dev and mount. No file creation. --> we delete before recovery
+
 # * download recovery file on the new drive and pipe extract recovery file on its location
+
 # * update **disk** variables regarding network
-# * update **usb** variables regarding drive
-# * go on with the normal setup after the load drive part (including reading the variables). -->check all the process to find holes
+# * go on with the normal setup after the load drive part (including reading the variables). -->check all the process to find holes --Ok
 # * write the usbs with the updated drive config --> at the same point as on install, at the end
 
 
