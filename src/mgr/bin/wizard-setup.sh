@@ -194,7 +194,7 @@ setDiskVariables () {
     
     setVar disk KEYSIZE   "$KEYSIZE"
     
-    #Some of these are used on the webapp, for the STORK authentication # TODO review: will we still support STORK?
+    #Some of these are used on the webapp, for the STORK authentication
     setVar disk SITESORGSERV  "$SITESORGSERV"
 	   setVar disk SITESNAMEPURP "$SITESNAMEPURP"
 	   setVar disk SITESEMAIL    "$SITESEMAIL"
@@ -266,7 +266,7 @@ getDiskVariables () {
     ADMREALNAME=$(getVar disk ADMREALNAME)
 	   MGREMAIL=$(getVar disk MGREMAIL)
     ADMINIP=$(getVar disk ADMINIP)
-	   LOCALPWDSUM=$(getVar disk LOCALPWDSUM) # TODO decide how we use this password for semi-priv op verification and if it must be loaded here (maybe, an op to check it)
+	   LOCALPWDSUM=$(getVar disk LOCALPWDSUM)
     
     KEYSIZE=$(getVar disk KEYSIZE)
     
@@ -499,10 +499,10 @@ do
         #Does not accept EULA, halt
         [ $? -eq 3 ] && shutdownServer "h"
     fi
-
-    #On restore, inform about the procedure # TODO CHECK IF THE PROCEDURE IS RIGHT, review that all sections of the restore are right and well ordered
+    
+    #On restore, inform about the procedure
     if [ "$DORESTORE" -eq 1 ] ; then
-        $dlg --msgbox $"You chose to restore a backup. You will setup network and data drive before recovery. Please, use a NEW SET of usb drives at the end. You will be asked to insert the OLD SET first to perform the restoration." 0 0
+        $dlg --msgbox $"You chose to restore a backup. You will setup basic network and data drive before recovery. You will be asked to insert the OLD SET first to perform the restoration. Please, use a NEW SET of usb drives at the end to store the new key." 0 0
     fi
     
     
@@ -1063,7 +1063,7 @@ do
     if [ "$DOINSTALL" -eq 1 ]
     then
 	       generateCSR "new"
-	       [ $? -ne 0 ] && continue #Failed, go back to the menu
+	       [ $? -ne 0 ] && continue  #Failed, go back to the menu
 	       
         #Generate temporary self-signed certificate from the csr.
 	       $PSETUP generateSelfSigned
