@@ -1149,13 +1149,6 @@ doLoop
 
 
 
+# TODO: add a maint option to change ip config [commis. authorisation] --> this existed, just was not yet moved from the old script and was not in the new ones. same happend to some other ops.
 
-
-
-
-
-
-
-
-
-
+# TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password) --> do it. now the params are on disk

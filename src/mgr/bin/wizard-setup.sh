@@ -790,8 +790,9 @@ do
                         
                         #Check if the file exists, is not empty and is
                         #readable.
+                        $dlg --infobox $"Checking access to backup file:"" $BAKRETRIEVEPATH" 0 0
                         errmsg=''
-                        checkSSHRemoteFile
+                        checkSSHRemoteFile "$BAKRETRIEVEPATH"
                         ret=$?
                         #Error
                         [ $ret -eq 1 ] &&  errmsg=$"SSH connection error."
@@ -839,9 +840,10 @@ do
         setUsbVars
         
         
-        #Switch key slot (this way, on 'new' the new key will generate
-        #on slot 1 as usual, but on recovery, we will have the old key
-        #in slot 1 and the new key in slot 2)
+        #Switch key slot
+        #(this way, on 'new' the new key will be generated on slot 1
+        #as usual, but on recovery, we will have the old key in slot 1
+        #and the new key in slot 2)
         $PVOPS storops-switchSlot 2
     fi
     
@@ -892,8 +894,13 @@ do
         
         #Stream download and extract recovery file on its location on the new drive
         $dlg --infobox $"Restoring remote backup copy..." 0 0
-        ## TODO SEGUIR MAÑANA revisar todo el proceso
-        $PSETUP restoreBackup  "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER"  "$SSHBAKPASSWD"  "$BAKRETRIEVEPATH"
+        #Value of variables passed as they won't be stored on disk
+        $PSETUP restoreBackup  "$SSHBAKSERVER"  "$SSHBAKPORT"  "$SSHBAKUSER" \
+                "$SSHBAKPASSWD"  "$BAKRETRIEVEPATH"
+        if [ $? -ne 0 ] ; then
+            $dlg --msgbox $"Error while recovering the backup copy. Open a terminal to determine causes." 0 0
+            continue #Failed, go back to the menu
+        fi
         
         
         #Reset the slot where the old key was rebuilt
@@ -947,7 +954,6 @@ do
         setDiskVariables
     fi
     
-    # SEGUIR review the rest of the procedure works according to the restore
     
     
     #Configure network [only on reload]
@@ -1147,7 +1153,7 @@ do
     fi
     
     #Setup cron that updates the results and generates the graphics
-    $PVOPS stats installCron # TODO review this op.
+    $PVOPS stats installCron # TODO review this op. control access by IP, only to admin
     
     #Draw the stat graphs
     $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE  # TODO review this op.
@@ -1174,7 +1180,7 @@ do
         #Give privileged access to the webapp to the administrator (temporary)
         $PVOPS  grantAdminPrivileges
     else
-        #Explicitly remove privileges to the administrator on reload # TODO should we keep them on?
+        #Explicitly remove privileges to the administrator on reload
         $PVOPS  removeAdminPrivileges
     fi
     
@@ -1182,17 +1188,21 @@ do
     
     
     if [ "$DOINSTALL" -eq 1 ] ; then
-        
         if [ "$USINGCERTBOT" -eq 0 ] ; then            
             #Store certificate request (won't let go until it is written
             #on a usb)
             $dlg --msgbox $"Insert a usb device to write the generated SSL certificate request." 0 0
             fetchCSR
         fi
-        
+    fi
+    
+    
+    
+    
+    if [ "$DOINSTALL" -eq 1 -o "$DORESTORE" -eq 1 ] ; then
         
         #Share key and basic config on usbs to be kept by the
-        #commission (usbs must have avalid data partition)
+        #commission (usbs must have a valid data partition)
         $dlg --msgbox $"Now we'll write the key shares on the commission's usb drives. Make sure these drives are cleanly formatted and free of any other key shares currently in use, as they might be overwritten." 0 0
         writeUsbs "$SHARES"
     fi
@@ -1200,7 +1210,10 @@ do
     
     
     
-    #Force a backup after installation is complete (if enabled)
+    #Force a backup after installation is complete (if enabled) If
+    #restoring, this backup will be done with the new key, but the
+    #other ones are still encrypted with the old key. That's why both
+    #usb sets must be kept.
     $PVOPS forceBackup
     
     
@@ -1246,27 +1259,3 @@ do
 done #Main action loop
 log "wizard maintenance loop script execution failed."
 exit 42
-
-
-
-
-
-
-
-# TODO reimplementar backup retrieval    ######## Retrieve backup to restore #########  # TODO revisar y reintegrar todo el sistema de backup y de recuperación
-# TODO: now show before anything, recovery is not dependent on usb config (later will need thekey, but just as when starting. Add here setup entry)
-# TODO on a recovery, ask the backup location parameters there, don't expect to read them from the usbs. Also, on the fresh install he will be able to set new ssh bak location (but on restoring, the values on the hard drive will be there. should we overwrite them? should we avoid defining certain things on a fresh install?) --> should we do this instead?: ask for the restoration clauers at the beginning, and ask for the ssh backup location (and provisional ip config). retrieve backup, setup hdd, restoee ******** I'm getting dizzy, think this really carefully. restoration is an emergency procedure and should not mess with the other ones, leave the other ones simple and see later what to do with this, I personally prefer to have the ip and ssh bak config on the hard drive and minimise usb config. if this means making a whole special flow for the restore, then it is. Think carefully what we backup and what we restore.
-    
-
-# TODO implement a delayed rebuilt key anulation? this way, multiple privileged actions can be performed without bothering the keyholders. think about this calmly. maybe a file with the last action timestamp and a cron? but I think it's too risky...
-
-
-
-# TODO any action not requiring a key rebuild, now will require admin's local pwd
-
-
-# TODO: add a maint option to change ip config [commis. authorisation] --> this existed, just was not yet moved from the old script and was not in the new ones. same happend to some other ops.
-
-# TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password) --> do it. now the params are on disk
-
-# TODO  asegurarme de que sólo es el root quien ejecuta los backups. ver eprms de ficheros, ver qué hace la bd y la app php, ver mi  script y si hay cron de backup

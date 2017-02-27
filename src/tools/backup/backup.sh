@@ -88,7 +88,7 @@ detailedSize=$(du -hs $DATAPATH/*)
 #Stream pack, encrypt and upload the backup file to the backup server
 #(not overwriting the previous one)
 tar --ignore-failed-read -zcf - $DATAPATH/*  2>>/tmp/backupLog |
-    openssl enc -aes-256-cfb -pass "pass:$DATAPWD" |
+    openssl enc -aes-256-cfb -pass "pass:$DATAPWD" 2>>/tmp/backupLog |
     sshpass -p"$SSHBAKPASSWD" ssh -p "$SSHBAKPORT" "$SSHBAKUSER"@"$SSHBAKSERVER" "cat > vtUJI_backup-$now.tgz.aes" 2>>/tmp/backupLog
 ret=$?
 

@@ -646,14 +646,16 @@ then
     #Retrieve the backup file, decrypt and untar it on the persistence
     #drive. All of this, streamlined.
     sshRemoteCommand  "$sshserver"  "$sshport"  "$sshuser"  "$sshpasswd" "cat '$sshfilepath'" | 
-        openssl enc -d  -aes-256-cfb  -pass "pass:$DATABAKPWD" |
-        tar xzf - -C /
+        openssl enc -d  -aes-256-cfb  -pass "pass:$DATABAKPWD"  2>>$LOGFILE |
+        tar xzf - -C /  2>>$LOGFILE
+    
+    if [ $? -ne 0 ] ; then
+        log "Failed backup copy retrieval and recovery."
+        exit 1
+    fi
     
     # TODO asegurarme de que la base folder es /, para ello, el tar debe contener un /media/crypStorage, que creo que sí porque en el tar de backup, la ruta es absoluta
-        
-        # TODO SEGUIR MAÑANA revisar  todo el proceso de restore y build a ver. poner algún código de guard aaquí por si algo sale mal (el tar, el decrypt, etc.)
     
-        
     
     #Move database dump to volatile memory. This way, if any
     #intervention is necessary, the dump is available, otherwise, it

@@ -1006,6 +1006,11 @@ sshBackupParameters () {
 
 
 #Does a test connection to the set SSH backup server
+#Reads these global variables:
+#SSHBAKSERVER
+#SSHBAKPORT
+#SSHBAKUSER
+#SSHBAKPASSWD
 #Return: 0 if OK, non-zero if any problem happened
 checkSSHconnectivity () {
     
