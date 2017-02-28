@@ -71,7 +71,12 @@ setVar mem SYSFROZEN "1"
 
 #Stop all services that may alter the persistent data
 stopServers
-
+if [ $? -ne 0 ] ; then
+    log "Backup failed. Some service failed to stop".
+    #This way, the cron will send an e-mail
+    echo "Backup failed. Some service failed to stop"
+    exit 1
+fi
 
 #Launch a substitution webserver with a static info page
 bash /usr/local/share/simpleWeb/simpleHttp.sh start
@@ -99,6 +104,12 @@ bash /usr/local/share/simpleWeb/simpleHttp.sh stop
 
 #Restart services again
 startServers
+if [ $? -ne 0 ] ; then
+    log "Backup failed. Some service failed to start".
+    echo "Backup failed. Some service failed to start" >>/tmp/backupLog
+    ps aux | grep -Ee "(apache|postfix|syslog|mysql)" >>/tmp/backupLog
+    ret=1
+fi
 
 #Mark the system as unfrozen
 setVar mem SYSFROZEN "0"

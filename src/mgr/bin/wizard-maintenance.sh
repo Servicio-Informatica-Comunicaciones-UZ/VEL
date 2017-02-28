@@ -637,40 +637,74 @@ executeMaintenanceOperation () {
             return 0
             ;;
         
+        
+        
+        
         ##### Backup operations #####
+        
         
         "backup-enable" )
             $dlg --msgbox $"Not implemented." 0 0
             return 0
             ;;
         
+        
+        
         "backup-disable" )
             $dlg --msgbox $"Not implemented." 0 0
             return 0
             ;;
         
-        "backup-force" )
-            $dlg --msgbox $"Not implemented." 0 0
-            #TODO backup-force will freeze and unfreeze automatically and then call the backup script or let the services running and then wait for the cron to act? Hablar con manolo a ver cómo era el backup en la app, si yo fuerzo qué pasa porque esté activa
-            return 0
-            ;;
+        
         
         "backup-config" )
             $dlg --msgbox $"Not implemented." 0 0
             return 0
             ;;
         
-        "backup-unfreeze" )
-            $dlg --msgbox $"Not implemented." 0 0
+        
+        
+        "backup-force" )
+            $dlg --yes-label $"Back" --no-label $"Force Backup" \
+                 --yesno  $"If you force a backup, you will stop the voting application until the backup is done. Are you sure it is safe to do it right now? This operation will be logged." 0 0
+            if [ $? -ne 0 ] ; then
+                $PVOPS forceBackup
+                $dlg --msgbox $"System services will be stopped until the backup copy is done." 0 0
+            fi
             return 0
             ;;
+        
+        
+        
+        "backup-unfreeze" )
+            $dlg --msgbox $"System services will be restored immediately." 0 0
+            $PVOPS unfreezeSystem
+            if [ $? -ne 0 ] ; then
+                $dlg --msgbox $"Error unfreezing. Some services were unable to start. Please, check." 0 0
+            fi
+            return 0
+            ;;
+        
+        
         
         "backup-freeze" )
-            $dlg --msgbox $"Not implemented." 0 0
+            $dlg --yes-label $"Back" --no-label $"Freeze System" \
+                 --yesno  $"This will stop the voting application and all system services until you unfreeze the system. Are you sure it is safe to do it right now? This operation will be logged." 0 0
+            if [ $? -ne 0 ] ; then
+                $PVOPS freezeSystem
+                if [ $? -ne 0 ] ; then
+                    $dlg --msgbox $"Error freezing. Some services were unable to stop. Please, check." 0 0
+                else
+                    $dlg --msgbox $"System services stopped." 0 0
+                fi
+            fi
             return 0
             ;;
         
+        
+        
         ##### Configuration operations #####
+        
         
         "config-network" )
             $dlg --msgbox $"Not implemented." 0 0
@@ -771,7 +805,6 @@ getClearance () {
     #List of operations that can be executed without any authorisation
     local freeOps="admin-auth           admin-priv-remove  
                    key-store-validate   key-store-pwd         key-validate-key
-                   backup-unfreeze
                    monitor-sys-monit    monitor-log-ops-view
                    misc-pow-suspend     misc-pow-shutdown  "
 
@@ -780,7 +813,7 @@ getClearance () {
     local pwdOps="admin-usrpwd
                   key-emails-get
                   ssl-csr-read        ssl-cert-install   ssl-key-renew
-                  backup-force        backup-freeze
+                  backup-force        backup-freeze      backup-unfreeze
                   monitor-stat-reset  "
     # TODO quizá añadir 'admin-priv-grant' a pwdOps cuando la app notifique y loguee el estado claramente
     #TODO crear sistema de logs de interés para la comisión y los admins. usar el oplog? un log de app y el oplog para la de mant? otro log para añadir al acta de una elec? añadir a este oplog además de ops realizadas, el etado de privilegio, auths locales, ediciones de usuarios en la BD, bajas de votos y bajas/altas de votantes en una elección una vez está iniciada... ver qué más cosas pueden dejar de ser ejecutadas sólo bajo privilegio a ejecutarse siempre con logs.
@@ -1056,7 +1089,7 @@ certbot-disable () {
 
 
 
-## TODO ELIMINAR LA VERSIÓN ESTÁTICA de index.php antes de actualizar el bundle de nuevo
+
 
 
 
@@ -1110,45 +1143,25 @@ doLoop
 
 
 
-# TODO add a maint option to join esurvey lcn network (if not done during setup, and also to change registration)
-
-#//// Variables a leer cada vez que se lance este script: # TODO revisar esto. probablemente faltan, pero leerlas en cada func, según hagan falta mejor
-#MGREMAIL=$(getVar disk MGREMAIL)
-#ADMINNAME=$(getVar disk ADMINNAME)
-
-#SHARES=$(getVar usb SHARES)
-
-#copyOnRAM=$(getVar mem copyOnRAM)
-
-# TODO leer estas variables para el modo mant? para default en la op de renovar cert ssl?
-#"$HOSTNM.$DOMNAME"
-
-  
-	#Ver cuáles son estrictamente necesarias. borrar el resto////
-#	setVarFromFile  $VARFILE MGREMAIL
-#	setVarFromFile  $VARFILE ADMINNAME
 
 
 
+# TODO ELIMINAR LA VERSIÓN ESTÁTICA de index.php antes de actualizar
+# el bundle de nuevo
 
 
-# TODO print the operation in course on the background of the window?
+# TODO add a maint option to join esurvey lcn network (if not done
+# during setup, and also to change registration)
 
+#TODO Asegurarme de que se loguean todas las acciones realizadas sobre
+#el servidor. Sacar esto en la app? poner un visor web para la
+#comisión? pedirles contraseñas nuevas para que accedan o una
+#genérica?
 
+# TODO: add a maint option to change ip config [commis. authorisation]
+# --> this existed, just was not yet moved from the old script and was
+# not in the new ones. same happend to some other ops.
 
-#Asegurarme de que se loguean todas las acciones realizadas sobre el servidor. Sacar esto en la app? poner un visor web para la comisión? pedirles contraseñas nuevas para que accedan o una genérica?
-
-
-# TODO en algún sitio se invoca esto? --> creo que era en el innerkey, pero lo voy a extinguir. si no hace falta, quitar
-#    $PVOPS  stopServers
-
-
-
-# TODO incluir tb la posibilidad de, en el SSL, instalar una clave privada externa? (por si acaso el porcedimiento de la org lo obliga), pero esta op debe ser con autorización de la comisión, pero esto sólo en el modo mant, no en la inst. --> es un lío y sería poco garante, no vale la pena fomentarlo. Describirlo como proced. de emergencia y ponerlo en el manual, describiendo los pasos para hacerlo desde el terminal. (así menos mantenimiento). hacerlo al final de todo. --> a veces puede ser que la constitución del sistema y la elección vayan muy pegadas... no sé. pensar qué hago.
-
-
-
-
-# TODO: add a maint option to change ip config [commis. authorisation] --> this existed, just was not yet moved from the old script and was not in the new ones. same happend to some other ops.
-
-# TODO --> we could also add a maint option to allow changing the ssh backup location (and without the authorisation of the com. only the admin password) --> do it. now the params are on disk
+# TODO --> we could also add a maint option to allow changing the ssh
+# backup location (and without the authorisation of the com. only the
+# admin password) --> do it. now the params are on disk

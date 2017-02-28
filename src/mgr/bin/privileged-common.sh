@@ -29,22 +29,40 @@ umask 027
 
 
 #Stop all system services that write persistent data
+#Return 1 if any service fails to stop
 stopServers () {
+    local ret=0
+    
     /etc/init.d/apache2 stop  >>$LOGFILE 2>>$LOGFILE
+    ret=$((ret || $?))
     /etc/init.d/postfix stop  >>$LOGFILE 2>>$LOGFILE
+    ret=$((ret || $?))
     /etc/init.d/mysql   stop  >>$LOGFILE 2>>$LOGFILE
+    ret=$((ret || $?))
     /etc/init.d/rsyslog stop  >>$LOGFILE 2>>$LOGFILE
+    ret=$((ret || $?))
+
+    return $ret
 }
 
 
 
 
 #Start all system services stopped on the opter function
+#Return 1 if any service fails to start
 startServers () {
+    local ret=0
+    
     /etc/init.d/rsyslog start  >>$LOGFILE 2>>$LOGFILE
+    ret=$((ret || $?))
     /etc/init.d/mysql   start  >>$LOGFILE 2>>$LOGFILE
+    ret=$((ret || $?))
     /etc/init.d/postfix start  >>$LOGFILE 2>>$LOGFILE
+    ret=$((ret || $?))
     /etc/init.d/apache2 start  >>$LOGFILE 2>>$LOGFILE
+    ret=$((ret || $?))
+    
+    return $ret
 }
 
 

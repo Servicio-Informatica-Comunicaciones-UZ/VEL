@@ -308,16 +308,16 @@ getClearance () { # TODO fill the lists *-*-
                    storops-checkKeyClearance   storops-rebuildKey   storops-rebuildKeyAllCombs
                    storops-testForDeadShares   storops-checkPwd   storops-readKeyShare
                    removeAdminPrivileges    adminPrivilegeStatus
-                   unfreezeSystem   stats
+                   stats
                    suspend   shutdownServer"
     
     #List of operations requiring admin password check only
     local pwdOps="raiseAdminAuth
-                  forceBackup    freezeSystem
+                  forceBackup    freezeSystem   unfreezeSystem
                   installSSLCert"
 
     # TODO decidir si free: setVarSafe getVarSafe trustSSHServer storops-readConfigShare
-    # TODO decidir si pwd: stopServers mailServer-reload grantAdminPrivileges startApache 
+    # TODO decidir si pwd:  mailServer-reload grantAdminPrivileges startApache 
 
     #If no operation code, then reject
     if [ "$1" == "" ] ; then
@@ -747,17 +747,6 @@ fi
 
 
 
-#Stop all services
-if [ "$1" == "stopServers" ] 
-then
-    stopServers 
-    exit 0
-fi
-
-
-
-
-
 #Scans a ssh server key and trusts it
 #2 -> SSH server address
 #3 -> SSH server port
@@ -996,6 +985,7 @@ then
     #Backup cron reads database for next backup date. Set date to now.
     dbQuery "update eVotDat set backup="$(date +%s)";"
     
+    opLog "Backup forced by the system administrator"
     
     exit $?
 fi    
@@ -2432,65 +2422,70 @@ fi
 
 
 
+#Freezes the system (all services that write the persistence unit are
+#stopped and all communication with the outer is closed)
+if [ "$1" == "freezeSystem" ] 
+then
+    #Mark the system as frozen
+    setVar mem SYSFROZEN "1"
+    
+    #Stop all services that may alter the persistent data
+    stopServers
+    if [ $? -ne 0 ] ; then
+        log "Freeze failed. Some service failed to stop".
+        exit 1
+    fi
+    
+    #Launch a substitution webserver with a static info page
+    bash /usr/local/share/simpleWeb/simpleHttp.sh start
+
+    opLog "System frozen by the system administrator"
+
+    exit 0
+fi
+
+
+
+#Restores services and outer communication
+if [ "$1" == "unfreezeSystem" ] 
+then
+    #Stop substitution webserver
+    bash /usr/local/share/simpleWeb/simpleHttp.sh stop
+    
+    #Restart services again
+    startServers
+    if [ $? -ne 0 ] ; then
+        log "Unfreeze failed. Some service failed to start".
+        exit 1
+    fi
+    
+    #Mark the system as unfrozen
+    setVar mem SYSFROZEN "0"
+
+    opLog "System unfrozen by the system administrator"
+    
+    exit 0
+fi
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
 
 
 
 # SEGUIR REVISANDO
-
-
-
-
-
-
-#  TODO implement
-if [ "$1" == "freezeSystem" ] 
-then
-
-#Stop all services that may alter the persistent data
-stopServers
-
-
-#Launch a substitution webserver with a static info page
-bash /usr/local/share/simpleWeb/simpleHttp.sh start
-
-    
-    # TODO disbale servers (well, the web server, others are hidden), for security reasons, or disable the apps only and put a static front page?
-
-    # inform of the remaining downtime and schedule the unfreeze op (if not executed by the user before)
-
-    exit 0
-fi
-
-if [ "$1" == "unfreezeSystem" ] 
-then
-
-#Stop substitution webserver
-bash /usr/local/share/simpleWeb/simpleHttp.sh stop
-
-#Restart services again
-startServers
-
-
-
-    exit 0
-fi
-
-
-
-
-
-
-
-
-    
-
-
-
-
-    
-    
-
-
 
 
 
