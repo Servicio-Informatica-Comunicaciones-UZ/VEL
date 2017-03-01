@@ -2433,6 +2433,7 @@ then
     stopServers
     if [ $? -ne 0 ] ; then
         log "Freeze failed. Some service failed to stop".
+        startServers
         exit 1
     fi
     

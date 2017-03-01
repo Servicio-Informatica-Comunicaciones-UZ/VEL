@@ -92,7 +92,7 @@ getPassword () {
                 continue
             fi
             
-	           pass2=$($dlg $nocancelbutton  --max-input 32 --passwordbox $"Vuelva a escribir su contraseña." 10 40 2>&1 >&4)
+	           pass2=$($dlg $nocancelbutton  --max-input 32 --passwordbox $"Repeat password." 10 40 2>&1 >&4)
 	           [ $? -ne 0 ] && return 1 
 
             #If not matching, ask again

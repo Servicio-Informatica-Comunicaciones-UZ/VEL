@@ -75,6 +75,7 @@ if [ $? -ne 0 ] ; then
     log "Backup failed. Some service failed to stop".
     #This way, the cron will send an e-mail
     echo "Backup failed. Some service failed to stop"
+    startServers
     exit 1
 fi
 
