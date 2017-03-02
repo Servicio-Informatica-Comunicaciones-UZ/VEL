@@ -349,26 +349,6 @@ parseInput () {
 #Ret: 0 Ok, value meets the type syntax;  1 wrong value syntax
 checkParameter () {
     
-    #These vars can accept an empty value and we ch ## TODO should we accept empty struing by default? see where this sis used and where checkParameterordie is used
-    if [ "$2" == "" ]
-	   then
-	     	 case "$1" in 
-            
-            "MAILRELAY" )
-                return 0
-	               ;;
-            
-	           "SERVEREMAIL" )
-                return 0
-	               ;;	    
-            
-	           * )
-	               log "Variable $1 does not accept an empty value." 
-	               return 1
-	               ;;
-	       esac	
-    fi
-
     local ret=0
     case "$1" in 
 	       
@@ -790,6 +770,8 @@ sys.stdout.write(base64.b64encode(binascii.unhexlify(hex_string)))
 #2 -> SSH server port
 #Depends on the $HOME variable
 sshScanAndTrust () {
+    local ret=0
+    log "SSH scanning... $1:$2"
     
     if [ ! -e $HOME/.ssh/ ] ; then
         mkdir $HOME/.ssh/      >>$LOGFILE 2>>$LOGFILE
@@ -806,7 +788,7 @@ sshScanAndTrust () {
     #Scan for the server's keys and append them to the user's know hosts file
     #rsa1 disabled for security reasons
     ssh-keyscan -p "$2" -t rsa,ecdsa,ed25519,dsa "$1" >> $HOME/.ssh/known_hosts  2>>$LOGFILE
-    local ret=$?
+    ret=$?
     
     return $ret
 }
