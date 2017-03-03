@@ -887,7 +887,7 @@ do
         #Clear the newly created drive from any default preset structures.
         rm -rf $DATAPATH/*   >>$LOGFILE 2>>$LOGFILE
         
-
+        
         #Switch to the slot where the old key is
         $PVOPS storops-switchSlot 1
         
@@ -1093,19 +1093,10 @@ do
             
         fi
         
-        #Setup the certbot directory symlink
-        $PVOPS linkCertbotDir
-        [ $? -ne 0 ] && err=1
-        
         #Link working certbot cert and enable automated certificate
-        #update (if previous errors exists, leave the dummy
-        #certificate for now)
-        if [ "$err" -eq 0 ] ; then
-            $PVOPS enableCertbot
-            [ $? -ne 0 ] && err=1
-        fi
-
-        if [ "$err" -eq 1 ] ; then
+        #update
+        $PVOPS enableCertbot       
+        if [ $? -ne 0 ] ; then
             $dlg --msgbox $"Error configuring certificate. Please, handle this later on the menu." 0 0
         fi
     fi

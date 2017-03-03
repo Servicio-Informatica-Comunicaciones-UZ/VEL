@@ -636,7 +636,7 @@ then
     
     
     #Set trust on the server
-    sshScanAndTrust "$SSHBAKSERVER"  "$SSHBAKPORT"
+    sshScanAndTrust "$sshserver"  "$sshport"
     if [ $? -ne 0 ] ; then
         log "SSH Keyscan error."
         exit 1
@@ -645,7 +645,7 @@ then
     
     #Retrieve the backup file, decrypt and untar it on the persistence
     #drive. All of this, streamlined.
-    sshRemoteCommand  "$sshserver"  "$sshport"  "$sshuser"  "$sshpasswd" "cat '$sshfilepath'" | 
+    sshRemoteCommand  "$sshserver"  "$sshport"  "$sshuser"  "$sshpasswd" "cat '$sshfilepath'" |
         openssl enc -d  -aes-256-cfb  -pass "pass:$DATABAKPWD"  2>>$LOGFILE |
         tar xzf - -C /  2>>$LOGFILE
     

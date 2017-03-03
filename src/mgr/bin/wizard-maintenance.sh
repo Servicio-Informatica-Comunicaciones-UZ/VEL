@@ -1037,8 +1037,6 @@ certbot-enable () {
         log "certbot setup error"
         return 1
     fi
-    #No matter it fails, that would only mean certbot was already enabled on this run
-    $PVOPS linkCertbotDir
     
     $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
     $PVOPS enableCertbot

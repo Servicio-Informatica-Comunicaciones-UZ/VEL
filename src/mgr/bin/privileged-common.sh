@@ -191,18 +191,20 @@ setVar () {
     #</DEBUG>
     touch $file
     chmod 600 $file  >>$LOGFILE 2>>$LOGFILE
-
-
+    
+    
     #Check if var is defined in file
     local isvardefined=$(cat $file | grep -Ee "^$1")
+    #<DEBUG>
     log "isvardef: $1? $isvardefined"
-
+    #</DEBUG>
+    
     #If not, append
     if [ "$isvardefined" == "" ] ; then
 	       echo "$1=\"$2\"" >> $file
     else
         #Else, substitute.
-	       sed -i -re "s/^$1=.*$/$1=\"$2\"/g" $file
+	       sed -i -re "s/^$1=.*$/$1=\"$2\"/g" $file  2>>$LOGFILE #  TODO SEGUIR MAÑANA aquí es donde falla, no se está sobreescribiend el valor, al menos en drivelocalpath. el problema es que está interpretando el / del path como el separador del substitutte de sed. no sé cómo demonios arreglarlo ahpra mismo. --> es complicado e inestable. MEjor hacer un script en python que gestione el cambio de valor de las variables, este sed peta de mil maneras.
     fi
 }
 
@@ -267,9 +269,13 @@ getVar () {
 #$3 -> 0:           don't set the variable value, just check if it fits.
 #      1 (default): set the variable with the value.
 checkParameterOrDie () {
+
+    #<DEBUG>
+    log "CheckParameterOrDie '$1' '$2' '$3'"
+    #</DEBUG>
+    #Trim value
+    local val=$(echo "$2"  | sed -r -e "s/^\s+//g" -e "s/\s+$//g" 2>>$LOGFILE)
     
-    #Trim value # TODO: warning, this deletes all the spaces. If there's a freetext string, we are screwed-> changed to trim the ends of the string. see if anything unexpected si happening
-    local val=$(echo "$2"  | sed -r -e "s/^\s+//g" -e "s/\s+$//g")
     
     #We accept an empty parameter
     if [ "$val" == "" ]

@@ -1714,7 +1714,7 @@ fi
 if [ "$1" == "storops-switchSlot" ] 
 then
 	   
-	   checkParameterOrDie INT "${2}" "0"
+	   checkParameterOrDie INT "$2" "0"
 	   if [ "$2" -gt $SHAREMAXSLOTS -o  "$2" -le 0 ]
 	   then
 	       log "switchSlot: Bad slot number: $2" 
@@ -2257,28 +2257,12 @@ fi     # TODO: recordarb que existe la op 'rootShell'
 
 
 
-
-
-#Move the certbot directory to the persistence drive
-if [ "$1" == "linkCertbotDir" ] 
-then
-    #Set the certbot dir with the one in the drive
-    if [ ! -e /etc/letsencrypt -a -e $DATAPATH/letsencrypt ] ; then
-        ln -s $DATAPATH/letsencrypt /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
-    else
-        log "certbot directory exists or datapath certbot directory doesn't."
-        exit 1
-    fi
-    
-    exit 0
-fi
+# TODO SEGUIR MAÑANA. En el recover está fallando. No sé cómo se ha creado un dir /etc/letsencrypt vacío. Reintentar el recover y ver cuándo aparece ese dir.
 
 
 
 
-
-
-#It performs the certificate request and installation,
+#It performs the certificate request and installation,  # TODO review if changes have affected the behaviour in mainnenace mode
 if [ "$1" == "setupCertbot" ] 
 then
     
@@ -2310,16 +2294,17 @@ then
         /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
     fi
     
-    # TODO maybe we need here to set the permissions and owner of the cer and key? check on an install
-    
     #Move the certbot directory to the persistence unit if not done
     #yet (may have happened on a running system)
     if [ -e /etc/letsencrypt -a ! -e $DATAPATH/letsencrypt ] ; then
 	       mv /etc/letsencrypt $DATAPATH/   >>$LOGFILE 2>>$LOGFILE
 	       if [ $? -ne 0 ] ; then
-            log "not enough free space"
+            log "ERROR: letsencrypt dir could not be copied to disk: not enough free space"
             exit 2 # not enough free space
         fi
+    else
+        log "ERROR: letsencrypt dir not copied to disk: either it already exists or no source found"
+        exit 2
     fi
     
     exit $ret
@@ -2332,7 +2317,22 @@ fi
 if [ "$1" == "enableCertbot" ] 
 then
     getVar disk SERVERCN
-
+    
+    #Set the certbot dir on its location by linking the one in the
+    #drive (if not already done) # TODO test this new arrangement, especially on maint.
+    if [ ! -e $DATAPATH/letsencrypt ] ; then
+        log "WARNING: certbot directory doesn't exist in drive."
+        exit 1
+    fi
+    if [ -e /etc/letsencrypt -a ! -L /etc/letsencrypt ] ; then
+        log "WARNING: certbot directory exists and is not a link."
+        exit 1
+    fi
+    
+    if [ ! -e /etc/letsencrypt ] ; then
+        ln -s $DATAPATH/letsencrypt /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
+    fi
+    
     #If there's any previous cert, archive it
     if [ -e $DATAPATH/webserver/server.key ] ; then
         archive="$DATAPATH/webserver/archive/ssl"$(date +%s)
@@ -2407,10 +2407,13 @@ then
     fi
     
     #Disable auto update
-    cat /etc/crontab | sed -i -re "/certbot/d" /etc/crontab
-
+    sed -i -re "/certbot/d" /etc/crontab 2>>$LOGFILE
+    
     #Set state variable
     setVar USINGCERTBOT "0" disk
+    
+    #Unlink the certbot dir
+    rm  /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
     
     #Set state to renew
     setVar  SSLCERTSTATE "renew" disk
