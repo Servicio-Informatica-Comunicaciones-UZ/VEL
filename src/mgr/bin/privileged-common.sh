@@ -185,27 +185,20 @@ setVar () {
 	       file="$slotPath/config"
     fi
     
-    log "****setting var on file $file: '$1'"
-    #<DEBUG>
-    log "****setting var on file $file: '$1'='$2'"
-    #</DEBUG>
+    #Create and set permissions to file if not exists
     touch $file
     chmod 600 $file  >>$LOGFILE 2>>$LOGFILE
     
-    
-    #Check if var is defined in file
-    local isvardefined=$(cat $file | grep -Ee "^$1")
+    log "****setting var on file $file: '$1'"
     #<DEBUG>
-    log "isvardef: $1? $isvardefined"
+    log "****setting var on file $file: '$1'='$2'"
+    log "is variable defined: $1? "$(cat $file | grep -Ee "^$1")
     #</DEBUG>
     
-    #If not, append
-    if [ "$isvardefined" == "" ] ; then
-	       echo "$1=\"$2\"" >> $file
-    else
-        #Else, substitute.
-	       sed -i -re "s/^$1=.*$/$1=\"$2\"/g" $file  2>>$LOGFILE #  TODO SEGUIR MAÑANA aquí es donde falla, no se está sobreescribiend el valor, al menos en drivelocalpath. el problema es que está interpretando el / del path como el separador del substitutte de sed. no sé cómo demonios arreglarlo ahpra mismo. --> es complicado e inestable. MEjor hacer un script en python que gestione el cambio de valor de las variables, este sed peta de mil maneras.
-    fi
+    #Add or update variable on config file
+    updateVar $file "$1" "$2"  >>$LOGFILE 2>>$LOGFILE
+    
+    return $?
 }
 
 

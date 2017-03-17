@@ -203,6 +203,7 @@ ctell "***** Setting file owners and permissions of scripts and executables"
 chown root:root $BINDIR/*
 
 pushd $BINDIR/
+#All of them can be executed by the root
 chmod 550 ./*
 #Set which tools can be used by the non-privileged user    
 chmod o+rx $NONPRIVILEGEDSCRIPTS

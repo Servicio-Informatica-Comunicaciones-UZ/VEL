@@ -906,7 +906,7 @@ then
     aux=$(cat /etc/crontab | grep backup.sh)
     if [ "$aux" == "" ]
     then
-        echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO review this script
+        echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO change in production, after tests are complete, to do abackup only at 3 am every day
     fi
     
     #Set base backup value on the database
@@ -981,9 +981,11 @@ then
         exit 1
     fi
     
-    
     #Backup cron reads database for next backup date. Set date to now.
-    dbQuery "update eVotDat set backup="$(date +%s)";"
+    #dbQuery "update eVotDat set backup="$(date +%s)";"
+    #Now that the backup executes only once a day in the night, force
+    #it here
+    echo "/usr/local/bin/backup.sh" | at now + 2 min
     
     opLog "Backup forced by the system administrator"
     

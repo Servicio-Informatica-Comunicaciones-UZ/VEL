@@ -80,6 +80,7 @@ DATABAKPWDFILE=$ROOTTMP/dataBackupPassword
 urlenc="/usr/local/bin/urlencode"
 addslashes="/usr/local/bin/addslashes"
 fdisk="/sbin/fdisk"
+updateVar="/usr/local/bin/updateVar.py"
 
 PSETUP="sudo /usr/local/bin/privileged-setup.sh"
 PVOPS="sudo /usr/local/bin/privileged-ops.sh"
