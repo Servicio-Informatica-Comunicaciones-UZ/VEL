@@ -196,7 +196,7 @@ setVar () {
     #</DEBUG>
     
     #Add or update variable on config file
-    updateVar $file "$1" "$2"  >>$LOGFILE 2>>$LOGFILE
+    /usr/local/bin/updateVar.py  $file  "$1"  "$2"  >>$LOGFILE 2>>$LOGFILE
     
     return $?
 }
