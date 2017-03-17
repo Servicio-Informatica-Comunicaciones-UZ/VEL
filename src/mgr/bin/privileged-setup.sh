@@ -177,9 +177,9 @@ moveToRAM () {
     local aufsFreeSize=$(df -m | grep "aufs" | sed -re "s/\s+/ /g" | cut -d " " -f 4)
 
     #Calculate size (in MB) of the uncompressed CD filesystem
-    local cdfsSize=$(du -s /lib/live/mount/rootfs/ | cut -f 1)
+    local cdfsSize=$(du -ms /lib/live/mount/rootfs/ | cut -f 1)
 
-    #Size of the CD
+    #Size of the CD and a 30% of the original free space (the pad free space we leave)
     local cdandpad=$(python -c "print int( $cdfsSize + $aufsSize*0.3 )")
     
     
@@ -205,7 +205,7 @@ moveToRAM () {
     fi
 	   
     #Copy the filesystem to RAM
-	   find /  -xdev -type f -print0 | xargs -0 touch
+	   find /  -xdev -type f -print0 | xargs -0 touch # TODO test if this double copies the CD (through the path /lib/live/mount/ ). Check on a 4GB system before and after
     
     #Mark that it was copied
     setVar copyOnRAM "1" mem
