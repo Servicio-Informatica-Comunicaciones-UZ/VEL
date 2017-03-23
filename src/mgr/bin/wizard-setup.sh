@@ -200,8 +200,8 @@ setDiskVariables () {
 	   setVar disk SITESEMAIL    "$SITESEMAIL"
 	   setVar disk SITESCOUNTRY  "$SITESCOUNTRY"
     setVar disk SITESTOKEN    "$SITESTOKEN"
-    
-    #These are saved only to be loaded as defaults on the maintenance operation form
+
+    #ServerCN is used by certbot to get path to live certificate
     setVar disk COMPANY "$COMPANY"
     setVar disk DEPARTMENT "$DEPARTMENT"
     setVar disk COUNTRY "$COUNTRY"
@@ -272,8 +272,17 @@ getDiskVariables () {
     
     SITESORGSERV=$(getVar disk SITESORGSERV)
 	   SITESNAMEPURP=$(getVar disk SITESNAMEPURP)
+    SITESEMAIL=$(getVar disk SITESEMAIL)
+	   SITESCOUNTRY=$(getVar disk SITESCOUNTRY)
     SITESTOKEN=$(getVar disk SITESTOKEN)
     
+    COMPANY=$(getVar disk COMPANY)
+    DEPARTMENT=$(getVar disk DEPARTMENT)
+    COUNTRY=$(getVar disk COUNTRY)
+    STATE=$(getVar disk STATE)
+    LOC=$(getVar disk LOC)
+    SERVEREMAIL=$(getVar disk SERVEREMAIL)
+    SERVERCN=$(getVar disk SERVERCN)
     
     USINGCERTBOT=$(getVar disk USINGCERTBOT)
 }

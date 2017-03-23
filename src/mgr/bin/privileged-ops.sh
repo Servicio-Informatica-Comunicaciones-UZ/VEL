@@ -972,7 +972,7 @@ fi
 #this)
 if [ "$1" == "forceBackup" ]
 then
-
+    
     #If backup is not enabled, error
     backupState=$(dbQuery "select backup from eVotDat;")
     [ $? != 0 ] && exit 1
@@ -985,7 +985,7 @@ then
     #dbQuery "update eVotDat set backup="$(date +%s)";"
     #Now that the backup executes only once a day in the night, force
     #it here
-    echo "/usr/local/bin/backup.sh" | at now + 2 min
+    echo "/usr/local/bin/backup.sh" | at now + 2 min  >>$LOGFILE 2>>$LOGFILE  # TODO check that it works
     
     opLog "Backup forced by the system administrator"
     
