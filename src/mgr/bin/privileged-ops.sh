@@ -982,7 +982,8 @@ then
     fi
     
     #Backup cron reads database for next backup date. Set date to now.
-    #dbQuery "update eVotDat set backup="$(date +%s)";"
+    dbQuery "update eVotDat set backup="$(date +%s)";"
+    
     #Now that the backup executes only once a day in the night, force
     #it here
     echo "/usr/local/bin/backup.sh" | at now + 2 min  >>$LOGFILE 2>>$LOGFILE  # TODO check that it works
