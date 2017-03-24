@@ -240,19 +240,28 @@ cp -fvr /root/src/webapp/www                     /root/www # TODO see if it work
 
 
 
+#### Install custom CAs base system doesn't trust by default  #####
+
 #Remove the test CA
 rm -fv  /etc/ssl/certs/TEST.pem
 if [ -e /etc/ssl/certs/ca-certificates.crt.orig ] ; then
     mv /etc/ssl/certs/ca-certificates.crt.orig /etc/ssl/certs/ca-certificates.crt
 fi
+
+#Install legitimate CAs (WARNING: consistency not being kept as with
+#the test CA! if you install a CA and then remove it from the source,
+#remove it manually or build system from scratch).
+cp -fv  /root/src/sys/config/ssl/CAs/*    /etc/ssl/certs/
+cat    /root/src/sys/config/ssl/CAs/* >> /etc/ssl/certs/ca-certificates.crt
+
 #<DEBUG>
 #Install the test CA
 cp -fv  /root/src/test/ssl/ca.crt  /etc/ssl/certs/TEST.pem
 cp -fv /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt.orig
 cat /etc/ssl/certs/TEST.pem >> /etc/ssl/certs/ca-certificates.crt
-c_rehash
 #</DEBUG>
 
+c_rehash
 
 
 
