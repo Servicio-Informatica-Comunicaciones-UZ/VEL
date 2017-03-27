@@ -1092,8 +1092,6 @@ do
         if [ $? -ne 0 ] ; then
             log "certbot setup error"
             $dlg --msgbox $"Error configuring certificate. Please, handle this later on the menu." 0 0
-        else
-            setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
         fi
     fi
     

@@ -358,3 +358,39 @@ disown -h -ar # Do as above, but to all running jobs belonging to ths terminal
 # look in the dialog.
 
 # See also the "--no-collapse" and "--trim" options.
+
+
+
+
+#If apache is running, stop it temporarily (for when this is
+#called in maintenance)
+stoppedApache=0
+if (ps aux | grep apache | grep -v grep >>$LOGFILE 2>>$LOGFILE) ; then
+    stoppedApache=1
+    /etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE
+fi
+
+#Test renewal
+certbot --standalone certonly -n  -d "$SERVERCN"  --dry-run  >>$LOGFILE 2>>$LOGFILE
+ret=$?
+
+if [ "$stoppedApache" -eq 1 ] ; then
+    /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
+fi
+
+if [ $ret -ne 0 ] ; then
+    log "failed certbot certificate renewal test. Check."
+    exit 1
+fi
+
+
+
+#Not archiving anymore, as it is a persistent link and would add one
+#entry on every enable/reboot
+#If there's any previous cert, archive it
+if [ -e $DATAPATH/webserver/server.key ] ; then
+    archive="$DATAPATH/webserver/archive/ssl"$(date +%s)
+    mkdir -p "$archive"           >>$LOGFILE 2>>$LOGFILE
+    cp -f $DATAPATH/webserver/* "$archive/"  >>$LOGFILE 2>>$LOGFILE # Only copy the files
+    rm -f $DATAPATH/webserver/*              >>$LOGFILE 2>>$LOGFILE # Only remove the files
+fi

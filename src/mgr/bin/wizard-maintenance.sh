@@ -1026,9 +1026,10 @@ ssl-cert-install () {
 
 
 
-# TODO SEGUIR MAÑANA
 
 certbot-enable () {
+    
+    # TODO SEGUIR MAÑANA : en el enable, hay que pedir los params, por si es la primera vez (y grabar en disco dichos params).? En principio se pidieron en el install. He de poder cambiarlos en cada renew sea certbot o no?  Revisar todas las ops de ssl y ver enc uáles he de permitir cambiar los params del cert a generar, y sobretodo la autorización para ello (si se puede tocar el nombre de dominio, hará falta comisión, y en algunos no debería) Yen este de certbot debería? si el update es automático y nu ca cambia. Quizá añadir una nueva opción con comisión y que permita cambiar los params, ver si puedo hacer una sólo para  params y luego usar el resto para normal y certbot. Cómo afectará al certbot el que yo cambie el dominio? se enlazará adecuadamente como cert activo? --> creo que en ese caso los links de setupCertbot deberán machacar lo existente y rehacerse cada vez que se llame a esta func.
     
     $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
     $PVOPS setupCertbot
@@ -1036,7 +1037,7 @@ certbot-enable () {
         $dlg --msgbox $"Error enabling certificate service." 0 0 # TODO set different return codes and set different messages
         log "certbot enable error"
         return 1
-    fi # TODO asegurarme de que los certs siguen enlazados donde toca
+    fi
 
     
     $PVOPS startApache
@@ -1052,8 +1053,6 @@ certbot-enable () {
 	       log "Error restarting postfix" 
 	       return 1
 	   fi
-    
-    setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
     
     $dlg --msgbox $"Certbot successfully enabled." 0 0
     return 0

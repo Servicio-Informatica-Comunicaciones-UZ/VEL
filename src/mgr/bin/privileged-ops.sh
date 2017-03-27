@@ -2259,39 +2259,45 @@ fi     # TODO: recordarb que existe la op 'rootShell'
 
 #It performs the certificate request and installation. After a long
 #time disabled, certificate may be expired, so every enable must try a
-#setup # TODO review in mainnenace mode
+#setup
 if [ "$1" == "setupCertbot" ] 
 then
     
     getVar disk SERVEREMAIL
     if [ "$SERVEREMAIL" == ""  ] ; then
         log "WARNING: No server email variable found"
-	       exit 1
+	       exit 2
     fi
     
     getVar disk SERVERCN
     if [ "$SERVERCN" == ""  ] ; then
         log "WARNING: No server FQDN variable found"
-	       exit 1
+	       exit 2
+    fi
+    
+    #Guard to unexpected situation, shoould never happen
+    if [ -e /etc/letsencrypt -a ! -L /etc/letsencrypt ] ; then
+        log "ERROR: certbot etc directory exists and is not a link. Shouldn't happen."
+        exit 3
     fi
     
     
-    #First setup will find no certbot dir, but later enablements after a
-    #long time disablement may find it available on the persistence unit
+    #Already enabled, ignore and exit
+    if [ -e /etc/letsencrypt ] ; then
+        log "WARNING: Certbot aready enabled. If not what you expected, please check."
+        exit 1
+    fi
+    
+    
+    
+    #On system boot or certbot re-enablements (there's no system
+    #certbot dir but it is on the drive)
     if [ -e $DATAPATH/letsencrypt ] ; then
-        log "WARNING: certbot directory previously existed in drive."
-        
-        if [ -e /etc/letsencrypt -a ! -L /etc/letsencrypt ] ; then
-            log "WARNING: certbot etc directory exists and is not a link shouldn't happen."
-            exit 1
-        fi
-        
-        if [ ! -e /etc/letsencrypt ] ; then
+        log "Certbot directory previously existed in drive. This is a reboot or a re-enable."
         ln -s $DATAPATH/letsencrypt /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
     fi
     
     
-
     #If apache is running, stop it temporarily (for when this is
     #called in maintenance)
     stoppedApache=0
@@ -2308,84 +2314,60 @@ then
         /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
     fi
     
+    #If error on certificate generation, abort.
+    if [ $ret -ne 0 ] ; then
+        log "ERROR ($ret) generating/renewing certbot key"
+        exit 5
+    fi
+    
+    #If everything went right, there must be a directory (or a link
+    #to it) with the certificate
+    if [ ! -e /etc/letsencrypt ] ; then
+        log "WARNING: certbot directory does not exist."
+        exit 6
+    fi
+    
+    
     #Move the certbot directory to the persistence unit if not done
-    #yet (may have happened on a running system)
-    if [ -e /etc/letsencrypt -a ! -e $DATAPATH/letsencrypt ] ; then
+    #yet (this may have happened on a running system), and link
+    if [ ! -e $DATAPATH/letsencrypt ] ; then
 	       mv /etc/letsencrypt $DATAPATH/   >>$LOGFILE 2>>$LOGFILE
 	       if [ $? -ne 0 ] ; then
             log "ERROR: letsencrypt dir could not be copied to disk: not enough free space"
-            exit 2 # not enough free space
+            rm  -rf /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
+            exit 4 # not enough free space
         fi
-    else
-        log "ERROR: letsencrypt dir not copied to disk: either it already exists or no source found"
-        exit 2
-    fi
-    
-    exit $ret
-
-    #### TODO SEGUIR MAÑANA: acabar de fundir enableCertbot y setupCErtbot, en maintenance, y revisar todo. comprobar exisencia en media al principio y en tal caso, linkar (hacer comprobaciones adicionales que den error para mantener la coherencia). Si no existe al inicio, marcar flag, hacer el setup local y luego hacer el move y el link (el código de link deberá estar repetido). luego seguir con el cron, etc.
-    
-    #Set the certbot dir on its location by linking the one in the
-    #drive (if not already done) # TODO test this new arrangement, especially on maint.
-    if [ ! -e $DATAPATH/letsencrypt ] ; then
-        log "WARNING: certbot directory doesn't exist in drive."
-        exit 1
-    fi
-    if [ -e /etc/letsencrypt -a ! -L /etc/letsencrypt ] ; then
-        log "WARNING: certbot directory exists and is not a link."
-        exit 1
-    fi
-    
-    if [ ! -e /etc/letsencrypt ] ; then
+        
+        #Link the moved dir to its system path
         ln -s $DATAPATH/letsencrypt /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
     fi
     
-    #If there's any previous cert, archive it
-    if [ -e $DATAPATH/webserver/server.key ] ; then
-        archive="$DATAPATH/webserver/archive/ssl"$(date +%s)
-        mkdir -p "$archive"           >>$LOGFILE 2>>$LOGFILE
-        cp -f $DATAPATH/webserver/* "$archive/"  >>$LOGFILE 2>>$LOGFILE # Only copy the files
-        rm -f $DATAPATH/webserver/*              >>$LOGFILE 2>>$LOGFILE # Only remove the files
-    fi
     
-    #Link current certificate/chain/key to the expected location
-    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/cert.pem     $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
-    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/privkey.pem  $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
-    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/chain.pem    $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
+    #Link current certificate/chain/key to the expected location (from
+    #this moment on, everything is as if this was a hand-installed
+    #certificate)
+    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/cert.pem     \
+       $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
+    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/privkey.pem  \
+       $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
+    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/chain.pem    \
+       $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
     touch   $DATAPATH/webserver/server.csr   >>$LOGFILE 2>>$LOGFILE
-    
-    
-    #If apache is running, stop it temporarily (for when this is
-    #called in maintenance)
-    stoppedApache=0
-    if (ps aux | grep apache | grep -v grep >>$LOGFILE 2>>$LOGFILE) ; then
-        stoppedApache=1
-        /etc/init.d/apache2 stop >>$LOGFILE 2>>$LOGFILE
-    fi
-    
-    #Test renewal
-    certbot --standalone certonly -n  -d "$SERVERCN"  --dry-run  >>$LOGFILE 2>>$LOGFILE
-    ret=$?
-    
-    if [ "$stoppedApache" -eq 1 ] ; then
-        /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
-    fi
-    
-    if [ $ret -ne 0 ] ; then
-        log "failed certbot certificate renewal test. Check."
-        exit 1
-    fi
-    # TODO probar    
+    # TODO SEGUIR MAÑANA: creo que estos lns deberían deslinkarse y rehacerse cada vez, ya que podría cambiar el doomino y por tanto la ruta dentro del dir de certbot.
     
     #Automate renewal
     aux=$(cat /etc/crontab | grep certbot)
     if [ "$aux" == "" ]
     then
-        echo -e "0 3 * * 1 root  certbot --apache certonly -n -d '$SERVERCN' \n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO check if working, see if the email is needed
+        echo -e "0 3 * * 1 root  certbot --apache certonly -n -d '$SERVERCN' \n\n" \
+             >> /etc/crontab  2>>$LOGFILE
     fi
     
     #Set state variable
     setVar USINGCERTBOT "1" disk
+
+    #Set ssl cert state variable
+    setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
     
     exit 0
 fi
