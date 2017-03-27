@@ -1085,28 +1085,15 @@ do
     #If decided to use certbot, override the dummy one
     if [ "$USINGCERTBOT" -eq 1 ] ; then            
         $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
-
-        err=0
-        #Request the certificate
-        if [ "$DOINSTALL" -eq 1 ] ; then
-            
-            $PVOPS setupCertbot
-            if [ $? -ne 0 ] ; then
-                err=1
-                log "certbot setup error"
-                $dlg --msgbox $"Error requesting certificate. Please, handle this later on the menu." 0 0
-                
-            else
-                setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
-            fi
-            
-        fi
         
-        #Link working certbot cert and enable automated certificate
-        #update
-        $PVOPS enableCertbot       
+        #Request and configure the certificate (on every startup, as
+        #it may have been down enough to have it expired)
+        $PVOPS setupCertbot
         if [ $? -ne 0 ] ; then
+            log "certbot setup error"
             $dlg --msgbox $"Error configuring certificate. Please, handle this later on the menu." 0 0
+        else
+            setVar disk SSLCERTSTATE "ok"  #On certbot, always ok
         fi
     fi
     

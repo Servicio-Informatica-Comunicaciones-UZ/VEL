@@ -2257,29 +2257,40 @@ fi     # TODO: recordarb que existe la op 'rootShell'
 
 
 
-
-
-
-# TODO SEGUIR MAÑANA. En el recover está fallando. No sé cómo se ha creado un dir /etc/letsencrypt vacío. Reintentar el recover y ver cuándo aparece ese dir.
-
-
-
-
-#It performs the certificate request and installation,  # TODO review if changes have affected the behaviour in mainnenace mode
+#It performs the certificate request and installation. After a long
+#time disabled, certificate may be expired, so every enable must try a
+#setup # TODO review in mainnenace mode
 if [ "$1" == "setupCertbot" ] 
 then
     
     getVar disk SERVEREMAIL
     if [ "$SERVEREMAIL" == ""  ] ; then
-        log "No server email variable found"
+        log "WARNING: No server email variable found"
 	       exit 1
     fi
     
     getVar disk SERVERCN
     if [ "$SERVERCN" == ""  ] ; then
-        log "No server FQDN variable found"
+        log "WARNING: No server FQDN variable found"
 	       exit 1
     fi
+    
+    
+    #First setup will find no certbot dir, but later enablements after a
+    #long time disablement may find it available on the persistence unit
+    if [ -e $DATAPATH/letsencrypt ] ; then
+        log "WARNING: certbot directory previously existed in drive."
+        
+        if [ -e /etc/letsencrypt -a ! -L /etc/letsencrypt ] ; then
+            log "WARNING: certbot etc directory exists and is not a link shouldn't happen."
+            exit 1
+        fi
+        
+        if [ ! -e /etc/letsencrypt ] ; then
+        ln -s $DATAPATH/letsencrypt /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
+    fi
+    
+    
 
     #If apache is running, stop it temporarily (for when this is
     #called in maintenance)
@@ -2311,15 +2322,8 @@ then
     fi
     
     exit $ret
-fi
 
-
-
-#It setups the automated renewal and overrides the working certificate
-#if any
-if [ "$1" == "enableCertbot" ] 
-then
-    getVar disk SERVERCN
+    #### TODO SEGUIR MAÑANA: acabar de fundir enableCertbot y setupCErtbot, en maintenance, y revisar todo. comprobar exisencia en media al principio y en tal caso, linkar (hacer comprobaciones adicionales que den error para mantener la coherencia). Si no existe al inicio, marcar flag, hacer el setup local y luego hacer el move y el link (el código de link deberá estar repetido). luego seguir con el cron, etc.
     
     #Set the certbot dir on its location by linking the one in the
     #drive (if not already done) # TODO test this new arrangement, especially on maint.
@@ -2345,9 +2349,9 @@ then
     fi
     
     #Link current certificate/chain/key to the expected location
-    ln -s /etc/letsencrypt/live/$SERVERCN/cert.pem     $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
-    ln -s /etc/letsencrypt/live/$SERVERCN/privkey.pem  $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
-    ln -s /etc/letsencrypt/live/$SERVERCN/chain.pem    $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
+    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/cert.pem     $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
+    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/privkey.pem  $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
+    ln -s $DATAPATH/letsencrypt/live/$SERVERCN/chain.pem    $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
     touch   $DATAPATH/webserver/server.csr   >>$LOGFILE 2>>$LOGFILE
     
     
@@ -2388,6 +2392,7 @@ fi
 
 
 
+#Disables the current certbot certificate
 if [ "$1" == "disableCertbot" ] 
 then
     getVar disk SERVERCN
@@ -2423,6 +2428,7 @@ then
     
     exit 0
 fi
+
 
 
 

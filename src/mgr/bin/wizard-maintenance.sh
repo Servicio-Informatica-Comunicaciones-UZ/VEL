@@ -1030,18 +1030,10 @@ ssl-cert-install () {
 
 certbot-enable () {
     
-    $dlg --infobox $"Requesting Let's Encrypt SSL certificate..." 0 0
+    $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
     $PVOPS setupCertbot
     if [ $? -ne 0 ] ; then
-        $dlg --msgbox $"Error requesting or updating certificate." 0 0
-        log "certbot setup error"
-        return 1
-    fi
-    
-    $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
-    $PVOPS enableCertbot
-    if [ $? -ne 0 ] ; then
-        $dlg --msgbox $"Error enabling certificate service." 0 0
+        $dlg --msgbox $"Error enabling certificate service." 0 0 # TODO set different return codes and set different messages
         log "certbot enable error"
         return 1
     fi # TODO asegurarme de que los certs siguen enlazados donde toca

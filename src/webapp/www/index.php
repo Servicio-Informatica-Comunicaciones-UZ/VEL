@@ -2447,7 +2447,7 @@
 	  }
 	}
     #Here, form of the poll officer. Adding code to confirm deletion of votes
-    $votDelConfirm="if (this.submited != null && this.submited != '' ){ var dodeletevote=confirm('\\n-== '+this.submited+' ==-\\n\\n'+'¿Está seguro de que desea borrar la participación de este votante?\\nEsta acción no se puede deshacer.\\n\\n');if (!dodeletevote){this.submited = ''; return false;}this.submited = '';}";
+    $votDelConfirm="if (this.submited != null && this.submited != '' ){ if (this.submited == -1) { var dodeletevote=confirm('\\n-== AVISO ==-\\n\\n'+'¿Está seguro de que desea abrir la urna?\\nEsta acción no se puede deshacer y si lo hace ya no podrá anular papeletas.\\n\\n');} else { var dodeletevote=confirm('\\n-== '+this.submited+' ==-\\n\\n'+'¿Está seguro de que desea borrar la participación de este votante?\\nEsta acción no se puede deshacer.\\n\\n');} if (!dodeletevote){this.submited = ''; return false;}this.submited = '';}";
 	echo "<form name=formu method=post ".'onsubmit="'.$votDelConfirm.$scro1.'">'.$scro2."<table style=\"height: 80%;  width: 100%\"><tr><td><input name=wrkf type=hidden value=\"$wrkf\"><table border=0>";
 	$mesa=mysql_fetch_assoc(mysql_query("select * from eVotMes where idM = '$idM'")); $est=$mesa['est'];
 	echo '<tr><td class=lab width="25%">'.__('Mesa').' <td colspan=6 width="75%">'.$mesa['nomMes'];
@@ -2661,10 +2661,12 @@
 			(($monid) ? '' : __(' (puede ser normal, esperamos una hora)')).
 			'</font> <input type=submit id=btmModMes name="acc[gesMes]" value="'.__('Refrescar').'">';
 	      if ($monid) {
-		if (mysql_fetch_row(mysql_query("select idM from eVotMes, eVotElecs where mesaElec = idM and anulable = 1 and idM = $idM")))
-		  echo '<font color=red>',__('Atención al haber una elección de papeleta anulable, la urna no debe abrirse hasta que se haya cerrado el perido de anulaciones'),'</font>';
+              if (mysql_fetch_row(mysql_query("select idM from eVotMes, eVotElecs where mesaElec = idM and anulable = 1 and idM = $idM"))){
+                  echo '<font color=red>',__('Atención al haber una elección de papeleta anulable, la urna no debe abrirse hasta que se haya cerrado el perido de anulaciones'),'</font>';
+                  $btabrUrnConfirm="this.form.submited=-1;"
+              }
 		echo '<p><input id=btabrUrn name="acc['.$acci.']" type=submit value="'.__('Abrir la urna').
-			'" onclick="moni(this)"><input type=hidden name=monid value="'.$monid.'">';
+			'" onclick="'.$btabrUrnConfirm.'moni(this)"><input type=hidden name=monid value="'.$monid.'">';
 		moniac($monid);
 	      }
 	    }
