@@ -448,7 +448,7 @@
     if ($_SESSION['login'])
       header("Location: $hst$escr?amth={$_GET['amth']}");
     else
-      printf("$htcab<body>$htban".__('El proceso falló, no se encontró usuario, %sContinuar%s'),'<a href=/>','</a>');
+      echo "$htcab<body>$htban".sprintf(''.__('El proceso falló, no se encontró usuario, %sContinuar%s'),'<a href=/>','</a>');
     die();
   }
   $mth=intval($_REQUEST['amth']);
@@ -2663,7 +2663,7 @@
 	      if ($monid) {
               if (mysql_fetch_row(mysql_query("select idM from eVotMes, eVotElecs where mesaElec = idM and anulable = 1 and idM = $idM"))){
                   echo '<font color=red>',__('Atención al haber una elección de papeleta anulable, la urna no debe abrirse hasta que se haya cerrado el perido de anulaciones'),'</font>';
-                  $btabrUrnConfirm="this.form.submited=-1;"
+                  $btabrUrnConfirm="this.form.submited=-1;";
               }
 		echo '<p><input id=btabrUrn name="acc['.$acci.']" type=submit value="'.__('Abrir la urna').
 			'" onclick="'.$btabrUrnConfirm.'moni(this)"><input type=hidden name=monid value="'.$monid.'">';

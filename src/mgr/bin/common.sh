@@ -376,7 +376,7 @@ checkParameter () {
 	           ret=$?
 	           ;;
 	       
-	       "TRUEFALSE" | "SYSFROZEN" | "LOCALAUTH" )
+	       "TRUEFALSE" | "SYSFROZEN" | "LOCALAUTH" | "USINGCERTBOT" )
             #Closed set value
 	           if [ "$2" != "0" -a "$2" != "1" ] ; then
                 ret=1
@@ -430,7 +430,7 @@ checkParameter () {
 	           ret=$?
 	           ;;
         
-	       "MGREMAIL" | "SERVEREMAIL" )
+	       "MGREMAIL" | "SERVEREMAIL" | "SITESEMAIL" )
             parseInput email "$2"
 	           ret=$?
 	           ;;

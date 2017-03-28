@@ -2346,6 +2346,11 @@ then
     #Link current certificate/chain/key to the expected location (from
     #this moment on, everything is as if this was a hand-installed
     #certificate)
+    rm -f $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
+    rm -f $DATAPATH/webserver/server.key    >>$LOGFILE 2>>$LOGFILE
+    rm -f $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
+    rm -f $DATAPATH/webserver/server.csr    >>$LOGFILE 2>>$LOGFILE
+    
     ln -s $DATAPATH/letsencrypt/live/$SERVERCN/cert.pem     \
        $DATAPATH/webserver/server.crt    >>$LOGFILE 2>>$LOGFILE
     ln -s $DATAPATH/letsencrypt/live/$SERVERCN/privkey.pem  \
