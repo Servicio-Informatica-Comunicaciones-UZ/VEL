@@ -509,7 +509,8 @@ fi   # TODO do we need a setPubVar?
 
 
 
-#Launch a root shell for maintenance purposes
+#Launch a root shell for maintenance purposes (no logging involved,
+#this is for before the persistence unit and the services are loaded)
 if [ "$1" == "rootShell" ] 
 then
     export TERM=linux        
@@ -2214,6 +2215,13 @@ fi
 #2 -> file with the list of recipient e-mail addresses
 if [ "$1" == "launchTerminal" ] 
 then
+
+    getVar disk MGREMAIL
+    if [ "$MGREMAIL" == ""  ] ; then
+        log "ERROR: No admin email variable found"
+	       exit 1
+    fi
+    
     emaillist=$(parseEmailFile "$2")
     if [ $? -ne 0 ] ; then
         log "Error processing e-mail list at $2. Aborting."
@@ -2246,11 +2254,15 @@ then
 	   mailsubject=$"Voting server maintenance session registry"" $(date +%d/%m/%Y-%H:%M)"
 	   mailbody=$"You provided ypour e-mail address to receive the logs of the execution of the maintenance session on a root terminal. Find it on the attached file. Use it to audit the session and detect any fraud."
     
+    
     #Send mail to all recipients # TODO include the list of commission emails
-	   echo "$mailbody" | mutt -s "$mailsubject"  -a $HISTFILE --  $emaillist
+    export EMAIL="vtUJI administrator <"$MGREMAIL">"
+	   echo "$mailbody" | mutt -s "$mailsubject"  -a "$sesslogfile" -- $MGREMAIL $emaillist
+    
+    echo "Press RETURN to continue..." && read # TODO quitar rread y checkpoints
     
 	   exit 0
-fi     # TODO: recordarb que existe la op 'rootShell'
+fi
 
 
 

@@ -934,6 +934,9 @@ misc-shell () {
     #Launch the root terminal with a private operation (will read the
     #e-mail list from the file and send the history)
 	   $PVOPS launchTerminal /home/vtuji/shellSessionRecipients
+    if [ $? -eq 1 ] ; then
+        $dlg --msgbox $"Error processing e-mail list." 0 0
+    fi
     
     rm /home/vtuji/shellSessionRecipients >>$LOGFILE 2>>$LOGFILE
 
