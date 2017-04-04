@@ -2275,10 +2275,10 @@ then
 	       exit 2
     fi
     
-    #Guard to unexpected situation, shoould never happen
+    #Guard to unexpected and undesired situation
     if [ -e /etc/letsencrypt -a ! -L /etc/letsencrypt ] ; then
-        log "ERROR: certbot etc directory exists and is not a link. Shouldn't happen."
-        exit 3
+        log "WARNING: certbot etc directory exists and is not a link. Shouldn't happen. Deleting."
+        rm -rf /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
     fi
     
     
@@ -2337,7 +2337,9 @@ then
             rm  -rf /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
             exit 4 # not enough free space
         fi
-        
+    fi
+    
+    if [ ! -e /etc/letsencrypt ] ; then
         #Link the moved dir to its system path
         ln -s $DATAPATH/letsencrypt /etc/letsencrypt   >>$LOGFILE 2>>$LOGFILE
     fi
@@ -2358,7 +2360,7 @@ then
     ln -s $DATAPATH/letsencrypt/live/$SERVERCN/chain.pem    \
        $DATAPATH/webserver/ca_chain.pem  >>$LOGFILE 2>>$LOGFILE
     touch   $DATAPATH/webserver/server.csr   >>$LOGFILE 2>>$LOGFILE
-    # TODO SEGUIR MAÑANA: creo que estos lns deberían deslinkarse y rehacerse cada vez, ya que podría cambiar el doomino y por tanto la ruta dentro del dir de certbot.
+    
     
     #Automate renewal
     aux=$(cat /etc/crontab | grep certbot)

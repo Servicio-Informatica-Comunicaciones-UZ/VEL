@@ -52,8 +52,15 @@ case "$1" in
     
     
     "stop" )
-        kill $(cat $basePath/http.pid)  2>>$LOGFILE
-        kill $(cat $basePath/https.pid) 2>>$LOGFILE
+        kill -9 $(cat $basePath/http.pid)  2>>$LOGFILE
+        kill -9 $(cat $basePath/https.pid) 2>>$LOGFILE
+
+        #Just to make sure
+        pid1=$(netstat -ntaep | grep :80 | sed -re "s/\s+/ /g" | cut -d " " -f 9 | sed -re "s|^([0-9]+)/python$|\1|g" 2>>$LOGFILE)
+        pid2=$(netstat -ntaep | grep :443 | sed -re "s/\s+/ /g" | cut -d " " -f 9 | sed -re "s|^([0-9]+)/python$|\1|g" 2>>$LOGFILE)
+        kill -9 $pid1  2>>$LOGFILE
+        kill -9 $pid2  2>>$LOGFILE
+        
         rm $basePath/http.pid  2>>$LOGFILE
         rm $basePath/https.pid  2>>$LOGFILE
         ;;

@@ -242,6 +242,8 @@ cp -fvr /root/src/webapp/www                     /root/www # TODO see if it work
 
 #### Install custom CAs base system doesn't trust by default  #####
 
+########### Server SSL CAs
+
 #Remove the test CA
 rm -fv  /etc/ssl/certs/TEST.pem
 if [ -e /etc/ssl/certs/ca-certificates.crt.orig ] ; then
@@ -251,8 +253,8 @@ fi
 #Install legitimate CAs (WARNING: consistency not being kept as with
 #the test CA! if you install a CA and then remove it from the source,
 #remove it manually or build system from scratch).
-cp -fv  /root/src/sys/config/ssl/CAs/*    /etc/ssl/certs/
-cat    /root/src/sys/config/ssl/CAs/* >> /etc/ssl/certs/ca-certificates.crt
+cp -fv  /root/src/sys/config/ssl/CAs/server/*    /etc/ssl/certs/
+cat    /root/src/sys/config/ssl/CAs/server/* >> /etc/ssl/certs/ca-certificates.crt
 
 #<DEBUG>
 #Install the test CA
@@ -262,6 +264,18 @@ cat /etc/ssl/certs/TEST.pem >> /etc/ssl/certs/ca-certificates.crt
 #</DEBUG>
 
 c_rehash
+
+
+########### Client SSL CAs
+
+mkdir /etc/ssl/client/
+chmod 755 /etc/ssl/client/
+
+rm -rf /etc/ssl/client/*
+
+cp  -fv  /root/src/sys/config/ssl/CAs/client/*  /etc/ssl/client/
+
+c_rehash /etc/ssl/client/  ## TODO validar que funciona este nuevo montaje, sobretodo la config de apache
 
 
 

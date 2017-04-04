@@ -574,9 +574,10 @@ then
     cat /usr/local/bin/buildDB.sql |
         mysql -f -u election -p"$DBPWD" eLection 2>>$SQLLOGFILE
     
-    #Configure the Certificate authentication method
+    #Configure the Certificate authentication method (only for Spanish
+    #certificates)
     getVar disk SERVERCN
-    dbQuery "update eVotMetAut set nomA='Certificate'," \
+    dbQuery "update eVotMetAut set nomA='Digital Certificate (Spain)'," \
             "tipEx=1, disp=1," \
             "urlA='https://$SERVERCN/auth/certAuth/certAuth.php'" \
             "where idH=11;"
