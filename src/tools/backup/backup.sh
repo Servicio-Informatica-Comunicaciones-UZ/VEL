@@ -66,7 +66,7 @@ sshScanAndTrust "$SSHBAKSERVER" "$SSHBAKPORT"
 
 
 #Mark the system as frozen
-setVar mem SYSFROZEN "1"
+setVar SYSFROZEN "1" mem
 
 
 #Stop all services that may alter the persistent data
@@ -113,7 +113,7 @@ if [ $? -ne 0 ] ; then
 fi
 
 #Mark the system as unfrozen
-setVar mem SYSFROZEN "0"
+setVar SYSFROZEN "0" mem
 
 
 #Delete database dump

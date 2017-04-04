@@ -2259,8 +2259,6 @@ then
     export EMAIL="vtUJI administrator <"$MGREMAIL">"
 	   echo "$mailbody" | mutt -s "$mailsubject"  -a "$sesslogfile" -- $MGREMAIL $emaillist
     
-    echo "Press RETURN to continue..." && read # TODO quitar rread y checkpoints
-    
 	   exit 0
 fi
 
@@ -2440,7 +2438,7 @@ fi
 if [ "$1" == "freezeSystem" ] 
 then
     #Mark the system as frozen
-    setVar mem SYSFROZEN "1"
+    setVar SYSFROZEN "1" mem
     
     #Stop all services that may alter the persistent data
     stopServers
@@ -2474,8 +2472,8 @@ then
     fi
     
     #Mark the system as unfrozen
-    setVar mem SYSFROZEN "0"
-
+    setVar SYSFROZEN "0" mem
+    
     opLog "System unfrozen by the system administrator"
     
     exit 0
