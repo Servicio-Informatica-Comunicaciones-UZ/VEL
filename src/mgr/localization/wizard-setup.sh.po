@@ -1,0 +1,1196 @@
+# Trad File
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+#: /tmp/eLectionWizard.sh:408
+msgid "Elija una opción."
+msgstr ""
+#: /tmp/eLectionWizard.sh:408
+msgid "Apagar el sistema."
+msgstr ""
+#: /tmp/eLectionWizard.sh:408
+msgid "Reiniciar el sistema."
+msgstr ""
+#: /tmp/eLectionWizard.sh:408
+msgid "Lanzar terminal de acceso total al sistema."
+msgstr ""
+#: /tmp/eLectionWizard.sh:429
+msgid "Sí"
+msgstr ""
+#: /tmp/eLectionWizard.sh:429
+msgid "No"
+msgstr ""
+#: /tmp/eLectionWizard.sh:429
+msgid "ATENCIÓN:\\n\\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que este sea reiniciado. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. ¿Desea continuar?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:467
+msgid "Error configurando el acceso al servidor de copia de seguridad."
+msgstr ""
+#: /tmp/eLectionWizard.sh:475
+msgid "Error conectando con el servidor de Copia de Seguridad."
+msgstr ""
+#: /tmp/eLectionWizard.sh:482
+msgid "Error descifrando el fichero de Copia de Seguridad: fichero corrupto o llave incorrecta."
+msgstr ""
+#: /tmp/eLectionWizard.sh:492
+msgid "Error desempaquetando el fichero de Copia de Seguridad: fichero corrupto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:520
+msgid "Error interno. Faltan datos de configuración para realizar la resconstrucción."
+msgstr ""
+#: /tmp/eLectionWizard.sh:522
+msgid "No se puede reconstruir la llave. No hay suficientes piezas."
+msgstr ""
+#: /tmp/eLectionWizard.sh:718
+msgid "Seleccione una acción a llevar a cabo:"
+msgstr ""
+#: /tmp/eLectionWizard.sh:718
+msgid "Iniciar el sistema de voto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:718
+msgid "Recuperar una instalación del sistema de voto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:718
+msgid "Lanzar un terminal de administración."
+msgstr ""
+#: /tmp/eLectionWizard.sh:718
+msgid "Apagar el equipo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:760
+msgid "Cancelar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:760
+msgid "Apagar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:760
+msgid "¿Está seguro de que desea apagar el equipo?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:891
+msgid "Clauer"
+msgstr ""
+#: /tmp/eLectionWizard.sh:924
+msgid "Continuar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:943
+msgid "No lo ha insertado. Hágalo ahora y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:982
+msgid "Refrescar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:982
+msgid "Múltiples dispositivos detectados.\\nPor favor, seleccione uno."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1043
+msgid "$msg\\nIntroduzca la contraseña del Clauer."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1044
+msgid "$msg\\nIntroduzca una contraseña nueva."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1059
+msgid "Contraseña demasiado corta."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1063
+msgid "Vuelva a escribir su contraseña."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1067
+msgid "Las contraseñas no coinciden."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1124
+msgid "Contraseña incorrecta."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1159
+msgid "Generando llave para la unidad cifrada..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1167
+msgid "Fragmentando la llave..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1188
+msgid "el siguiente"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1189
+msgid "el primer"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1191
+msgid "Inserte $clauerpos Clauer a escribir ($member de $2) y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1197
+msgid "Miembro número $member:\\nIntroduzca una contraseña nueva:"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1203
+msgid "Ha abortado el formateo del presente Clauer. Inserte otro para continuar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1209
+msgid "Preparando Clauer..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1213
+msgid "Formateando Clauer..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1222
+msgid "Escribiendo fragmento de llave..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1235
+msgid "Ha fallado la escritura del fragmento de llave. Inserte otro Clauer para continuar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1246
+msgid "Almacenando la configuración del sistema..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1259
+msgid "Ha fallado la escritura de la configuración. Inserte otro Clauer para continuar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1268
+msgid "Clauer escrito con éxito. Retírelo y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1474
+msgid "Configuración de acceso a Internet"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1474
+msgid "Automatica por DHCP"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1474
+msgid "Manual"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "Atrás"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "Parámetros de acceso a Internet"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "Campo"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "Valor"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "Dirección IP"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "Máscara de Red"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "Puerta de Enlace"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "DNS Primario"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "DNS Secundario"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1514
+msgid "Nombre del host (FQDN)"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1565
+msgid "Error. La dirección IP no es válida"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1579
+msgid "Error. La máscara de red no es válida"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1593
+msgid "Error. La dirección de la puerta de enlace no es válida"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1607
+msgid "Error. La dirección del DNS primario no es válida"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1621
+msgid "Error. La dirección del DNS secundario no es válida"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1635
+msgid "Error. El nombre del servidor no es válido"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1663
+msgid "Error. Faltan campos por rellenar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1706
+msgid "Ubicación de los datos cifrados."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1706
+msgid "Partición en disco local"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1706
+msgid "A través de servidor NFS"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1706
+msgid "A través de servidor Samba"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1706
+msgid "A través de iSCSI"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1706
+msgid "Fichero en disco local"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1730
+msgid "A continuación se le instará a que seleccione una partición local.\\nNótese que los datos contenidos serán totalmente destruidos.\\n\\n¿Desea continuar?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1738
+msgid "Seleccione una partición."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1755
+msgid "Parámetros de acceso a la partición cifrada"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1755
+msgid "Servidor (IP/DN)"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1755
+msgid "Puerto"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1755
+msgid "Ruta de destino"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1755
+msgid "Tamaño del fichero (MB)"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1785
+msgid "Error. Debe introducir una IP o nombre válido"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1795
+msgid "Error. Debe introducir un número de puerto válido"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1805
+msgid "Error. Debe introducir una ruta válida. Los nombres de directorio pueden contener los caracteres: $ALLOWEDCHARSET"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1815
+msgid "Error. Debe introducir un tamaño entero"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1863
+msgid "Nombre del recurso"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1863
+msgid "Usuario"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1863
+msgid "Contraseña"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1915
+msgid "Error. Debe introducir una ruta válida. Los nombres de los directorios pueden contener los caracteres: $ALLOWEDCHARSET"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1925
+msgid "Error. El nombre de usuario no es válido. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1935
+msgid "Error. La contraseña no es válida. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr ""
+#: /tmp/eLectionWizard.sh:1945
+msgid "Error. El tamaño debe ser entero."
+msgstr ""
+#: /tmp/eLectionWizard.sh:1998
+msgid "IP/DN del Portal/Target iSCSI"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2079
+msgid "Error. No se pudo resolver el nombre del servidor."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2109
+msgid "Seleccione un Target."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2125
+msgid "No se ha localizado un Portal iSCSI. Especifique un target manualmente."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2134
+msgid "Debe proporcionar un identificador de target."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2142
+msgid "Error. Debe introducir un identificador de target válido"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2159
+msgid "A continuación se le instará a seleccionar una partición local.\\nEn su raíz se escribirá un fichero con los datos cifrados.\\nEsta partición debe contener un sistema de ficheros válido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2174
+msgid "No existen particiones válidas. Elija otro modo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2209
+msgid "Error. Debe introducir un tamaño de fichero entero positivo"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2238
+msgid "Como el modo de almacenamiento elegido se ubica dentro de esta misma máquina, se recomienda proporcionar algún mecanismo de copia de seguridad externo para evitar una pérdida irreparable de los datos. Esta copia se realizará sobre un servidor SSH a su elección, y los datos se almacenarán cifrados.\\n\\n¿Desea emplear un servidor SSH para la copia de seguridad?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2254
+msgid "Debe introducir los parámetros de copia de seguridad."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2258
+msgid "Verificando acceso al servidor de copia de seguridad..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2265
+msgid "Error conectando con el servidor de copia de seguridad. Revise los datos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2278
+msgid "Error accediendo al servidor de copia de seguridad. Revise los datos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2358
+msgid "Parámetros para realización de copias de seguridad sobre un servidor SSH."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2358
+msgid "Servidor SSH (IP/DN)"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2472
+msgid "El sistema incluye un servidor de correo para enviar las actas. ¿Necesita su red que este se redirija a un servidor intermedio (relay host)?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2477
+msgid "Nombre de dominio del servidor de correo intermedio."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2486
+msgid "Debe proporcionar un nombre de dominio o una IP."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2494
+msgid "Debe proporcionar un nombre de dominio o una IP válida."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2513
+msgid "Parámetros de compartición de la clave"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2513
+msgid "Miembros de la comisión de custodia de la clave"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2513
+msgid "de los cuales podrán reconstruirla un mínimo de"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2542
+msgid "Error. Debe introducir un valor entero"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2586
+msgid "Error. Debe haber al menos dos miembros custodiando la llave"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2593
+msgid "Error. Un sólo miembro no debe poder reconstruir la llave"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2600
+msgid "Error. El número de miembros debe ser mayor al mínimo de reconstrucción"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2642
+msgid "Error ($ret) leyendo la configuración del Clauer."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2661
+msgid "Error ($ret) leyendo la pieza de llave del Clauer"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2706
+msgid "Inserte $clauerpos Clauer a leer y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2706
+msgid "Abortar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2714
+msgid "Debe elegir un dispositivo que sea Clauer"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2715
+msgid "Inserte el siguiente Clauer a leer y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2738
+msgid "Clauer leido con éxito. Retírelo y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2875
+msgid "Uno de los parámetros está corrupto o manipulado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:2980
+msgid "Inicio"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2980
+msgid "Formatear"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2980
+msgid "$1\\nEsto implica que, o el sistema esta vacio, o desea reinstalarlo. \\nSi elige continuar, se destruirán todos los datos\\n del sistema si los hubiese y se instalará\\nel sistema de voto totalmente de cero. \\n\\n¿Desea continuar o desea volver al inicio?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:2993
+msgid "¿Seguro que desea continuar?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3022
+msgid "No existe el dispositivo"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3039
+msgid "Error durante el particionado: Dispositivo inválido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3123
+msgid "Error durante el particionado"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3147
+msgid "Error durante el formateo"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3202
+msgid "No lo ha retirado. Hágalo y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3218
+msgid "Inserte un dispositivo USB para almacenar la petición de certificado y pulse INTRO.\\n(Puede ser uno de los Clauer que acaban de emplear)"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3227
+msgid "Otro"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3227
+msgid "Este dispositivo no es válido. ¿Desea insertar otro o prefiere formatear este?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3230
+msgid "¿Seguro que desea formatear? Todos los datos SE PERDERÁN."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3234
+msgid "Formateando dispositivo..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3243
+msgid "Este dispositivo es de sólo lectura. ¿Desea insertar otro o prefiere formatear este?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3259
+msgid "Escribiendo petición de certificado..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3283
+msgid "Error de escritura. Inserte otro dispositivo"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3289
+msgid "Petición de certificado escrita con éxito.\\nRetire el dispositivo y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3344
+msgid "Error: el fichero esta vacio."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3358
+msgid "Error de lectura."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3363
+msgid "Error: el fichero no contiene certificados PEM."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3369
+msgid "Error procesando el fichero de certificado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3379
+msgid "El fichero sólo debe contener el certificado de servidor."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3393
+msgid "Error: certificado no válido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3428
+msgid "Error: el certificado no corresponde con la llave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3443
+msgid "Vamos a generar un certificado para las conexiones seguras.\\n Debe proporcionar los datos de la entidad propietaria de este servidor (el nombre de dominio bajo el que operará el servidor)"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3466
+msgid "Nombre de dominio del servidor:"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3476
+msgid "Debe proporcionar un nombre de dominio."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3492
+msgid "Debe introducir un nombre de dominio válido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3498
+msgid "Revisar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3499
+msgid "Datos adquiridos. ¿Desea revisarlos o desea continuar con la generación de la petición de certificado?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3505
+msgid "Generando petición de certificado..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3516
+msgid "Error generando la petición de certificado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3534
+msgid "Inserte un dispositivo USB del que leer el certificado de servidor y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3534
+msgid "Seleccione el certificado de servidor"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3550
+msgid "Inserte un dispositivo USB del que leer el fichero con la cadena de certificación y pulse INTRO. (puede dejar el mismo)"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3550
+msgid "Seleccione la cadena de certificación"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3565
+msgid "Fallo de verificación de la cadena de certificación.\\nEsto puede ser debido a que el sistema no reconoce la CA raíz. Se aborta el proceso"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3601
+msgid "Preparando espacio de almacenamiento..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3614
+msgid "Error grave: no se puede acceder a ningún dispositivo loopback"
+msgstr ""
+#: /tmp/eLectionWizard.sh:3633
+msgid "Creando zona de datos cifrados..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3635
+msgid "Accediendo a datos cifrados..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3668
+msgid "Error grave: no se pudo activar el cliente de iSCSI."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3679
+msgid "Error: imposible acceder al target iSCSI."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3699
+msgid "Error: el target iSCSI no devolvió ninguna unidad lógica."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3728
+msgid "Error accediendo al directorio compartido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3734
+msgid "Error: el directorio montado no tiene acceso de escritura."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3753
+msgid "Error accediendo al recurso compartido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3760
+msgid "Error: el recurso compartido es de sólo lectura."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3775
+msgid "No se ha podido montar la partición."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3787
+msgid "No se ha reconocido el modo de acceso a los datos cifrados. Configuración probablemente manipulada."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3797
+msgid "Cifrando zona de almacenamiento..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3803
+msgid "Error grave: no se pudo cifrar la zona de almacenamiento."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3810
+msgid "Error grave: no se pudo acceder a la zona de almacenamiento."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3815
+msgid "Creando sistema de ficheros..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3817
+msgid "Error grave: no se pudo dar formato al sistema de ficheros."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3823
+msgid "Error grave: no se pudo montar el sistema de ficheros."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3844
+msgid "Escriba el listado de destinatarios (uno por línea)."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3851
+msgid "Debe especificar al menos una dirección."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3864
+msgid "Existen direcciones de correo no válidas."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3946
+msgid "Configurando servidor de correo..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3968
+msgid "Error grave: no se pudo activar el servidor de correo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:3985
+msgid "Vamos a definir los datos de acceso como administrador al programa Web de gestión del sistema de voto. Deberá recordarlos para poder acceder en el futuro.\\n\\nRecuerde que el acceso a las funciones de administración privilegiadas sólo podrá llevarse a cabo previa autorización de la comisión de custodia por medio de esta aplicación."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4002
+msgid "Nombre de usuario del administrador del sistema de voto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4008
+msgid "Debe proporcionar un nombre de usuario."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4016
+msgid "Debe introducir un nombre de usuario válido. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4023
+msgid "Introduzca la contraseña para\\nel administrador del sistema de voto.\\nEs imprescindible que la recuerde."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4029
+msgid "Nombre completo del administrador del sistema de voto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4035
+msgid "Debe proporcionar un nombre."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4044
+msgid "Debe introducir un nombre válido. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4051
+msgid "DNI del administrador del sistema de voto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4057
+msgid "Debe proporcionar un DNI."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4065
+msgid "Debe introducir un numero de DNI válido. Puede contener los caracteres: $ALLOWEDCHARSET"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4072
+msgid "Correo electrónico del administrador del sistema de voto.\\nSe empleará para notificar incidencias del sistema."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4078
+msgid "Debe proporcionar un correo electrónico."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4086
+msgid "Debe introducir una dirección de correo válida."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4094
+msgid "Seleccione la zona horaria en la que se ubica el servidor de voto:"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4099
+msgid "Debe seleccionar una zona horaria."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4109
+msgid "Seleccione un tamaño para las llaves del sistema\\n(a mayor valor, más robustez, pero más coste computacional):"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4123
+msgid "Datos adquiridos. ¿Desea revisarlos o desea continuar con la configuración del sistema?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4158
+msgid "Vamos a definir los datos para registrar el sistema como miembro válido de la red eSurvey. Si ya está registrado como usuario de eSurveySites, introduzca los datos correctos. Si no, puede crear una nueva cuenta ahora introduciendo los datos deseados."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4177
+msgid "Correo electrónico, identificador de usuario para eSurveySites."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4183
+msgid "Debe proporcionar una dirección de correo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4198
+msgid "Especificar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4198
+msgid "Generar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4199
+msgid "Desea especificar una contraseña para eSurveySites (si ya posee una cuenta elija 'especificar') o prefiere que se genere automáticamente (la recibirá en su correo)?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4207
+msgid "Contraseña de acceso a eSurveySites.\\nSi ya posee una cuenta, escriba la contraseña."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4219
+msgid "Nombre de su organización o del servidor."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4239
+msgid "Nombre o propósito del sistema de voto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4259
+msgid "País en que se ubica su organización o su servidor (2 letras)."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4265
+msgid "Debe proporcionar un código de país de 2 letras."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4273
+msgid "Debe introducir un código válido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4335
+msgid "Generando certificado para eSurveySites..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4340
+msgid "Error grave: no se pudo generar el certificado de sites."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4360
+msgid "Conectando con eSurveySites..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4374
+msgid "Error conectando con eSurveySites."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4388
+msgid "Error al entregar la solicitud de certificado en eSurveySites. Tal vez la dirección de correo ya pertenece a una cuenta registrada."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4402
+msgid "Error: ya existe una solicitud en eSurveySites con estos datos. Modifíquelos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4417
+msgid "Error en eSurveySites: diferencias entre los datos enviados y los devueltos por el servidor."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4450
+msgid "Ha habido un error al descargar la lista de nodos. No podemos verificar si existen al menos dos nodos para garantizar el anonimato."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4456
+msgid "No existen suficientes nodos en la red de latencia para garantizar un nivel mínimo de anonimato. Opere este sistema bajo su propia responsabilidad."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4465
+msgid "Generando llaves de la urna..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4485
+msgid "Configurando servidor de base de datos..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4498
+msgid "Error copiando la base de datos al directorio cifrado. Destino inaccesible o espacio insuficiente."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4517
+msgid "Error grave: no se pudo activar el servidor de base de datos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4677
+msgid "Configurando servidor web..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4689
+msgid "Seleccione un modo de operación para el servidor web:"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4689
+msgid "Con certificado SSL"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4689
+msgid "Conexión no cifrada"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4698
+msgid "Añade un nivel más de privacidad y autenticidad del servidor. Requiere la solicitud de un certificado digital, un proceso relativamente costoso temporal y económicamente."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4704
+msgid "La información viajará desprotegida. El sistema podrá emplearse inmediatamente y sin coste adicional. Aunque la seguridad del voto no se verá afectada, si se emplea autenticación local las contraseñas viajarán desprotegidas."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4712
+msgid "Ha elegido el modo:\\n\\n$wwwmodename\\n\\n$wwwmodemsg\\n\\n¿Continuar?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4728
+msgid "Error generando el certificado de pruebas."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4769
+msgid "Error grave: no se pudo generar la petición de certificado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4772
+msgid "Se ha generado una petición de certificado SSL para este servidor.\\nPor favor, prepare un dispositivo USB para almacenarla (puede ser uno de los Clauers empleados ahora).\\nEsta petición deberá ser entregada a una Autoridad de Certificacion confiable para su firma.\\n\\nHaga notar al encargado de este proceso que en un fichero adjunto debe proporcionarse toda la cadena de certificación."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4786
+msgid "Vamos a generar un certificado de pruebas para poder operar el sistema durante el proceso de firma del válido"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4823
+msgid "Error grave: no se pudo activar el servidor web."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4864
+msgid "Prepare ahora los Clauers del sistema anterior. Vamos a recuperar los datos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4872
+msgid "Error durante la recuperación del backup. Vuelva a intentarlo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4971
+msgid "Verificando piezas de la llave..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4978
+msgid "Se detectaron piezas corruptas.\\n\\nPara evitar una pérdida de datos, debería reunirse la comisión al completo en el menor tiempo posible y proceder a cambiar la llave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4992
+msgid "Ahora puede operar como administrador a través de la aplicación web de voto.\\n\\nRecuerde que esto debe realizarse bajo la supervisión de la comisión.\\n\\nPulse INTRO para retirar estos privilegios."
+msgstr ""
+#: /tmp/eLectionWizard.sh:4994
+msgid "Retirar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:4994
+msgid "¿Desea retirar los privilegios de administrador?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:5008
+msgid "Va a resetear la contraseña del usuario administrador."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5016
+msgid "Adicionalmente, el sistema ha otorgado privilegios para el administrador. Estos se invalidarán en cuanto realice alguna otra operación de mantenimiento."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5024
+msgid "Va a crear un usuario administrador nuevo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5056
+msgid "ATENCIÓN:\\n\\nHa elegido lanzar un terminal. Esto otorga al manipulador del equipo acceso a datos sensibles hasta que finalice la sesión. Asegúrese de que no sea operado sin supervisión técnica para verificar que no se realiza ninguna acción ilícita. Sus acciones serán registradas y enviadas a la lista de destinatarios interesados, que se solicita a continuación."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5063
+msgid "Se ha cancelado la sesión de terminal."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5072
+msgid "ESCRIBA exit PARA VOLVER AL MENÚ DE ESPERA."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5078
+msgid "Registro de la sesión de mantenimiento sobre el servidor de voto vtUJI del $(date +%d/%m/%Y-%H:%M)"
+msgstr ""
+#: /tmp/eLectionWizard.sh:5079
+msgid "Usted ha proporcionado su dirección como interesado en recibir una copia de la secuencia de comandos introducida por el técnico designado sobre el terminal del servidor de voto. Esta se encuentra en el fichero adjunto. Puede emplear este fichero para realizar o encargar personalmente una auditoría de la seguridad del mismo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5094
+msgid "¿Seguro que desea reiniciar la recogida de estaditicas del sistema?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:5107
+msgid "Reinicio completado con éxito."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5131
+msgid "Certificado instalado correctamente."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5133
+msgid "Error instalando el certificado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5200
+msgid "Petición de certificado generada correctamente."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5202
+msgid "Error generando la nueva petición de certificado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5213
+msgid "Ha elegido utilizar el servidor con certificado SSL. Si completa esta acción, ya no se permitir acceder al servidor de voto sin cifrado. Deberá solicitar y comprar un certificado de una autoridad confiable. ¿Desea continuar?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:5271
+msgid "Servidor web configurado correctamente."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5273
+msgid "Error configurando el servidor web."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5319
+msgid "Dado que se van a modificar parámeros de configuración básicos, estos deben ser escritos en los Clauers.\\n\\nAsegúrese de que se reuna toda la comisión.\\n\\nPrepare un conjunto de Clauers nuevo, diferente al actual.\\n\\nLa llave de cifrado será renovada, invalidando la actual.\\n\\n¿Seguro que desea continuar?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:5369
+msgid "Ahora se procederá a construir el nuevo conjunto de Clauers. Podrá elegir los parámetros de compartición de la nueva llave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5383
+msgid "Realizando copia de seguridad con la nueva llave..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5433
+msgid "Error grave: no se pudo reiniciar el servidor de correo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5462
+msgid "Se detectaron piezas corruptas. Por seguridad, procederemos a generar una nueva llave de acceso."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5469
+msgid "Las piezas de la llave son correctas."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5480
+msgid "Vamos a generar una nueva llave de acceso.\\n\\n Dispongan de un nuevo conjunto de Clauers. BAJO NINGÚN CONCEPTO empleen los Clauers que contienen los fragmentos de la llave actual, dado que un error durante la escritura dejaría el sistema inaccesible.\\n\\n Estos Clauers podrán ser descartados en cuanto se acceda al sistema con la nueva clave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5495
+msgid "Modificar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:5495
+msgid "¿Desea modificar los datos introducidos?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:5508
+msgid "Generando una nueva llave..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5512
+msgid "Ahora procederemos a repartir la nueva información del sistema en los dispositivos de la comisión de custodia.\\n\\nLos dispositivos que se empleen NO DEBEN CONTENER NINGUNA INFORMACIÓN, porque VAN A SER FORMATEADOS."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5518
+msgid "Se ha repartido la nueva llave con éxito, pero aún no se ha realizado la sustitución. Si falla el proceso, reinícielo con la llave antigua."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5523
+msgid "Error: no se puede acceder a la zona de datos cifrada."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5534
+msgid "Error: no queda espacio de llaves. Ejecute un traslado de datos cifrados a otra ubicación."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5536
+msgid "Error: no se puede añadir una nueva llave a la zona de datos. Ejecute un traslado de datos cifrados a otra ubicación."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5550
+msgid "El cambio de llave se ha completado con éxito. Ya puede descartar los antiguos Clauers."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5564
+msgid "Vamos a trasladar los datos cifrados a una nueva ubicación.\\n\\n Dispongan de un nuevo conjunto de Clauers. BAJO NINGÚN CONCEPTO empleen los Clauers que contienen los fragmentos de la clave actual, dado que un error durante la escritura dejaría el sistema inaccesible.\\n\\n Estos Clauers podrán ser descartados en cuanto se acceda al sistema con la nueva clave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5654
+msgid "La partición indicada coincide con la de la zona de datos antigua. Debe cambiarla."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5663
+msgid "Este error no puede aparecer. Se ha manipulado el nombre del fichero de datos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5681
+msgid "El Target iSCSI coincide con el de la zona de datos antigua. Debe cambiarlo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5715
+msgid "Se han repartido la nueva llave y configuración con éxito, pero aún no se ha realizado la sustitución. Si falla el proceso, reinícielo con la llave antigua."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5736
+msgid "Copiando datos a la nueva ubicación..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5742
+msgid "Verificando copia de los datos..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5753
+msgid "La copia de la zona de datos no coincide con la original. Puede tratarse de un error del sistema o un error físico del nuevo soporte. En cualquier caso, no se borrará la zona antigua, a la que se podrá seguir accediendo con los Clauers antiguos. Puede evaluar mirando los logs si la diferencia de datos no es significativa y emplear esta copia o reiniciar el proceso de cambio de llave interna. Se continua con el proceso actual."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5768
+msgid "Borrado seguro de los datos de la vieja ubicación..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5793
+msgid "Ahora se realizará una copia de seguridad del sistema con la nueva llave, para evitar pérdida de datos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5828
+msgid "Ya puede descartar los antiguos Clauers."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5830
+msgid "La transferencia de datos se ha completado con éxito. Continuaremos con la carga normal del sistema. $disposeMsg"
+msgstr ""
+#: /tmp/eLectionWizard.sh:5884
+msgid "Error durante la recuperación del backup de la base de datos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5968
+msgid "Sistema iniciado correctamente y a la espera."
+msgstr ""
+#: /tmp/eLectionWizard.sh:5991
+msgid "Volver"
+msgstr ""
+#: /tmp/eLectionWizard.sh:6013
+msgid "Nombre de usuario del administrador:\\n\\n $ADMINNAME"
+msgstr ""
+#: /tmp/eLectionWizard.sh:6123
+msgid "Datos adquiridos. ¿Desea revisarlos?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:6199
+msgid "Operaciones sobre el certificado SSL del servidor web."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6200
+msgid "Cambiar a modo de servidor web con certificado SSL."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6205
+msgid "Cambiar parámetros de copia de seguridad remota."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "El sistema está en marcha.\\nSi lo desean pueden realizar alguna de estas acciones:"
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Otorgar privilegios al administrador del sistema de voto temporalmente."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Resetear credenciales del administrador del sistema de voto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Crear nuevo administrador del sistema de voto."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Verificar la integridad de las piezas de la llave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Cambiar llave de cifrado de disco."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Trasladar datos cifrados a otra ubicación."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Cambiar parámetros del servidor de correo"
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Cambiar parámetros de acceso a la red"
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Resetear estadísticas de uso del sistema."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Monitor del estado del sistema."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6210
+msgid "Suspender el equipo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6318
+msgid "Por razones de seguridad no se puede suspender el equipo, al no hallarse el disco copiado en RAM."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6323
+msgid "Suspender"
+msgstr ""
+#: /tmp/eLectionWizard.sh:6323
+msgid "¿Está seguro de que desea suspender el equipo?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:6376
+msgid "El sistema está funcionando con un certificado de prueba."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6378
+msgid "Releer petición de certificado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6380
+msgid "Instalar certificado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6384
+msgid "El sistema está funcionando con un certificado válido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6386
+msgid "Instalar un certificado renovado sin cambiar la llave privada."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6388
+msgid "Renovar el certificado y la llave privada."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6392
+msgid "El sistema está esperando la renovación del certificado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6396
+msgid "Instalar certificado renovado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6521
+msgid "Esta operación no requiere autorización para ser ejecutada."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6527
+msgid "Para verificar la autoridad para realizar esta acción, procedemos a pedir los fragmentos de llave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6540
+msgid "No se ha logrado reconstruir la llave. Acceso denegado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6545
+msgid "No se ha obtenido ninguna llave. Acceso denegado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6550
+msgid "La llave obtenida no es correcta. Acceso denegado."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6615
+msgid "Error: no se activaron las unidades RAID debido a errores o inconsistencias. Solucione el problema antes de continuar."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6841
+msgid "Configurando la red..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6868
+msgid "Error: no se encuentran interfaces ethernet accesibles."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6891
+msgid "Comprobando conectividad..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6904
+msgid "Error: no se pudo comunicar con la puerta de enlace. Revise conectividad."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6920
+msgid "Error: no se pudo obtener la configuración IP. Revise conectividad."
+msgstr ""
+#: /tmp/eLectionWizard.sh:6940
+msgid "No se ha podido deducir el nombre de dominio del servidor.\\nEspecifique uno:"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7018
+msgid "Inserte un dispositivo USB."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7029
+msgid "El dispositivo no pudo ser accedido."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7064
+msgid "Ruta inválida. Los nombres de directorio pueden contener los caracteres: $ALLOWEDCHARSET"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7071
+msgid "Ruta inválida. Debe ser subdirectorio de /media/USB/"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7078
+msgid "Ruta inválida. No puede acceder a directorios superiores."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7110
+msgid "Error al copiar el fichero."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7168
+msgid "Reanudar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7168
+msgid "Finalizar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7168
+msgid "Ha cancelado la inserción de un Clauer.\\n¿Desea finalizar la inserción de dispositivos?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7178
+msgid "Error de lectura. Pruebe con otro dispositivo"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7188
+msgid "Configuración actual:\\n"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7189
+msgid "-------------------- \\n\\n"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7191
+msgid "\\n\\n\\nConfiguración nueva:\\n"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7192
+msgid "------------------------- \\n\\n"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7195
+msgid "Se han encontrado diferencias entre la última configuración leida y la que se está empleando actualmente.\\nVamos a mostrar ambas para su comparación."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7199
+msgid "Actual"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7199
+msgid "Nueva"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7199
+msgid "¿Desea emplear la actual o la nueva?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7209
+msgid "¿Quedan más Clauers por leer?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7224
+msgid "Reconstruyendo la llave de cifrado..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7236
+msgid "Se ha producido un error durante la reconstrucción de la llave por la presencia de fragmentos defectuosos. El sistema intentará recuperarse."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7252
+msgid "No se ha podido reconstruir la llave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7264
+msgid "Se ha logrado reconstruir la llave."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7662
+msgid "Para evitar suplantaciones del CD que hace funcionar este sistema de voto, se va a copiar todo su contenido en memoria RAM."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7670
+msgid "Se ha detectado que la cantidad de memoria RAM presente en el sistema es peligrosamente baja. No se realizará este procedimiento"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7672
+msgid "Copiar en RAM"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7672
+msgid "No copiar en RAM"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7672
+msgid "Se ha detectado que la cantidad de memoria RAM presente en el sistema puede resultar insuficiente para su correcto funcionamiento en un período prolongado:\\n\\nMemoria disponible para sistema de ficheros: $aufsSize MB\\nTamaño estimado del sistema de ficheros del CD: $ESTIMATEDCDFSSIZE MB\\n\\n¿Desea copiarlo o desea operar desde el CD?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7681
+msgid "Copiando el CD en memoria..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7688
+msgid "Copia finalizada con éxito.\\n\\nEl sistema de ficheros en RAM dispone todavía de: $aufsSize MB."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7690
+msgid "No se copiará el CD en memoria.\\n\\nEl sistema no puede garantizar su integridad ante una violación de la seguridad física. Tomen las medidas pertinentes: aumenten la cantidad de memoria RAM para poder realizar el procedimiento o restrinjan el acceso a la ubicación física del servidor."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7733
+msgid "Inserte un dispositivo Clauer que contenga \\nlos datos de configuración del sistema para iniciarlo.\\n\\nSi desea realizar una primera instalación\\ndel sistema o formatearlo, inserte un dispositivo USB vacio o pulse formatear."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7743
+msgid "Ha pulsado formatear."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7750
+msgid "Este dispositivo no es un Clauer."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7766
+msgid "Ha elegido no proporcionar una contraseña."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7773
+msgid "Leyendo configuración del sistema..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7799
+msgid "No se han podido leer los datos de configuración de este Clauer."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7808
+msgid "La información de configuración leida estaba corrupta o manipulada."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7828
+msgid "Formatear sistema"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7828
+msgid "Ha elegido FORMATEAR el sistema.\\nEs muy importante que comprenda que, en caso de continuar, \\nsi había una instalación previa del sistema de voto será totalmente destruida.\\n\\n¿Está seguro de que desea continuar, o desea volver al inicio?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:7948
+msgid "Examinando los datos de configuración..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7956
+msgid "El fichero de configuración elegido no existe o está vacio."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7961
+msgid "Los datos de configuración están corruptos o manipulados."
+msgstr ""
+#: /tmp/eLectionWizard.sh:7995
+msgid "No se ha podido reconstruir la llave de la zona cifrada."
+msgstr ""
+#: /tmp/eLectionWizard.sh:8001
+msgid "Se ha logrado reconstruir la llave. Se prosigue con la carga del sistema."
+msgstr ""
+#: /tmp/eLectionWizard.sh:8028
+msgid "No acepto la licencia"
+msgstr ""
+#: /tmp/eLectionWizard.sh:8028
+msgid "Acepto la licencia"
+msgstr ""
+#: /tmp/eLectionWizard.sh:8037
+msgid "Ha elegido restaurar una copia de seguridad del sistema. Primero se instalará un sistema totalmente limpio. Podrá alterar los parámetros básicos. Emplee un conjunto de Clauers NUEVOS. Al final se le solicitarán los clauers antiguos para proceder a restaurar los datos."
+msgstr ""
+#: /tmp/eLectionWizard.sh:8087
+msgid "Ha acabado de definir los parámetros del servidor de voto. ¿Desea modificar los datos introducidos?"
+msgstr ""
+#: /tmp/eLectionWizard.sh:8097
+msgid "Sincronizando hora del servidor..."
+msgstr ""
+#: /tmp/eLectionWizard.sh:8143
+msgid "Se ha terminado de repartir las nuevas llave y configuración. Vamos a proceder a configurar el sistema"
+msgstr ""
+#: /tmp/eLectionWizard.sh:8154
+msgid "Omitir este paso"
+msgstr ""
+#: /tmp/eLectionWizard.sh:8154
+msgid "Formatear dispositivo"
+msgstr ""
+#: /tmp/eLectionWizard.sh:8154
+msgid "El administrador del sistema de voto necesita poseer un dispositivo Clauer propio con fines identificativos frente a la aplicación, aunque no contenga certificados. Si no posee ya uno, tiene la posibilidad de insertar ahora un dispositivo USB y formatearlo como Clauer."
+msgstr ""
+#: /tmp/eLectionWizard.sh:8168
+msgid "Inserte el dispositivo USB a escribir y pulse INTRO."
+msgstr ""
+#: /tmp/eLectionWizard.sh:8174
+msgid "Introduzca una contraseña nueva:"
+msgstr ""
+#: /tmp/eLectionWizard.sh:8180
+msgid "Ha abortado el formateo del Clauer. Inserte otro para continuar"
+msgstr ""
+#: /tmp/eLectionWizard.sh:8199
+msgid "Error durante el formateo."
+msgstr ""
+#: /tmp/eLectionWizard.sh:8233
+msgid "El sistema se ha iniciado con privilegios para el administrador. Estos se invalidarán en cuanto realice alguna operación de mantenimiento (tal como instalar el certificado SSL del servidor)."
+msgstr ""
