@@ -10,10 +10,10 @@
 NEWCD=0
 
 #Run the chroot specific script
-RUNCHROOT=1
+RUNCHROOT=0
 
 #Packages are updated every time the system is built or their version is frozen
-UPDATEPACKAGES=1
+UPDATEPACKAGES=0
 
 #Generate new DH parameters for the apache SSL
 #
