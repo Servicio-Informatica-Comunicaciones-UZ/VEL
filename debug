@@ -10,7 +10,7 @@
 NEWCD=0
 
 #Run the chroot specific script
-RUNCHROOT=0
+RUNCHROOT=1
 
 #Packages are updated every time the system is built or their version is frozen
 UPDATEPACKAGES=0

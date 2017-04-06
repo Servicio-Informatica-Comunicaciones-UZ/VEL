@@ -1811,6 +1811,7 @@ writeUsbs () {
         ret=$?
         [ $ret -eq 1 ] && continue   #Write error: ask for another usb to write the same share
         [ $ret -eq 2 ] && continue   #Cancelled: ask for another usb to write the same share
+        [ $ret -ne 0 ] && continue # TODO check if this works
         
         #If write succeeded, go on to the next usb
         i=$((i+1))
