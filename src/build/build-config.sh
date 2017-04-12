@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-export VERSION="2.0"
+export VERSION="2.1.1"
 
 
 export ARCH=i386
