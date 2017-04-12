@@ -453,7 +453,7 @@ cat > $BINDIR/wizard-bootstrap.sh <<EOF
 echo 'Launching wizard'
 #<DEBUG>
 sudo /usr/local/bin/launch-debug-console.sh
-#<DEBUG>
+#</DEBUG>
 
 TERM=linux
 export $TERM
