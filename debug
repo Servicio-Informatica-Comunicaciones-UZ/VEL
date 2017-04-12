@@ -1,0 +1,35 @@
+#!/bin/bash
+#-*- mode: shell-script-mode; -*-
+
+
+#### This is a run profile ####
+# Set all the variable values and pass the file to the build script
+
+
+#Install from scratch, executes deboostrap
+NEWCD=1
+
+#Run the chroot specific script
+RUNCHROOT=1
+
+#Packages are updated every time the system is built or their version is frozen
+UPDATEPACKAGES=1
+
+#Generate new DH parameters for the apache SSL
+#
+#  Currently unsupported by openssl version (<1.0.2). Uncomment
+#  src/sys/config/webserver/default-ssl.conf line to activate if openssl
+#  is updated.
+GENERATEDHPARAMS=0 
+
+#Remove backdoors for a production release
+RELEASE=0
+
+#Add version info to the image name
+VERSIONINFO=0
+
+#Compress the squashfs
+COMPRESS=1
+
+
+
