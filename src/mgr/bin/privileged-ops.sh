@@ -1082,8 +1082,10 @@ fi
 #administrators
 if [ "$1" == "raiseAdminAuth" ]
 then
-    
-    dbQuery "update  eVotDat set authextra=1;" # TODO verificar que funciona
+
+    #To prevent lockout on systems deployed behind a NAT, we raise the
+    #level by two so the admin IP is not relevant to reach the admin level.
+    dbQuery "update  eVotDat set authextra=2;" # TODO verificar que funciona el 2
 	   if [ $? -ne 0 ] ; then
         log "raise admin auth failed: database server not running."
         exit 1

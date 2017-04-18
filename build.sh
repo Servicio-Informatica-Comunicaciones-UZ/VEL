@@ -262,5 +262,12 @@ tell "Building ISO CD image: $IMGNAME"
 genisoimage -b isolinux/isolinux.bin -rational-rock -volid "$IMGCDTAG" -cache-inodes -joliet -full-iso9660-filenames -no-emul-boot -boot-load-size 4 -boot-info-table -output target/bin/$IMGNAME target/image
 
 
-##TODO detect if up, then shutdown and up
+#When testing a CD with versioninfo in name, link the generated media
+#to the standard name.
+if [ "$VERSIONINFO" -eq 1 ] ; then
+    rm -vf target/bin/$BASEN.$EXT
+    ln -s $IMGNAME target/bin/$BASEN.$EXT
+fi
+
+
 VBoxManage startvm $VBOXVMNAME

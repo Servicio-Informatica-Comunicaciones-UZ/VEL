@@ -23,13 +23,15 @@ if ($sid=$_GET['sid']) {
         '127.0.0.1',
         '::1',
         '###***ownIP***###'
+        ### TODO add gateway IP?
     );
-    
-    //($_SERVER['SERVER_ADDR'] != $_SERVER['REMOTE_ADDR'])
-    if(!in_array($_SERVER['REMOTE_ADDR'], $whitelist)){
-        http_response_code(401); //Unauthorised
-        exit;
-    }
+
+// TODO: I believe there is not any security risk from givin free access to this, as it would only be meaningful on the event of sessio hijacking and in that case, this would be the lesser problem. So I don't see a risk. Commented
+    //($_SERVER['SERVER_ADDR'] != $_SERVER['REMOTE_ADDR'])    
+//    if(!in_array($_SERVER['REMOTE_ADDR'], $whitelist)){
+//        http_response_code(401); //Unauthorised
+//        exit;
+//    }
     
     
     session_id($sid);
