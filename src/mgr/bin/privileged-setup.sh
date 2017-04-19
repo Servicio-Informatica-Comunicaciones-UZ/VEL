@@ -61,7 +61,15 @@ relocateLogs () {
 	       mv /var/log /var/currbootlogs >>$LOGFILE 2>>$LOGFILE 
     fi
     #Substitute them with the ones on the ciphered partition
-    ln -s $DATAPATH/log /var/log >>$LOGFILE 2>>$LOGFILE 
+    ln -s $DATAPATH/log /var/log >>$LOGFILE 2>>$LOGFILE
+    
+    #Sometimes, it still exists and the link is created inside. we put
+    #a guard for that
+    while [ ! -L /var/log ]
+    do
+        rm -rf /var/log
+        ln -s $DATAPATH/log /var/log >>$LOGFILE 2>>$LOGFILE    
+    done
     
     #Restore stopped services
     /etc/init.d/rsyslog start >>$LOGFILE 2>>$LOGFILE 
