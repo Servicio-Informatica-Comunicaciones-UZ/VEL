@@ -907,7 +907,8 @@ then
     aux=$(cat /etc/crontab | grep backup.sh)
     if [ "$aux" == "" ]
     then
-        echo -e "* * * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE	    # TODO change in production, after tests are complete, to do abackup only at 3 am every day
+        #Backup at 3 am every day
+        echo -e "0 3 * * * root  /usr/local/bin/backup.sh\n\n" >> /etc/crontab  2>>$LOGFILE
     fi
     
     #Set base backup value on the database
@@ -2320,7 +2321,7 @@ then
     
     #Get a Let's Encrypt signed certificate with certbot
     certbot --standalone certonly -n --agree-tos -m "$SERVEREMAIL" -d "$SERVERCN"  >>$LOGFILE 2>>$LOGFILE
-    ret=$?
+    ret=$?   ## TODO for the debug env, add the --staging flag , also add the staging root cert in the distro and on the browsers I use
     
     if [ "$stoppedApache" -eq 1 ] ; then
         /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
