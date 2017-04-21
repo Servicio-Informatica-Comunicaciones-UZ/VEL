@@ -671,6 +671,11 @@ mv dump*.sql buildDB.sql
 mv buildDB.sql       $BINDIR/
 chmod 660 $BINDIR/buildDB.sql
 
+# TODO remove below when integrated in the ivot installer:
+if ! grep --quiet -oEe "eVotImgs modify img mediumblob" $BINDIR/buildDB.sql
+then
+    echo "alter table eVotImgs modify img mediumblob not null;" >> $BINDIR/buildDB.sql
+fi
 
 #Remove all files not needed
 rm -rf ins/
