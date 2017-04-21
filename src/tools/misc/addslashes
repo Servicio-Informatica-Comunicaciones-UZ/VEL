@@ -1,0 +1,4 @@
+#!/usr/bin/php
+<?php
+echo addslashes($argv[1]);
+?>
