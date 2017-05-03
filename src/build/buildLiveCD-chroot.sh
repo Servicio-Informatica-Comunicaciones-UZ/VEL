@@ -275,7 +275,7 @@ rm -rf /etc/ssl/client/*
 
 cp  -fv  /root/src/sys/config/ssl/CAs/client/*  /etc/ssl/client/
 
-c_rehash /etc/ssl/client/  ## TODO validar que funciona este nuevo montaje, sobretodo la config de apache
+c_rehash /etc/ssl/client/
 
 
 

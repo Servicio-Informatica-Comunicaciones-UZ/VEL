@@ -204,12 +204,12 @@
 	echo ' onload="try {frameElement.parentNode.style.height=Math.min(500,document.body.scrollHeight+document.body.style.marginTop+document.body.style.paddingTop)+\'px\';} catch(e) {}">';
       else
 	echo '><h4>'.__('Censo de la elección ').'</h4>';
-      $q=mysql_query("select nom,info from eVotPart,eVotPob where partElec = idP and elecPart = $idE order by nom");
-      while (list($nom,$info)=mysql_fetch_row($q))
+      $q=mysql_query("select nom,DNI,info from eVotPart,eVotPob where partElec = idP and elecPart = $idE order by nom");
+      while (list($nom,$DNI,$info)=mysql_fetch_row($q))
 	if ($info)
-	  echo "<font color=red>$nom</font><br>";
+	  echo "<font color=red>($DNI) - $nom</font><br>";
 	else
-	  echo "$nom<br>";
+	  echo "($DNI) - $nom<br>";
       echo '</body>';
     }
     else {
@@ -2400,7 +2400,7 @@
 	  else
 	    $q=mysql_query("select * from eVotPart,eVotPob where elecPart = $idE and partElec = idP order by nom");
 	  while ($p=mysql_fetch_assoc($q))
-	    $lista.=(($p['votante'] and $fin < $now) ? "<input type=submit name=\"acc[mModMes][$idE][${p['idP']}]\" value=\"".__('Anular').'" onclick="this.form.submited=this.nextSibling.innerHTML;">' : '').(($p['info']) ? '* ' : '').'<font color='.(($p['acude']) ? 'green' : 'red').">{$p['nom']}</font><br>";
+	    $lista.=(($p['votante'] and $fin < $now) ? "<input type=submit name=\"acc[mModMes][$idE][${p['idP']}]\" value=\"".__('Anular').'" onclick="this.form.submited=this.nextSibling.innerHTML;">' : '').(($p['info']) ? '* ' : '').'<font color='.(($p['acude']) ? 'green' : 'red').">({$p['DNI']}) - {$p['nom']}</font><br>";
 	}
 	echo $miem;
 	// }}}
@@ -4845,15 +4845,17 @@ End Function
     if (!$ma or !$m)
       return;
     list($cab,$cue)=explode("\n\n",$m,2);
-    if ($s)
-      $s.="\n";
-    $cab=" $s$cab\nFrom: $o";
-    if (ini_get("mail.add_x_header")) {
-      $cab="Subject:\n$cab";
-      $su=$as;
-    }
-    else
-      $su='';
+    $cab="$cab\nFrom: $o";
+    $su=$s;
+//    if ($s)
+//      $s.="\n";
+//    $cab=" $s$cab\nFrom: $o";
+//    if (ini_get("mail.add_x_header")) {
+//      $cab="Subject:\n$cab";
+//      $su=$as;
+//    }
+//    else
+//      $su='';
     if (!is_array($ma))
       mail($ma,$su,$cue,$cab);
     else {
@@ -4865,12 +4867,15 @@ End Function
   function enviAct($ma,$ac) { // {{{
     global $iAm;
     list($cab,$cue)=explode("\n\n",$ac,2);
-    if (ini_get("mail.add_x_header")) {
-      $subj=__('Acta');
-      $cab="Subject:\n$cab";
-    }
-    else
-      $subj='';
+    list($subjcab,$nosubjcab)=explode("MIME-Version:",$cab,2);
+    $subj=$subjcab;
+    $cab="MIME-Version:".$nosubjcab;
+//    if (ini_get("mail.add_x_header")) {
+//      $subj=__('Acta');
+//      $cab="Subject:\n$cab";
+//    }
+//    else
+//      $subj='';
     if (!preg_match('/^From: /m',$cab)) {
       $org=dirmail('',$iAm);
       $cab="$cab\nFrom: $org";
