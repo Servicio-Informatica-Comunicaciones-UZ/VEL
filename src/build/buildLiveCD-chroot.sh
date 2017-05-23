@@ -244,8 +244,10 @@ cp -fvr /root/src/webapp/www                     /root/www # TODO see if it work
 
 ########### Server SSL CAs
 
-#Remove the test CA
+#Remove the test CAs (mine and leytsencrypt's)
 rm -fv  /etc/ssl/certs/TEST.pem
+rm -fv  /etc/ssl/certs/fakelerootx1.pem
+
 if [ -e /etc/ssl/certs/ca-certificates.crt.orig ] ; then
     mv /etc/ssl/certs/ca-certificates.crt.orig /etc/ssl/certs/ca-certificates.crt
 fi
@@ -256,14 +258,23 @@ fi
 cp -fv  /root/src/sys/config/ssl/CAs/server/*    /etc/ssl/certs/
 cat    /root/src/sys/config/ssl/CAs/server/* >> /etc/ssl/certs/ca-certificates.crt
 
+
 #<DEBUG>
+cp -fv /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt.orig
+
 #Install the test CA
 cp -fv  /root/src/test/ssl/ca.crt  /etc/ssl/certs/TEST.pem
-cp -fv /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt.orig
 cat /etc/ssl/certs/TEST.pem >> /etc/ssl/certs/ca-certificates.crt
+
+#Install the letsencrypt test CA
+cp -fv  /root/src/test/ssl/fakelerootx1.pem  /etc/ssl/certs/fakelerootx1.pem
+cat /etc/ssl/certs/fakelerootx1.pem >> /etc/ssl/certs/ca-certificates.crt
 #</DEBUG>
 
+
 c_rehash
+
+
 
 
 ########### Client SSL CAs

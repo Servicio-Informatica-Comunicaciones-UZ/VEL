@@ -2320,7 +2320,7 @@ then
     fi
     
     #Get a Let's Encrypt signed certificate with certbot
-    certbot --standalone certonly -n --agree-tos -m "$SERVEREMAIL" -d "$SERVERCN"  >>$LOGFILE 2>>$LOGFILE
+    $CERTBOT --standalone certonly -n --agree-tos -m "$SERVEREMAIL" -d "$SERVERCN"  >>$LOGFILE 2>>$LOGFILE
     ret=$?   ## TODO for the debug env, add the --staging flag , also add the staging root cert in the distro and on the browsers I use
     
     if [ "$stoppedApache" -eq 1 ] ; then
@@ -2379,7 +2379,7 @@ then
     aux=$(cat /etc/crontab | grep certbot)
     if [ "$aux" == "" ]
     then
-        echo -e "0 3 * * 1 root  certbot --apache certonly -n -d '$SERVERCN' \n\n" \
+        echo -e "0 3 * * 1 root  $CERTBOT --apache certonly -n -d '$SERVERCN' \n\n" \
              >> /etc/crontab  2>>$LOGFILE
     fi
     

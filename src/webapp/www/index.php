@@ -4009,6 +4009,7 @@ End Function
     $ca=true;
     while (true) {
       $ch=curl_init();
+      curl_setopt($ch, CURLOPT_CAINFO, '/etc/ssl/certs/ca-certificates.crt');
       curl_setopt($ch, CURLOPT_URL, $url);
       curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
       #curl_setopt($ch, CURLOPT_TIMEOUT, 15);

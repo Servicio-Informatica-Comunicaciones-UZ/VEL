@@ -10,6 +10,13 @@
 OPSEXE=/usr/local/bin/ssOperations
 
 
+CERTBOT=certbot
+#<DEBUG>
+#On debug, use the staging environment with the fake CA to avoid issue limits
+CERTBOT="certbot --staging"  # TODO probar que funciona en debug y en release
+#</DEBUG>
+
+
 
 
 #############
