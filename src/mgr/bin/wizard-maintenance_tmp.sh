@@ -278,17 +278,6 @@ executeSystemAction (){
             ;;
 
 
-        ######### Verificación de la integridad de las piezas de la llave. #########
-        "verify" )
-            $dlg --msgbox "Still not reviewed." 0 0 
-            ;;
-
-	       
-        ######### Se cambia la llave compartida entre los custodios. ######### 
-        #Permite cambiar los parámetros de compartición.
-        "newouterkey" )
-            $dlg --msgbox "Still not reviewed." 0 0 
-            ;;	
 
 
 

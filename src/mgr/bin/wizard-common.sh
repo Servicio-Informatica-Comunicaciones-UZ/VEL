@@ -154,7 +154,9 @@ checkPassword () {
 #     'b' or '': read both
 #Returns  0: OK
 #         1: read error
-#         2: password error
+#         2: password insertion cancelled
+#         3: Read config/keyshare error
+#         4: Config syntax error
 #         9: cancelled
 readNextUSB () {
     
@@ -297,7 +299,7 @@ rebuildKey () {
 #        (and settle it to be used)
 #      'keyonly' will only read and rebuild the key
 #Returns: 0 if OK, 1 if failed, 2 if cancelled
-readUsbsRebuildKey () {  # Rename this and all the refs
+readUsbsRebuildKey () {
     
     local readMode="b"
     [ "$1" == "keyonly" ] && readMode="k"

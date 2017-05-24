@@ -251,37 +251,52 @@ listHDDPartitions () {
 
 
 
-#Checks that there is a rebuilt key in the slot and checks if it
-#matches the one used to cipher the disk drive
-#1 -> Slot to check
-#RETURN:  0: Key is valid
-#         1: Key is non-existing or non-valid
+#Checks that there is a rebuilt key in any of the slots and checks if
+#it matches the one used to cipher the disk drive. If a slot is
+#passed, only that one is checked
+#1 -> (optional) Slot number
+#RETURN:  0: one of the keys is valid
+#         1: Keys are non-existing or non-valid
 checkKeyMatch () {
     
     #Get the known key
     local base=$(cat $DATABAKPWDFILE 2>>$LOGFILE)
-    
-    
-    #Get the challenging key
-    if [ ! -s $ROOTTMP/slot$1/key ] ; then
-        log "checkKeyMatch: No rebuilt key in slot"
-	       return 1
+
+    #All the slots or the one indicated
+    slots=$(seq 1 $SHAREMAXSLOTS)
+    if [ "$1" != "" ] ; then
+        [ "$1" -ge 1 ] && slots="$1"
     fi
     
-    local chal=$(cat $ROOTTMP/slot$1/key 2>>$LOGFILE)
+    local checked=0
+    for num in $slots ; do
+        
+        #Get the challenging key in the slot
+        if [ ! -s $ROOTTMP/slot$num/key ] ; then
+            log "checkKeyMatch: No rebuilt key in slot $num"
+	           continue
+        fi
+        
+        local chal=$(cat $ROOTTMP/slot$num/key 2>>$LOGFILE)
+        
+        if [ "$chal" == ""  ] ; then
+            log "checkKeyMatch: Empty key in slot $num"
+	           continue
+        fi
+        
+        #Compare keys with the actual one
+        if [ "$chal" == "$base"  ] ; then
+            log "checkKeyMatch: slot $num matched actual key"
+            #Matched, leave
+            checked=1
+            break
+        fi
+        
+        #Didn't match
+        log "checkKeyMatch: slot $num doesn't match actual key"
+    done
     
-    if [ "$chal" == ""  ] ; then
-        log "checkKeyMatch: Empty key in slot"
-	       return 1
-    fi
-    
-    #Compare keys with the actual one
-    if [ "$chal" != "$base"  ] ; then
-        log "checkKeyMatch: slot doesn't match actual key"
-	       return 1
-    fi
-    
-    return 0
+    return $checked
 }
 
 
@@ -376,8 +391,7 @@ getClearance () { # TODO fill the lists *-*-
     #Else, any other operation (by default), will require the highest
     #clearance: the shared ciphering key
     log "Key clearance needed for operation $1"
-    getVar mem CURRENTSLOT
-    checkKeyMatch $CURRENTSLOT
+    checkKeyMatch #Check all slots
     if [ $? -ne 0 ] ; then
 	       log "No key clearance obtained. Aborting."
         return 1
@@ -438,7 +452,7 @@ then
     
     checkParameterOrDie "$3" "$4" 0  # TODO make sure that in all calls to this op, the var is in checkParameter.
     
-    allowedVars=""     # TODO Define a list of variables that will be writable, once clearance is obtained
+    allowedVars="SHARES THRESHOLD "     # TODO Define a list of variables that will be writable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Set access denied to variable $3. Not during operation, even with clearance"
@@ -465,7 +479,7 @@ fi
 if [ "$1" == "getVarSafe" ]
 then
     
-    allowedVars=""     # TODO Define a list of variables that will be writable, once clearance is obtained
+    allowedVars=""     # TODO Define a list of variables that will be readable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Get access denied to variable $3. Not during operation, even with clearance"
@@ -493,7 +507,7 @@ fi
 if [ "$1" == "getPubVar" ]
 then
     # TODO Define list of public variables
-    allowedVars="SSLCERTSTATE  SYSFROZEN  USINGCERTBOT "
+    allowedVars="SSLCERTSTATE  SYSFROZEN  USINGCERTBOT SHARES THRESHOLD"
     
     if (! contains "$allowedVars" "$3") ; then
         log "Access denied to variable $3. Clearance needed."
@@ -994,7 +1008,7 @@ then
     
     exit $?
 fi    
-    
+
 
 
 
@@ -1031,6 +1045,67 @@ then
 	   ret=$?
     
 	   exit $ret
+fi
+
+
+
+
+
+#Generate a large cipher key and divide it in shares using Shamir's
+#algorithm
+#2 -> Number of total shares
+#3 -> Minimum amount of them needed to rebuild
+if [ "$1" == "substituteKey" ] 
+then
+    #Get reference to the currently active slot, there we will fragment the key
+    getVar mem CURRENTSLOT
+    slotPath=$ROOTTMP/slot$CURRENTSLOT/
+    
+    #Get the ciphered device
+    getVar mem CRYPTDEV
+    
+    #Get the current data cipher key
+    OLDKEY=$(cat $DATABAKPWDFILE 2>>$LOGFILE)
+    
+    #Read the new data cipher key from the active slot
+    PARTPWD=$(cat $slotPath/key 2>>$LOGFILE)
+    
+    
+    #See which slots were already being used (to delete them later)
+    slotstokill=$(cryptsetup luksDump $CRYPTDEV 2>&1 | grep ENABLED | grep -oEe "[0-7]")
+    if [ $? -ne 0 ] ; then
+        log "Error: can't access encrypted drive $CRYPTDEV key slots."
+        exit 1
+    fi
+    
+    
+    #Add the new key to the cipherkey list
+    cryptsetup luksAddKey $CRYPTDEV   >>$LOGFILE 2>>$LOGFILE <<-EOF
+$OLDKEY
+$PARTPWD
+EOF
+    ret=$?
+    [ $ret -eq 234 ] && log "ERROR: no key slots available at the partition. Should not ever happen!!!"
+    if [ $ret -ne 0 ] ; then
+        log "Error $ret trying to add new key. Please, check"
+        exit 2
+    fi
+    
+    #If successful, put the new key on the memory file used by the
+    #backup and keycheck services
+    echo -n "$PARTPWD" > $DATABAKPWDFILE
+    
+    
+    #Delete the old key (and any other orphaned ones)
+    for slot in $slotstokill
+	   do
+	       cryptsetup luksKillSlot $CRYPTDEV $slot  >>$LOGFILE 2>>$LOGFILE  <<-EOF
+$PARTPWD
+EOF
+    done
+    
+    log "Key successfully added."
+    exit 0
 fi
 
 
@@ -2214,6 +2289,27 @@ then
 fi
 
 
+
+
+#Reads a configuration block from the usb store
+#2-> dev
+#3-> current password
+#4-> new password
+if [ "$1" == "storops-changePassword" ] 
+then
+    checkParameterOrDie PATH   "${2}" "0"
+    checkParameterOrDie DEVPWD "${3}" "0"
+    checkParameterOrDie DEVPWD "${4}" "0"
+    
+	   $OPSEXE changePassword -d "$2" -p "$3" -n "$4"  >>$LOGFILE  2>>$LOGFILE	
+	   ret=$?
+    
+	   exit $ret
+fi
+
+
+
+
 #Launch a root terminal. Log all session commands and send to interested recipients
 #2 -> file with the list of recipient e-mail addresses
 if [ "$1" == "launchTerminal" ] 
@@ -2611,20 +2707,6 @@ exit 42
 
 
 
-
-
-
-
-    # TODO falta operación storops para cambiar password del store (opsexe changePassword). Añadir op de mant al respecto.
-    #    3 -> Device path -d 
-    # 4 -> Former device password -p
-    # 5 -> New device password -n
-
-
-
-
-
-
 #Antes del standby, borrar todos los datos, y si son necesarios luego, pasar esas ops a privado y que se carguen esos datos de la zona privada.
 
 
@@ -2664,9 +2746,6 @@ exit 42
 
 
 
-
-
-#//// Antes de ejecutar cualquier op, reconstruir la clave.  --> En vez de reconstruir, pedir el pwd de cifrado de la part y ver cómo puedo testear este pwd con cryptsetup frente a la partición.
 
 
 

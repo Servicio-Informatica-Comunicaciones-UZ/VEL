@@ -576,32 +576,27 @@ executeMaintenanceOperation () {
         ##### Key operations #####
         
         "key-store-validate" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            key-store-validate
+            return $?
             ;;
         
         "key-store-pwd" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            key-store-pwd
+            return $?
             ;;
         
         "key-validate-key" )
-            $dlg --msgbox $"Not implemented." 0 0
-            #Validate key is:
-            # free operation (we will call the rebuild internally, not on clearance request)
-            # readUsbsRebuildKey keyonly #So the usbs are requested and the key rebuilt if possible (with the earliest available comb)
-            # testForDeadShares #Where all shares are tested on reconstruction, so we know all are ok
-            # $PVOPS storops-checkKeyClearance #Where the key is compared with the actual one, so we know it is not an alien key
-            return 0
+            key-validate-key
+            return $?
             ;;
         
         "key-renew-key" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            key-renew-key
+            return $?
             ;;
         
         "key-emails-set" )
-            $dlg --msgbox $"Not implemented." 0 0
+            $dlg --msgbox $"Not implemented." 0 0 #SEGUIR MAÑANA
             return 0
             ;;
         
@@ -958,6 +953,7 @@ ssl-csr-read () {
 
 
 
+
 #Install a SSL certificate, either for the current test certificate or
 #a new one for a new key or for the same key
 ssl-cert-install () {
@@ -1029,10 +1025,9 @@ ssl-cert-install () {
 
 
 
-
+#Request a newly issued (or enable existing) letsencrypt certificate,
+#and also certbot certificate management
 certbot-enable () {
-    
-    # TODO SEGUIR MAÑANA : en el enable, hay que pedir los params, por si es la primera vez (y grabar en disco dichos params).? En principio se pidieron en el install. He de poder cambiarlos en cada renew sea certbot o no?  Revisar todas las ops de ssl y ver enc uáles he de permitir cambiar los params del cert a generar, y sobretodo la autorización para ello (si se puede tocar el nombre de dominio, hará falta comisión, y en algunos no debería) Yen este de certbot debería? si el update es automático y nu ca cambia. Quizá añadir una nueva opción con comisión y que permita cambiar los params, ver si puedo hacer una sólo para  params y luego usar el resto para normal y certbot. Cómo afectará al certbot el que yo cambie el dominio? se enlazará adecuadamente como cert activo? --> creo que en ese caso los links de setupCertbot deberán machacar lo existente y rehacerse cada vez que se llame a esta func.
     
     $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
     $PVOPS setupCertbot
@@ -1063,6 +1058,10 @@ certbot-enable () {
 
 
 
+
+#Disable letsencrypt issued certificates and certbot certificate
+#management, current certificate will be still in place, but a manual
+#renewal requets will be generated
 certbot-disable () {
     
     $dlg --infobox $"Disabling certbot, generating new certificate request..." 0 0
@@ -1082,6 +1081,202 @@ certbot-disable () {
 
 
 
+#Ask to insert, mount and read a usb storage, the read keyshare and
+#config will be erased at the end on the keyslot reset
+key-store-validate () {
+    
+    while true
+    do
+        #Read key fragment and config, so integrity of both blocks
+        #will be checked
+        readNextUSB "b"
+        ret=$?
+        msg=""
+        [ $ret -eq 1 ] && msg=$"General read error. Please, regenerate key as soon as possible."
+        [ $ret -eq 3 ] && msg=$"Data block read error. Please, regenerate key as soon as possible."
+        [ $ret -eq 4 ] && msg=$"Read configuration corrupted or tampered. Please, regenerate key as soon as possible."
+        #Went OK
+        [ $ret -eq 0 ] && msg=$"Read operations successful. Encrypted storage is OK"
+        #Operation cancelled
+        [ $ret -eq 9 ] && msg=$"Operation cancelled. Back to the main menu"
+        
+        $dlg --msgbox "$msg" 0 0
+        
+        break
+    done
+    
+    return $ret
+}
+
+
+
+
+#Ask to insert a usb store, it's password and a new password. Set the
+#new password on the store.
+key-store-pwd () {
+    
+    #Detect device insertion
+    insertUSB $"Insert USB key storage device for password update" $"Cancel"
+    [ $? -eq 1 ] && return 9
+    if [ $? -eq 2 ] ; then
+        #No readable partitions.
+        $dlg --msgbox $"Device contained no readable partitions." 0 0
+        return 1 
+    fi
+    
+    #Mount the device (will do on /media/usbdrive)
+    $PVOPS mountUSB mount $USBDEV
+    [ $? -ne 0 ] && return 1 #Mount error
+
+    
+    #Ask for current device password
+    while true ; do
+        #Returns passowrd in $PASSWD
+        getPassword auth $"Please, insert the current password for the connected USB device" 1
+        if [ $? -ne 0 ] ; then
+            $dlg --msgbox $"Password insertion cancelled." 0 0
+            $PVOPS mountUSB umount
+            return 2
+        fi
+	       
+        #Access the store on the mounted path and check password
+        #(store name is a constant expected by the store handler)
+        $PVOPS storops-checkPwd /media/usbdrive/ "$PASSWD" 2>>$LOGFILE
+        if [ $? -ne 0 ] ; then
+            #Keep asking until cancellation or success
+            $dlg --msgbox $"Password not correct." 0 0
+            continue
+        fi
+        break
+    done
+    local CURRPWD="$PASSWD"
+    
+    
+    #Ask for a new device password (returns password in $PASSWD)
+    getPassword new $"Please, insert a new password to protect the connected USB device" 1
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Password insertion cancelled." 0 0
+        $PVOPS mountUSB umount
+        return 2
+    fi
+    local NEWPWD="$PASSWD"
+    
+    
+    $dlg  --infobox $"Updating secure storage password..." 0 0
+    
+    #Do the password update
+    $PVOPS storops-changePassword /media/usbdrive/ "$CURRPWD" "$NEWPWD"  >>$LOGFILE  2>>$LOGFILE
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Password change error." 0 0
+        return 3
+    fi
+    
+    #Ensure write of the updated store is complete and umount
+	   sync
+	   $PVOPS mountUSB umount
+    
+    #Ask the user to remove the usb device
+    detectUsbExtraction $USBDEV $"USB device password successfully changed. Remove it and press RETURN." \
+                        $"Didn't remove it. Please, do it and press RETURN."
+    
+    return 0
+}
+
+
+
+#Will  ask for  all  the  devices (as  in  an authorisation process),
+#rebuild the key and then check all read shares for errors.
+key-validate-key () {
+    
+    #Ask for the usb devices and try to rebuild the key
+    readUsbsRebuildKey  keyonly
+    ret=$?
+    msg=''
+    [ $ret -eq 1 ] && msg=$"Key rebuild error. Repeat process with more key shares if available"
+    [ $ret -eq 2 ] && msg=$"Process cancelled, back to the menu"
+    
+    if [ $ret -ne 0 ] ; then
+        $dlg --msgbox "$msg" 0 0
+        return 1
+    fi
+    
+    $dlg --infobox $"Checking key shares..." 0 0
+    testForDeadShares
+	   #If any share is dead, recommend a key renewal.
+	   if [ $? -ne 0 ] ; then
+	       $dlg --msgbox $"Corrupt key shares detected. Please, generate and share a new key as soon as possible." 0 0
+        return 2
+	   fi
+    
+    $dlg --infobox $"Checking rebuilt key..." 0 0
+    $PVOPS storops-checkKeyClearance
+    if [ $? -ne 0 ] ; then
+	       $dlg --msgbox $"Key doesn't match the system key." 0 0
+	       return 3
+    fi
+    
+    $dlg --msgbox $"Key and fragments successfully checked." 0 0
+    return 0
+}
+
+
+
+#Will generate and share a new cipher key and add it to the ciphered
+#partition list of authorised keys. If successful, the old one will be
+#erased.
+key-renew-key () {
+    
+    $dlg --msgbox $"A new cipher key will be generated and shared among usb drives. PLEASE, USE A NEW SET OF USB DRIVES and keep the old ones. If this process fails at any step, old key will still be valid." 0 0
+    
+    #Read current variable values
+    SHARES=$($PVOPS getPubVar disk  SHARES)
+    THRESHOLD=$($PVOPS getPubVar disk  THRESHOLD)
+    
+    #Allow to change key sharing parameters
+    while true ; do
+        selectSharingParams
+        [ $? -ne 0 ] && return 1 # Cancelled
+        
+        $dlg --no-label $"Go on"  --yes-label $"Review" --yesno  $"Are you sure to go on with the process?" 0 0 
+	       [ $? -eq 0 ] && continue # Review
+        break
+    done
+    
+    #Store new variable values
+    setVar disk SHARES  "$SHARES"
+    setVar disk THRESHOLD  "$THRESHOLD"
+    
+    
+    #Switch slot to generate new key
+    $PVOPS storops-switchSlot 2
+    
+    
+    #Generate and fragment persistence drive cipherkey (on the active slot)
+    $dlg --infobox $"Generating new shared key for the encrypted disk drive..." 0 0
+    $PVOPS genNfragKey $SHARES $THRESHOLD
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error while fragmenting key." 0 0
+        return 2 #Failed
+    fi
+    
+    
+    #Write key and config to the new usb drive set
+    writeUsbs "$SHARES"
+    
+    
+    #Add the new key to the cipherkey list and rmove former one
+    $dlg --infobox $"Substituting persistent data cipher key..." 0 0
+    $PVOPS substituteKey
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error while substituting key. Old key still valid." 0 0
+        return 3 #Failed
+    fi
+    
+    $dlg --msgbox $"Key substitution successful. Keep USB drives containing old key in case they are needed for a backup recovery." 0 0
+    return 0
+}
+
+
 
 
 
@@ -1095,17 +1290,18 @@ certbot-disable () {
 ##################
 
 
-#redirectError
+#Preemtive status reset (this wal, all operations start at slot 1 and
+#all are clean)
+$PVOPS storops-resetAllSlots
+$PVOPS storops-switchSlot 1
 
 
 #Idle screen. Select which action to execute
 chooseMaintenanceAction
 
 
-
 #Check if the operation needs any clearance and obtain it (clear any
 #possibly existing key clearance)
-$PVOPS storops-resetAllSlots
 getClearance "$MAINTACTION"
 clearance=$?
 
@@ -1121,7 +1317,7 @@ executeMaintenanceOperation "$MAINTACTION"
 
 
 
-#Clean key slots to minimise key exposure
+#Clean key slots to minimise key exposure (I know it's redundant, I don't care)
 $PVOPS storops-resetAllSlots
 
 #Clean admin authentication, if any
