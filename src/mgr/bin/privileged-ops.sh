@@ -329,7 +329,8 @@ getClearance () { # TODO fill the lists *-*-
     #List of operations requiring admin password check only
     local pwdOps="raiseAdminAuth
                   forceBackup    freezeSystem   unfreezeSystem
-                  installSSLCert"
+                  installSSLCert
+                  getComEmails "
 
     # TODO decidir si free: setVarSafe getVarSafe trustSSHServer storops-readConfigShare
     # TODO decidir si pwd:  mailServer-reload grantAdminPrivileges startApache 
@@ -2311,7 +2312,7 @@ fi
 
 
 #Launch a root terminal. Log all session commands and send to interested recipients
-#2 -> file with the list of recipient e-mail addresses
+
 if [ "$1" == "launchTerminal" ] 
 then
 
@@ -2321,9 +2322,9 @@ then
 	       exit 1
     fi
     
-    emaillist=$(parseEmailFile "$2")
+    emaillist=$(parseEmailFile $DATAPATH/root/keyComEmails)
     if [ $? -ne 0 ] ; then
-        log "Error processing e-mail list at $2. Aborting."
+        log "Error processing e-mail list at $DATAPATH/root/keyComEmails. Aborting."
         exit 1
     fi
     
@@ -2581,10 +2582,64 @@ fi
 
 
 
+#Receives a list of emails which belong to the key custody committee,
+#they must be stored to be used as the recipients of security
+#notifications
+#2 -> Temporary file to read the list from. Will erase it at the end.
+if [ "$1" == "setComEmails" ] 
+then
+    
+    if [ ! -f "$2" ] ; then
+        log "input email file does not exist."
+        exit 1
+    fi
+    
+    #Reset the destination file
+    echo -n "" > $DATAPATH/root/keyComEmails
+    
+    #Read the file 
+    filecontent=$(cat  "$2")
+    
+    
+    #Parse input addresses
+    emaillist=""
+	   for eml in $filecontent; do
+        #Check if proper email syntax
+	       parseInput email "$eml"
+	       if [ $? -ne 0 ] ; then
+		          log "Invalid address: $eml. Dropped" 0 0
+            continue
+	       fi
+        #Add the proper email to the list
+        emaillist="$emaillist$eml\n"
+	   done
+    
+    #Write the email list to the persistent file
+    echo -ne "$emaillist" > $DATAPATH/root/keyComEmails
+    
+    #Remove the input file, as it is always a temporary buffer
+    rm -f "$2" >>$LOGFILE 2>>$LOGFILE
+    
+    exit 0
+fi
 
 
 
 
+#Prints the list of e-mails which belong to the key custody committee
+if [ "$1" == "getComEmails" ] 
+then
+    
+    if [ ! -f $DATAPATH/root/keyComEmails ] ; then
+        log "$DATAPATH/root/keyComEmails file does not exist. Returning nothing"
+        exit 1
+    fi
+
+    #Print it
+    cat $DATAPATH/root/keyComEmails
+    
+    exit 0    
+fi
 
     
 

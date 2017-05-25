@@ -136,17 +136,20 @@ getSSLCertificateStatus () {
 
 
 #Allows the user to input a list of e-mails
-#OUTPUT FILE: /home/vtuji/shellSessionRecipients -> list of e-mails
+#1 -> file path where to read the initial list and where the final list will be written
 getEmailList () {
-    # Needs a file to be displayed, so we create an empty file
-    echo -n "" > /tmp/empty
+    
+    if [ ! -f "$1" ] ; then
+        log "input email file does not exist."
+        return  2
+    fi
     
     local emaillist=""
-    exec 4>&1 
+    exec 4>&1
     while true; do
-	       emaillist=$($dlg --backtitle $"Write the e-mail addresses of the recipients of the session logs." \
+	       emaillist=$($dlg --backtitle $"Write the e-mail addresses, one per line." \
                          --cancel-label $"Back to the menu" \
-                         --editbox /tmp/empty 0 0  2>&1 >&4)
+                         --editbox "$1" 0 0  2>&1 >&4)
 	       [ $? -ne 0  ] &&  return 1 # Go back
         
         #Parse input addresses
@@ -154,17 +157,17 @@ getEmailList () {
 	           parseInput email "$eml"
 	           if [ $? -ne 0 ] ; then
 		              $dlg --msgbox $"There are invalid addresses. Please, check." 0 0
-                #Write the former list as input of the dialog
-                echo "$emaillist" > /tmp/empty
+                #Write the user edited list as input of the dialog
+                echo "$emaillist" > "$1"
 		              continue 2
 	           fi
 	       done
 	       
 	       break
     done
-    rm -f /tmp/empty >>$LOGFILE 2>>$LOGFILE
     
-    echo "$emaillist" > /home/vtuji/shellSessionRecipients
+    #If all ok, write the updated list on the input file
+    echo "$emaillist" > "$1"
     return 0
 }
 
@@ -596,12 +599,20 @@ executeMaintenanceOperation () {
             ;;
         
         "key-emails-set" )
-            $dlg --msgbox $"Not implemented." 0 0 #SEGUIR MAÑANA
-            return 0
+            key-emails-set
+            return $?
             ;;
         
         "key-emails-get" )
-            $dlg --msgbox $"Not implemented." 0 0
+            #Read the list of emails to a temp file
+            local current=$($PVOPS getComEmails)
+            echo "$current" > /tmp/emails
+            
+            #Display it
+            $dlg --ok-label $"Back" --no-cancel --textbox /tmp/emails 0 0
+            
+            #Remove the temp file
+            rm -f /tmp/emails  >>$LOGFILE  2>>$LOGFILE
             return 0
             ;;
         
@@ -738,7 +749,7 @@ executeMaintenanceOperation () {
         
         "misc-shell" )
             misc-shell
-            return 0
+            return $?
             ;;
         
         
@@ -921,21 +932,33 @@ misc-shell () {
     [ $? -ne 0 ] && return 1
     
     
-	   #Insert a list of e-mail addresses where the shell history will be
-	   #delivered (additionally to the commission ones, defined elsewhere)
-	   getEmailList
-    [ $? -ne 0 ] && return 1 #Back to the menu
-    
     #Launch the root terminal with a private operation (will read the
     #e-mail list from the file and send the history)
-	   $PVOPS launchTerminal /home/vtuji/shellSessionRecipients
+	   $PVOPS launchTerminal
     if [ $? -eq 1 ] ; then
-        $dlg --msgbox $"Error processing e-mail list." 0 0
+        $dlg --msgbox $"Error starting terminal session." 0 0
     fi
     
-    rm /home/vtuji/shellSessionRecipients >>$LOGFILE 2>>$LOGFILE
-
     $dlg --msgbox $"Terminal session terminated." 0 0
+    return 0
+}
+
+
+
+
+
+key-emails-set () {
+    
+    #Try to read the current list, if any (anyways, an initial file is needed)
+    local current=$($PVOPS getComEmails)
+    echo "$current" > /tmp/emails
+    
+	   #Input a list of e-mail addresses for the key custory committee
+	   getEmailList /tmp/emails
+    [ $? -ne 0 ] && return 1 #Cancelled, back to the menu
+    
+    #Write the updated list
+    $PVOPS setComEmails  /tmp/emails
 }
 
 
