@@ -405,12 +405,12 @@ checkParameter () {
 	           ret=$?
 	           ;;	
         
-	       "SSHBAKUSER" | "ADMINNAME" )
+	       "SSHBAKUSER" | "ADMINNAME" | "USER" )
             parseInput user "$2"
 	           ret=$?
 	           ;;
 	       
-	       "DBPWD" | "SSHBAKPASSWD" | "PARTPWD" | "MYSQLROOTPWD" | "DEVPWD" | "MGRPWD" | "LOCALPWD" )
+	       "DBPWD" | "SSHBAKPASSWD" | "PARTPWD" | "MYSQLROOTPWD" | "DEVPWD" | "MGRPWD" | "LOCALPWD" | "PWD" )
             parseInput pwd "$2"
 	           ret=$?
 	           ;;

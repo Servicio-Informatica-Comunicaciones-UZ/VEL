@@ -78,7 +78,7 @@ resetLoop () {
     
     #Return to the maintenance idle loop
 	   doLoop
-} # TODO Call this everywhere there's an error that needs to go back to the loop
+}
 
 
 
@@ -419,7 +419,7 @@ chooseBackupOperation () {
         local backupConfigItem=''
     fi
     
-    #Freeze/Unfreeze system   # SYSFROZEN TODO añadir esta var a mem, autorizarla en getpub, hacer ops de freeze y unfreeze
+    #Freeze/Unfreeze system
     local frozen=$($PVOPS getPubVar mem SYSFROZEN)
     if [ "$frozen" -eq 1 ] ; then
         local freezeTag=backup-unfreeze
@@ -561,19 +561,22 @@ executeMaintenanceOperation () {
             ;;
         
         # TODO seguir faltan por implementar
-        "admin-update" )  # TODO Esta op, leer los datos de la bd, borrar vars inútiles del fichero de disco
+        "admin-update" )
+            # TODO Esta op: leer los datos iniciales de la bd, update vars del fichero de disco y BD
+            # TODO prueba con acentos, leer de la db cadena con acentos y pintarla
             $dlg --msgbox $"Not implemented." 0 0
             return 0
             ;;
         
         "admin-new" )
+            # TODO permitir elegir nuevo o existente. Si existente, pedir sólo el username y llamar a admin-updqte. Al final, cambiar el rol de este (no quitar al anterior)
             $dlg --msgbox $"Not implemented." 0 0
             return 0
             ;;
         
         "admin-usrpwd" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            admin-usrpwd
+            return $?
             ;;
 
         ##### Key operations #####
@@ -638,7 +641,7 @@ executeMaintenanceOperation () {
             return 0
             ;;
         
-        "ssl-key-renew" )
+        "ssl-key-renew" )         # TODO seguir faltan por implementar
             $dlg --msgbox $"Not implemented." 0 0
             return 0
             ;;
@@ -712,7 +715,7 @@ executeMaintenanceOperation () {
         ##### Configuration operations #####
         
         
-        "config-network" )
+        "config-network" )        # TODO seguir faltan por implementar
             $dlg --msgbox $"Not implemented." 0 0
             return 0
             ;;
@@ -1298,6 +1301,55 @@ key-renew-key () {
     $dlg --msgbox $"Key substitution successful. Keep USB drives containing old key in case they are needed for a backup recovery." 0 0
     return 0
 }
+
+
+
+
+
+#Will allow to set the password for a given user (onviosuly, this can
+#only be executed with the previous local authentication of the admin)
+admin-usrpwd () {
+    
+    local username=''
+    while true
+    do
+        #Ask for username
+        username=$($dlg --cancel-label $"Back"  --inputbox  \
+		                      $"Username for the user whose password will be reset:" 0 0 "$username"  2>&1 >&4)
+        #If back, end procedure
+        [ "$?" -ne 0 ] && return 1
+        
+        
+        #If the user doesn't exist, repeat
+        if (! $PVOPS userExists "$username") ; then
+            $dlg --msgbox $"User not found in database. Please, check." 0 0
+            continue
+        fi
+        
+        
+        #Ask for a new password for the user (returns password in $PASSWD)
+        getPassword new $"Please, insert a password for the user:"" $username" 1
+        [ $? -ne 0 ]  && continue #Cancelled, start again
+        
+        break
+    done
+    
+    #Update password
+    $PVOPS updateUserPassword "$username" "$PASSWD"
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Password update error. Please, check." 0 0
+        return 2
+    fi
+    
+    $dlg --msgbox $"Password updated successfully." 0 0
+    return 0;
+}
+
+
+
+
+
+
 
 
 

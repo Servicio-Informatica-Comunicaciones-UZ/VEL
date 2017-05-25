@@ -330,7 +330,8 @@ getClearance () { # TODO fill the lists *-*-
     local pwdOps="raiseAdminAuth
                   forceBackup    freezeSystem   unfreezeSystem
                   installSSLCert
-                  getComEmails "
+                  getComEmails
+                  updateUserPassword   userExists"
 
     # TODO decidir si free: setVarSafe getVarSafe trustSSHServer storops-readConfigShare
     # TODO decidir si pwd:  mailServer-reload grantAdminPrivileges startApache 
@@ -2641,7 +2642,71 @@ then
     exit 0    
 fi
 
+
+
+
+#Checks whether a user exists at the database
+#2 -> username
+if [ "$1" == "userExists" ]
+then
+    checkParameterOrDie  USER "${2}" "0"
     
+    #Escape username
+    username=$($addslashes  "$2"  2>>$LOGFILE)
+    
+    
+	   found=$(dbQuery "select us from eVotPob where us='$username';")
+	   if [ $? -ne 0 ] ; then
+        log "userExists: database server access error."
+        exit 2
+    fi
+    
+    #Doesn't exist
+    if [ "$found" == "" ] ; then
+        exit 1
+    fi
+    
+    #Exists
+    exit 0
+fi
+
+
+
+
+#Sets a new password for a user in the database
+#2 -> username
+#3 -> new password
+if [ "$1" == "updateUserPassword" ]
+then
+    checkParameterOrDie  USER "${2}" "0"
+    checkParameterOrDie  PWD  "${3}" "0"
+
+    #Escape username
+    username=$($addslashes  "$2"  2>>$LOGFILE)
+    
+    #Hash the new password
+    pwdsum=$(/usr/local/bin/genPwd.php "$3" 2>>$LOGFILE)
+    
+    #Update password
+    dbQuery "update eVotPob set pwd='$pwdsum' where us='$username';"
+    ret=$?
+    
+    #Log the password update on the oplog
+    opLog "Admin attempted user password reset for user $username. Result: $ret"
+    
+    exit $ret
+fi
+
+
+
+
+
+
+
+
+
+
+
 
 
 
