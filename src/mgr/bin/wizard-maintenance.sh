@@ -641,9 +641,9 @@ executeMaintenanceOperation () {
             return 0
             ;;
         
-        "ssl-key-renew" )         # TODO seguir faltan por implementar
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+        "ssl-key-renew" )
+            ssl-key-renew
+            return $?
             ;;
         
         
@@ -652,7 +652,7 @@ executeMaintenanceOperation () {
         ##### Backup operations #####
         
         
-        "backup-enable" )
+        "backup-enable" )          # TODO seguir faltan por implementar
             $dlg --msgbox $"Not implemented." 0 0
             return 0
             ;;
@@ -1349,6 +1349,50 @@ admin-usrpwd () {
 
 
 
+
+
+
+
+
+ssl-key-renew () {
+    
+    #Get the initial values
+    HOSTNM=$(getVar disk HOSTNM)
+    DOMNAME=$(getVar disk DOMNAME)
+    SERVERCN=$(getVar disk SERVERCN)
+    
+    COMPANY=$(getVar disk COMPANY)
+    DEPARTMENT=$(getVar disk DEPARTMENT)
+    COUNTRY=$(getVar disk COUNTRY)
+    STATE=$(getVar disk STATE)
+    LOC=$(getVar disk LOC)
+    SERVEREMAIL=$(getVar disk SERVEREMAIL)
+    
+    #Allow selecting new parameter values if needed
+    sslCertParameters
+    
+    #Generate a new certificate sign request in renew mode
+    $PVOPS generateCSR "renew" "$SERVERCN" "$COMPANY" "$DEPARTMENT" "$COUNTRY" "$STATE" "$LOC" "$SERVEREMAIL"
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Certificate renewal error. Please, check." 0 0
+        return 1
+    fi
+    
+    #Update variable values
+    setVar disk COMPANY "$COMPANY"
+    setVar disk DEPARTMENT "$DEPARTMENT"
+    setVar disk COUNTRY "$COUNTRY"
+    setVar disk STATE "$STATE"
+    setVar disk LOC "$LOC"
+    setVar disk SERVEREMAIL "$SERVEREMAIL"
+    setVar disk SERVERCN "$SERVERCN"
+    
+    #Set state to renew
+    setVar disk SSLCERTSTATE "renew"
+    
+    $dlg --msgbox $"Certificate request generation successful. Current certificate will still be operative until process is complete." 0 0
+    return 0
+}
 
 
 

@@ -333,7 +333,7 @@ getClearance () { # TODO fill the lists *-*-
                   getComEmails
                   updateUserPassword   userExists"
 
-    # TODO decidir si free: setVarSafe getVarSafe trustSSHServer storops-readConfigShare
+    # TODO decidir si free:  trustSSHServer storops-readConfigShare
     # TODO decidir si pwd:  mailServer-reload grantAdminPrivileges startApache 
 
     #If no operation code, then reject
@@ -454,7 +454,9 @@ then
     
     checkParameterOrDie "$3" "$4" 0  # TODO make sure that in all calls to this op, the var is in checkParameter.
     
-    allowedVars="SHARES THRESHOLD "     # TODO Define a list of variables that will be writable, once clearance is obtained
+    allowedVars="SHARES THRESHOLD 
+                 SSLCERTSTATE 
+                 SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL"     # TODO Define a list of variables that will be writable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Set access denied to variable $3. Not during operation, even with clearance"
@@ -481,7 +483,8 @@ fi
 if [ "$1" == "getVarSafe" ]
 then
     
-    allowedVars=""     # TODO Define a list of variables that will be readable, once clearance is obtained
+    allowedVars="HOSTNM DOMNAME 
+                 SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL"     # TODO Define a list of variables that will be readable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Get access denied to variable $3. Not during operation, even with clearance"
@@ -1382,6 +1385,7 @@ fi
 #9 -> SERVEREMAIL
 if [ "$1" == "generateCSR" ] 
 then
+    log "generateCSR \"$2\" \"$3\" \"$4\" \"$5\" \"$6\" \"$7\" \"$8\" \"$9\""
     
     checkParameterOrDie SERVERCN    "${3}"
     checkParameterOrDie COMPANY     "${4}"
