@@ -1365,11 +1365,7 @@ admin-usrpwd () {
 
 
 
-
-
-
-
-
+#Renew SSL certificate but generating a new private key
 ssl-key-renew () {
     
     #Get the initial values
@@ -1413,7 +1409,9 @@ ssl-key-renew () {
 
 
 
-admin-update () {     # TODO prueba con acentos, leer de la db cadena con acentos y pintarla
+
+#Allow to reset the administrator credentials (webapp pwd, local pwd, IP address)
+admin-update () {
 
     #Force updating selected admin variable values from the database
     #values (not passwords, they can be overriden here anyhow)
@@ -1433,23 +1431,66 @@ admin-update () {     # TODO prueba con acentos, leer de la db cadena con acento
     
     #Update administrator data on the database and variables (only IP and passwords)
     $PVOPS setAdmin reset "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD"
-    return $?
-}
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error updating administrator credentials." 0 0
+        return 1
+    fi
+    
+    $dlg --msgbox $"Administrator credentials update successful." 0 0
+    return 0
+}     # TODO prueba con acentos, leer de la db cadena con acentos y pintarla
 
 
 
 
 
-
-
-
-
-
+#Prompts to insert new admin user's data and credentials and
+#inserts/updates it on the database and does the needed system
+#configuration for notification, etc.
 admin-new () {
-    # TODO permitir elegir nuevo o existente. Si existente, pedir sólo el username y llamar a admin-updqte. Al final, cambiar el rol de este (no quitar al anterior)
-    $dlg --msgbox $"Not implemented." 0 0
+    
+    #Allow inserting new admin's info (if the user already exists, it will be updated)
+    sysAdminParams
+    
+    
+    #Insert new webapp administrator into the database (internally, it
+    #removes privileges tothe former one and checks if the user
+    #already exists and updates its info)
+    $PVOPS setAdmin new "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD"
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error inserting or updating new administrator's information." 0 0
+        return 1
+    fi
+    
+    $dlg --msgbox $"Administrator substitution successful." 0 0
     return 0
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
