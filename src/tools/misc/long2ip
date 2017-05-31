@@ -1,0 +1,4 @@
+#!/usr/bin/php
+<?php
+echo long2ip((float)$argv[1]); 
+?>

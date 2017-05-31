@@ -484,7 +484,8 @@ if [ "$1" == "getVarSafe" ]
 then
     
     allowedVars="HOSTNM DOMNAME 
-                 SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL"     # TODO Define a list of variables that will be readable, once clearance is obtained
+                 SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL
+                 ADMINNAME ADMREALNAME ADMIDNUM ADMINIP MGREMAIL"     # TODO Define a list of variables that will be readable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Get access denied to variable $3. Not during operation, even with clearance"
@@ -1322,6 +1323,43 @@ then
     #Add administrator's IP to the whitelist
     getVar disk ADMINIP
     echo "$ADMINIP" >> /etc/whitelist
+    
+    exit 0
+fi
+
+
+
+
+
+#Update variables with admin info which is also stored on the database
+if [ "$1" == "updateAdminVariables" ]
+then
+    #Read the updated info from the database
+    getVar disk ADMINNAME
+
+    err=0
+    ADMREALNAME=$(dbQuery "select nom from eVotPob where us='$ADMINNAME';")
+    [ $? != 0 ] && err=1
+    ADMIDNUM=$(dbQuery "select DNI from eVotPob where us='$ADMINNAME';")
+    [ $? != 0 ] && err=2
+    ADMINIP=$(dbQuery "select oIP from eVotPob where us='$ADMINNAME';")
+    [ $? != 0 ] && err=3
+    MGREMAIL=$(dbQuery "select correo from eVotPob where us='$ADMINNAME';")
+    [ $? != 0 ] && err=4
+    
+    if [ $err -ne 0 ] ; then
+        log "updAdmVars: database access error: $err"
+        exit $err
+    fi
+    
+    #Convert IP from int to string
+    ADMINIP=$(long2ip "$ADMINIP")
+    
+    #Update the file variables
+    setVar ADMREALNAME "$ADMREALNAME" disk
+    setVar ADMIDNUM "$ADMIDNUM" disk
+    setVar ADMINIP "$ADMINIP" disk
+    setVar MGREMAIL "$MGREMAIL" disk
     
     exit 0
 fi

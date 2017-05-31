@@ -277,7 +277,7 @@ chooseAdminOperation () {
                  --menu $"Administrator operations" 0 60  7  \
                     "$grantRemovePrivilegesLineTag" "$grantRemovePrivilegesLineItem" \
                     admin-auth    $"Administrator local authentication." \
-                    admin-update  $"Update administrator credentials and info." \
+                    admin-update  $"Update administrator credentials and access info." \
                     admin-new     $"Set new administrator user." \
                     admin-usrpwd  $"Set password for another user." \
 	                2>&1 >&4)
@@ -530,7 +530,9 @@ executeMaintenanceOperation () {
     
     #Set clearance requirements based on the operation
     case "$1" in
-
+        
+        
+        
         ##### Admin operations #####
         
 	       "admin-priv-grant" )
@@ -542,7 +544,7 @@ executeMaintenanceOperation () {
             $dlg --msgbox $"The administrator will now have extended access to the voting application. Don't forget to remove the privileges before holding an election." 0 0
             return 0
             ;;
-
+        
         
         "admin-priv-remove" )
             $PVOPS  removeAdminPrivileges
@@ -560,25 +562,26 @@ executeMaintenanceOperation () {
             return $?
             ;;
         
-        # TODO seguir faltan por implementar
+        
         "admin-update" )
-            # TODO Esta op: leer los datos iniciales de la bd, update vars del fichero de disco y BD
-            # TODO prueba con acentos, leer de la db cadena con acentos y pintarla
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            admin-update
+            return $?
             ;;
         
+        
         "admin-new" )
-            # TODO permitir elegir nuevo o existente. Si existente, pedir sólo el username y llamar a admin-updqte. Al final, cambiar el rol de este (no quitar al anterior)
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            admin-new
+            return $?
             ;;
+        
         
         "admin-usrpwd" )
             admin-usrpwd
             return $?
             ;;
-
+        
+        
+        
         ##### Key operations #####
         
         "key-store-validate" )
@@ -586,25 +589,30 @@ executeMaintenanceOperation () {
             return $?
             ;;
         
+        
         "key-store-pwd" )
             key-store-pwd
             return $?
             ;;
+        
         
         "key-validate-key" )
             key-validate-key
             return $?
             ;;
         
+        
         "key-renew-key" )
             key-renew-key
             return $?
             ;;
         
+        
         "key-emails-set" )
             key-emails-set
             return $?
             ;;
+        
         
         "key-emails-get" )
             #Read the list of emails to a temp file
@@ -619,6 +627,8 @@ executeMaintenanceOperation () {
             return 0
             ;;
         
+        
+        
         ##### SSL certificate operations #####
         
         "certbot-enable" )
@@ -626,20 +636,24 @@ executeMaintenanceOperation () {
             return 0
             ;;
         
+        
         "certbot-disable" )
             certbot-disable
             return 0
             ;;
-
+        
+        
         "ssl-csr-read" )
             ssl-csr-read
             return 0
             ;;
         
+        
         "ssl-cert-install" )
             ssl-cert-install
             return 0
             ;;
+        
         
         "ssl-key-renew" )
             ssl-key-renew
@@ -651,26 +665,22 @@ executeMaintenanceOperation () {
         
         ##### Backup operations #####
         
-        
-        "backup-enable" )          # TODO seguir faltan por implementar
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+        "backup-enable" )
+            backup-enable
+            return $?
             ;;
-        
         
         
         "backup-disable" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            backup-disable
+            return $?
             ;;
-        
         
         
         "backup-config" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            backup-config
+            return $?
             ;;
-        
         
         
         "backup-force" )
@@ -714,41 +724,47 @@ executeMaintenanceOperation () {
         
         ##### Configuration operations #####
         
-        
-        "config-network" )        # TODO seguir faltan por implementar
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+        "config-network" )
+            config-network
+            return $?
             ;;
+        
         
         "config-mailer" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            config-mailer
+            return $?
             ;;
+        
         
         "config-anonimity" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            config-anonimity
+            return $?
             ;;
+        
+        
         
         ##### Monitor operations #####
+        
         "monitor-sys-monit" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            monitor-sys-monit
+            return $?
             ;;
+        
         
         "monitor-stat-reset" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            monitor-stat-reset
+            return $?
             ;;
+        
         
         "monitor-log-ops-view" )
-            $dlg --msgbox $"Not implemented." 0 0
-            return 0
+            monitor-log-ops-view
+            return $?
             ;;
         
+        
+        
         ##### Miscellaneous operations #####
-        
-        
         
         "misc-shell" )
             misc-shell
@@ -1393,6 +1409,96 @@ ssl-key-renew () {
     $dlg --msgbox $"Certificate request generation successful. Current certificate will still be operative until process is complete." 0 0
     return 0
 }
+
+
+
+
+admin-update () {     # TODO prueba con acentos, leer de la db cadena con acentos y pintarla
+
+    #Force updating selected admin variable values from the database
+    #values (not passwords, they can be overriden here anyhow)
+    $PVOPS updateAdminVariables
+    
+    #Get the initial values from the updated variables
+    ADMINNAME=$(getVar disk ADMINNAME)
+    ADMREALNAME=$(getVar disk ADMREALNAME)
+    ADMIDNUM=$(getVar disk ADMIDNUM)
+    ADMINIP=$(getVar disk ADMINIP)
+    MGREMAIL=$(getVar disk MGREMAIL)
+    
+    #Allow selecting new parameter values if needed (some data won't
+    #be updateable)
+    sysAdminParams lock
+    
+    
+    #Update administrator data on the database and variables (only IP and passwords)
+    $PVOPS setAdmin reset "$ADMINNAME" "$MGRPWD" "$ADMREALNAME" "$ADMIDNUM" "$ADMINIP" "$MGREMAIL" "$LOCALPWD"
+    return $?
+}
+
+
+
+
+
+
+
+
+
+
+admin-new () {
+    # TODO permitir elegir nuevo o existente. Si existente, pedir sólo el username y llamar a admin-updqte. Al final, cambiar el rol de este (no quitar al anterior)
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+
+
+backup-enable () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+backup-disable () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+backup-config () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+config-network () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+config-mailer () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+config-anonimity () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+monitor-sys-monit () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+monitor-stat-reset () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+monitor-log-ops-view () {
+    $dlg --msgbox $"Not implemented." 0 0
+    return 0
+}
+
+
 
 
 
