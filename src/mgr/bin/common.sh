@@ -27,8 +27,8 @@ LOGFILE=/tmp/wizardLog
 #sensitive, root access only)
 SQLLOGFILE=/root/log/sqlLog
 
-#Log of the executed operations # TODO move to the encripted drive?
-OPLOG=/root/log/opLog
+#Log of the executed operations #TODO test that the move to /var/log works
+OPLOG=/var/log/opLog
 
 
 #If this file contains a 1, no privileged operation will execute
