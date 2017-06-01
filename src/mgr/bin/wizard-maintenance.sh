@@ -1470,59 +1470,186 @@ admin-new () {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#Enable daily remote backups
 backup-enable () {
-    $dlg --msgbox $"Not implemented." 0 0
+    
+    #Read the ssh backup parameters and write them to the disk variables
+    backup-config
+    
+    $dlg --infobox $"Configuring SSH backup..." 0 0
+    
+    #Set trust on the backup server
+	   $PVOPS trustSSHServer "$SSHBAKSERVER" "$SSHBAKPORT"
+    if [ $? -ne 0 ] ; then
+		      $dlg --msgbox $"Error configuring trust in SSH backup server." 0 0
+        return 1
+	   fi
+    
+    #Enable the backup cron and database mark
+	   $PVOPS enableBackup
+    if [ $? -ne 0 ] ; then
+		      $dlg --msgbox $"Error configuring SSH backup service. Database service down." 0 0
+        return 1
+	   fi
+    
+    $dlg --msgbox $"Backup system successfully enabled." 0 0
     return 0
 }
 
+
+
+
+
+#Disable daily remote backups
 backup-disable () {
-    $dlg --msgbox $"Not implemented." 0 0
+    
+    #Disable the backup cron and database mark
+    $PVOPS disableBackup
+    if [ $? -ne 0 ] ; then
+		      $dlg --msgbox $"Error disabling SSH backup service. Database service down." 0 0
+        return 1
+	   fi
+    
+    #Reset backup variables
+    setVar disk SSHBAKSERVER ""
+	   setVar disk SSHBAKPORT   ""
+	   setVar disk SSHBAKUSER   ""
+	   setVar disk SSHBAKPASSWD ""
+    
+    $dlg --msgbox $"Backup system successfully disabled." 0 0
     return 0
 }
 
+
+
+
+
+#Update backup remote server information
 backup-config () {
-    $dlg --msgbox $"Not implemented." 0 0
+    
+    #Get current variable values, if any
+    SSHBAKSERVER=$(getVar disk SSHBAKSERVER)
+	   SSHBAKPORT=$(getVar disk SSHBAKPORT)
+	   SSHBAKUSER=$(getVar disk SSHBAKUSER)
+	   SSHBAKPASSWD=$(getVar disk SSHBAKPASSWD)
+    
+    while true
+    do
+        #Get backup parameters
+        sshBackupParameters
+        [ $? -ne 0 ] && return 0 #Cancel
+        
+        #Check link with ssh server
+        $dlg --infobox $"Checking connectivity with SSH server:"" $SSHBAKSERVER" 0 0
+        checkSSHconnectivity
+        if [ $? -ne 0 ] ; then
+            #No link
+            $dlg --msgbox $"Connectivity error. Please, check." 0 0
+            continue
+        fi
+        
+        break
+    done
+    
+    #Set the updated variables
+    setVar disk SSHBAKSERVER "$SSHBAKSERVER"
+	   setVar disk SSHBAKPORT   "$SSHBAKPORT"
+	   setVar disk SSHBAKUSER   "$SSHBAKUSER"
+	   setVar disk SSHBAKPASSWD "$SSHBAKPASSWD"
+
+    $dlg --msgbox $"Backup parameters updated." 0 0
     return 0
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 config-network () {
+    # TODO     #Get current variable values
+                    while true ; do
+                        networkParams
+                        action=$?
+                        
+                        #User selected to show the menu
+                        [ $action -eq 1 ] && break
+                        
+                        #Setup network and try connectivity
+                        configureNetwork
+                        if [ $? -ne 0 ] ; then
+                            $dlg --yes-label $"Review" --no-label $"Keep" \
+                                 --yesno  $"Network connectivity error. Go on or review the parameters?" 0 0
+                            #Review them, loop again
+                            [ $? -eq 0 ] && continue
+                        fi
+                        break
+                    done
     $dlg --msgbox $"Not implemented." 0 0
     return 0
 }
 
 config-mailer () {
+    # TODO     #Get current variable values, if any
+    mailerParams
     $dlg --msgbox $"Not implemented." 0 0
     return 0
 }
 
 config-anonimity () {
     $dlg --msgbox $"Not implemented." 0 0
+    #refactor  "10" ) #Anonimity network (optional)
+    $dlg --no-label $"Skip"  --yes-label $"Register" \
+                         --yesno  $"Do you wish to register your voting service to allow using the eSurvey Anonimity Network?""\n"$"(it can be done later at any moment)" 0 0
+                    if [ $? -eq 0 ]
+                    then
+                        lcnRegisterParams
+                        #If go to menu pressed
+                        [ $? -ne 0 ] && action=1 && break
+
+                        #Generate the certificate and key
+                        $dlg --infobox $"Generating signing certificate for the Anonimity Network Central Authority..." 0 0
+                        esurveyGenerateReq
+                        if [ $? -ne 0 ] ; then  #If failed
+                            action=1
+                            $dlg --msgbox $"Error generating Anonimity Service certificate." 0 0
+                        fi
+                        
+                        #Perform the registration
+                        esurveyRegisterReq
+                        #If failed
+                        [ $? -ne 0 ] && action=1
+                    else
+                        #If skipped, generate a generic certificate
+                        #for internal usage
+                        SITESEMAIL="-"
+                        SITESORGSERV="-"
+                        SITESNAMEPURP="-"
+                        SITESCOUNTRY="-"
+                        $dlg --infobox $"Generating vote signing certificate" 0 0
+                        esurveyGenerateReq
+                        if [ $? -ne 0 ] ; then  #Failed
+                            action=1
+                            $dlg --msgbox $"Error generating voting service certificate." 0 0
+                        fi
+                    fi
     return 0
 }
+
+
+
 
 monitor-sys-monit () {
     $dlg --msgbox $"Not implemented." 0 0

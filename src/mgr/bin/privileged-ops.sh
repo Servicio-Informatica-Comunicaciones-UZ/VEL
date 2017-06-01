@@ -456,7 +456,8 @@ then
     
     allowedVars="SHARES THRESHOLD 
                  SSLCERTSTATE 
-                 SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL"     # TODO Define a list of variables that will be writable, once clearance is obtained
+                 SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL
+                 SSHBAKSERVER SSHBAKPORT SSHBAKUSER SSHBAKPASSWD"     # TODO Define a list of variables that will be writable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Set access denied to variable $3. Not during operation, even with clearance"
@@ -485,7 +486,8 @@ then
     
     allowedVars="HOSTNM DOMNAME 
                  SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL
-                 ADMINNAME ADMREALNAME ADMIDNUM ADMINIP MGREMAIL"     # TODO Define a list of variables that will be readable, once clearance is obtained
+                 ADMINNAME ADMREALNAME ADMIDNUM ADMINIP MGREMAIL
+                 SSHBAKSERVER SSHBAKPORT SSHBAKUSER SSHBAKPASSWD"     # TODO Define a list of variables that will be readable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Get access denied to variable $3. Not during operation, even with clearance"
@@ -923,7 +925,7 @@ fi
 #Enable backup cron and database mark
 if [ "$1" == "enableBackup" ]
 then
-    #Write cron to check every minute for a pending backup
+    #Write cron to check every day for a pending backup
     aux=$(cat /etc/crontab | grep backup.sh)
     if [ "$aux" == "" ]
     then
