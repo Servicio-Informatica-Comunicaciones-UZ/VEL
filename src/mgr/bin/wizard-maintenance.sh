@@ -840,8 +840,6 @@ getClearance () {
                   ssl-csr-read        ssl-cert-install   ssl-key-renew
                   backup-force        backup-freeze      backup-unfreeze
                   monitor-stat-reset  "
-    # TODO quizá añadir 'admin-priv-grant' a pwdOps cuando la app notifique y loguee el estado claramente
-    #TODO crear sistema de logs de interés para la comisión y los admins. usar el oplog? un log de app y el oplog para la de mant? otro log para añadir al acta de una elec? añadir a este oplog además de ops realizadas, el etado de privilegio, auths locales, ediciones de usuarios en la BD, bajas de votos y bajas/altas de votantes en una elección una vez está iniciada... ver qué más cosas pueden dejar de ser ejecutadas sólo bajo privilegio a ejecutarse siempre con logs.
     
     #If no operation code, then reject
     if [ "$1" == "" ] ; then
@@ -1074,7 +1072,7 @@ certbot-enable () {
     $dlg --infobox $"Configuring Let's Encrypt SSL certificate..." 0 0
     $PVOPS setupCertbot
     if [ $? -ne 0 ] ; then
-        $dlg --msgbox $"Error enabling certificate service." 0 0 # TODO set different return codes and set different messages
+        $dlg --msgbox $"Error enabling certificate service." 0 0
         log "certbot enable error"
         return 1
     fi
@@ -1692,30 +1690,89 @@ config-anonimity () {
 
 
 
-
-
-
-
-
-
-
-monitor-sys-monit () {
-    $dlg --msgbox $"Not implemented." 0 0
+#Show the log of sensible operations so the comission can audit it.
+monitor-log-ops-view () {
+    
+    while true ; do
+        
+        #Get a copy of the log for the non-privileged user to read
+        $PVOPS readOpLog
+        
+        #Show the file
+        $dlg --ok-label $"Refresh" --extra-button --extra-label $"Back" \
+             --no-cancel --textbox /tmp/oplog 0 0
+        [ $? -ne 0 ] && break #Chose Back
+    done
+    
     return 0
 }
 
-monitor-stat-reset () {  # TODO lo que se implemente aquí, que valga para ser llamado tal cual en el setup, así no hace falta reinstalar los sistemas ya desplegados para activar las stats
+
+
+
+
+#Show live system health and status information
+monitor-sys-monit () {
+    
+    while true ; do
+        
+        #Gather current stats and send to a temp file
+        $PVOPS stats > /tmp/stats  2>>$LOGFILE
+
+        #Show the stats
+        $dlg --ok-label $"Refrescar" --extra-button  --extra-label $"Volver" \
+             --no-cancel --textbox /tmp/stats 0 0
+        [ $? -ne 0 ] && break #Chose Back
+    done
+    
+    return 0
+}
+
+
+
+
+
+
+
+
+
+
+
+
+monitor-stat-reset () {  # TODO SEGUIR MAÑANA lo que se implemente aquí, que valga para ser llamado tal cual en el setup, así no hace falta reinstalar los sistemas ya desplegados para activar las stats
 
     # TODO Añadir auth básica web para las páginas de stats. usar la pwd del mgr web, actualizarla cada vez que se update el admin en la op correspondiente
     
-    $dlg --msgbox $"Not implemented." 0 0
-    return 0
+ 
+            $dlg  --yes-label $"Sí"  --no-label $"No"   --yesno  $"¿Seguro que desea reiniciar la recogida de estaditicas del sistema?" 0 0 
+	           [ "$?" -ne "0" ] && return 1
+            
+	           #Resetemaos las estadísticas
+	           $PVOPS stats resetLog
+	           
+	           $dlg --msgbox $"Reinicio completado con éxito." 0 0
+            return 0
+
+
+
+            
+
+             $dlg  --yes-label $"Sí"  --no-label $"No"   --yesno  $"¿Seguro que desea reiniciar la recogida de estaditicas del sistema?" 0 0 
+	[ "$?" -ne "0" ] && return 1
+      
+	#Destruimos las RRD anteriores
+	rm -f /media/eLectionCryptoFS/rrds/* >>$LOGFILE 2>>$LOGFILE
+	
+	#Resetemaos las estadísticas
+	stats.sh startLog
+	
+	#Actualizamos los gráficos
+	stats.sh updateGraphs  >>$LOGFILE 2>>$LOGFILE
+
+
+	$dlg --msgbox $"Reinicio completado con éxito." 0 0
 }
 
-monitor-log-ops-view () {
-    $dlg --msgbox $"Not implemented." 0 0
-    return 0
-}
 
 
 
@@ -1781,19 +1838,20 @@ doLoop
 # TODO ELIMINAR LA VERSIÓN ESTÁTICA de index.php antes de actualizar
 # el bundle de nuevo
 
+#TODO Asegurarme de que se loguean todas las acciones comprometidas
+#realizadas sobre el servidor y la webapp. Sacar esto en la app? poner
+#un visor web para la comisión? pedirles contraseñas nuevas para que
+#accedan o una genérica? Crear sistema de logs de interés para la
+#comisión y los admins. usar el oplog? un log de app y el oplog para
+#la de mant? otro log para añadir al acta de una elec? añadir a este
+#oplog además de ops realizadas, el etado de privilegio, auths
+#locales, ediciones de usuarios en la BD, bajas de votos y bajas/altas
+#de votantes en una elección una vez está iniciada... ver qué más
+#cosas pueden dejar de ser ejecutadas sólo bajo privilegio a
+#ejecutarse siempre con logs.
 
-# TODO add a maint option to join esurvey lcn network (if not done
-# during setup, and also to change registration)
+# TODO quizá añadir 'admin-priv-grant' a las ops accesibles con pwd
+# local del admin cuando la app notifique y loguee el estado
+# claramente.
 
-#TODO Asegurarme de que se loguean todas las acciones realizadas sobre
-#el servidor. Sacar esto en la app? poner un visor web para la
-#comisión? pedirles contraseñas nuevas para que accedan o una
-#genérica?
 
-# TODO: add a maint option to change ip config [commis. authorisation]
-# --> this existed, just was not yet moved from the old script and was
-# not in the new ones. same happend to some other ops.
-
-# TODO --> we could also add a maint option to allow changing the ssh
-# backup location (and without the authorisation of the com. only the
-# admin password) --> do it. now the params are on disk

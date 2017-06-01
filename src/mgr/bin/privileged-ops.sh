@@ -323,7 +323,7 @@ getClearance () { # TODO fill the lists *-*-
                    storops-checkKeyClearance   storops-rebuildKey   storops-rebuildKeyAllCombs
                    storops-testForDeadShares   storops-checkPwd   storops-readKeyShare
                    removeAdminPrivileges    adminPrivilegeStatus
-                   stats
+                   stats  readOpLog
                    suspend   shutdownServer"
     
     #List of operations requiring admin password check only
@@ -331,7 +331,8 @@ getClearance () { # TODO fill the lists *-*-
                   forceBackup    freezeSystem   unfreezeSystem
                   installSSLCert
                   getComEmails
-                  updateUserPassword   userExists"
+                  updateUserPassword   userExists
+                  stats-setup"
 
     # TODO decidir si free:  trustSSHServer storops-readConfigShare
     # TODO decidir si pwd:  mailServer-reload grantAdminPrivileges startApache 
@@ -2750,77 +2751,14 @@ fi
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# SEGUIR REVISANDO
-
-
-
-if [ "$1" == "stats" ] 
+#Prints to a tmp file a snapshot of the operations log
+if [ "$1" == "readOpLog" ]
 then
-
-
-
-    if [ "$2" == "startLog" ] # TODO aplanar a 1 nivel
-	   then
-	       /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
-	       exit 0
-    fi
-
-    if [ "$2" == "updateGraphs" ]  #//// No necesita verif de llave
-	   then
-	       /usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
-	       exit 0
-    fi
-
-    if [ "$2" == "installCron" ] 
-	   then
-	       /usr/local/bin/stats.sh installCron
-	       exit 0
-    fi
-
-    if [ "$2" == "uninstallCron" ] 
-	   then
-	       /usr/local/bin/stats.sh uninstallCron
-	       exit 0
-    fi
-
-    if [ "$2" == "resetLog" ] 
-	   then
-
-	       #Destruimos las RRD anteriores
-	       rm -f $DATAPATH/rrds/* >>$LOGFILE 2>>$LOGFILE
-
-	       /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
-	       
-	       /usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
-
-	       exit 0
-    fi
-
-    #Cuando saca las stats inmediatas en pantalla.  #//// No necesita verif de llave
-    if [ "$2" == "" ] 
-	   then
-	       /usr/local/bin/stats.sh 2>>$LOGFILE
-	       exit 0
-    fi
-
-
-
+    
+    cp -vf $OPLOG /tmp/oplog   >>$LOGFILE 2>>$LOGFILE
+    chmod 744 /tmp/oplog  >>$LOGFILE 2>>$LOGFILE
+    
+    exit 0
 fi
 
 
@@ -2843,27 +2781,62 @@ fi
 
 
 
+#Will print to stdout a set of human readable system health and status
+#information
+if [ "$1" == "stats" ] 
+then
+    /usr/local/bin/stats.sh 2>>$LOGFILE  # TODO SEGUIR MAÑANA revisar este script
+	   exit 0
+fi
 
 
 
 
 
+if [ "$1" == "stats-setup" ] 
+then
 
 
+    
+    if [ "$1" == "startLog" ] # TODO fundir las 3 ops.
+	   then
+	       /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
+	       exit 0
+    fi
+
+    
+    if [ "$1" == "installCron" ] 
+	   then
+	       /usr/local/bin/stats.sh installCron # TODO make sure on reset it does not install twice
+	       exit 0
+    fi
+
+    
+	   #Destruimos las RRD anteriores
+	   rm -f $DATAPATH/rrds/* >>$LOGFILE 2>>$LOGFILE
+
+	   /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
+	   
+	   /usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
 
 
+    
+    if [ "$1" == "updateGraphs" ]  #//// Llamar aupdate tras el reset (en install será la instalación.). Desde el cron o lo que sea, que se llame a pelo, no como OP
+	   then
+	       /usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
+	       exit 0
+    fi
 
+    
 
+	   exit 0
+fi
 
-
-
-
-
-
-
-
-
-
+#    if [ "$2" == "uninstallCron" ] # TODO hace falta? NO. borrar
+#	   then
+#	       /usr/local/bin/stats.sh uninstallCron
+#	       exit 0
+#    fi
 
 
 
@@ -2873,81 +2846,3 @@ fi
 
 log "Operation '$1' not found."  
 exit 42
-
-
-
-
-#Antes del standby, borrar todos los datos, y si son necesarios luego, pasar esas ops a privado y que se carguen esos datos de la zona privada.
-
-
-#Aislar el Pwd de la bd (no solo el de root, sino el de vtuji) y hacer que los ficheros de /var/www no sean legibles para vtuji (solo root y www-data)
-
-#Cuando se invoque a las ops privilegiadas, si existen fragmentos de llave, estos se harán ilegibles poara el no priv.
-
-
-
-#Decidir dónde activo la verificación de clave (lo más adecuado sería hacerlo en cuanto se crea/monta la partición, pero puede ser molesto verificar en cada op que haga. Mejor lo hago justo cuando el sistema queda en standby.) . El paso de la contraseña/piezas será por fichero/llamada a OP y funcionará como sesión. El cliente será el encargado de invalidar la contraseña (o piezas) cuando acabe de operar (o lo hago al acabar cada operación desde privops? es más seguro pero más molesto. Ver si es factible.)
-
-
-
-#////$DATAPATH/webserver/newcsr --> revisar el control de este directiro (cuándo se crea, se borra, etc. Tengo que hacerlo aquí)
-
-
-
-
-#////+++++ falta, en wizard, privops y privsetup, revisar todas las apariciones de DATAPATH o /media/eLectionCryptoFS o /media/crypStorage y ver que los ficheros que accede/escribe están en el path adecuado.
-
-
-
-
-
-#//// En el standby, borrar wizardlog y dblog, o guardarlos sólo para root.
-
-
-
-
-#//// Quizá, en vez de tener operaciones con o sin contraseña (alguna deberá ser necesariamente sin contraseña. Estudiar.), hacerlo dependiente del momento: durante el setup, todas sin contraseña. Cuando acabe el setup, guiardar un flag en /root y que pida siempre la contraseña. Securizar /root como toca.
-
-
-
-#////Revisar todos los params y toda interacción con el usuario, para ver que no pueda crearse una vulnerabilidad. (por ejemplo, los params, pasarles la función que asegura el tipo y el contenido adecuados. Ver cómo puedo hacer que el usuario sólo pueda ejecutarlos en el momento adecuado -> por ejemplo, separar las ops que puedan usarse en standby de las de la inst y config. Al acabar la inst, quitar el permiso de ejecución a estas.
-
-
-
-
-
-
-
-
-
-#//// revisar todos los parámetros a fondo!!! Revisar cuando se invoque desde el standby. Asegurarme de que se pueda invocar verificando el pwd de la partición (lo digo sobretodo pensando en la func de cambiar partición de datos).  --> Alternativamente, hacer funciones de más alto nivel que integren las operaciones que provocarían un impass (ej, la de cambiar la part de datos) --> Otra forma sería implementar 2 formas  de autorización
-
-
-#//// Para los script que ejecuta vtuji, evitar confiar en el PATH: poner rutas absolutas a todo (un atacante podría alterar la var PATH)
-
-
-    #//// los pwd al menos, leerlos de los dirs de config
-
-
-
-
-# TODO when installing a ssl cert, extract cert expiration date, store it on a var, and create an at job (or a cron) to remind of expiration
-
-# TODO Revisar todas las ops y ver cuáles deben estar bloqueadas en mant (ej, clops init)
-
-
-
-
-
-#//// Hay ops que no requieren reconstruir la clave.  --> Hay algunas que son sólo para el setup separarlas y al acabar el setup ya no se podrán ejecutar (revisar qué ops sólo se ejecutan en el setup). Las otras, ponerlas antes d ela verificación de clave.
-
-
-
-
-
-
-# TODO remove all dialogs from privileged scripts. At least from the ops and common, setup will be fine
-
-
-
-# TODO si hay ops que sólo se llaman durante el setup, mover al privileged-setup

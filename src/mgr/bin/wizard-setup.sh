@@ -1130,18 +1130,12 @@ do
     
     
     
-    #Setup statistics system  # TODO review everything regarding this. Do it at the end
+    #Setup statistics system
     $dlg --infobox $"Setting up statistics system..." 0 0
     if [ "$DOINSTALL" -eq 1 ] ; then
-	       #Build RRDs
-	       $PVOPS stats startLog 
+	       #Setup round robin databases, install cron job and create initial graphs
+	       $PVOPS stats-setup 
     fi
-    
-    #Setup cron that updates the results and generates the graphics
-    $PVOPS stats installCron # TODO review this op. control access by IP, only to admin
-    
-    #Draw the stat graphs
-    $PVOPS stats updateGraphs  >>$LOGFILE 2>>$LOGFILE  # TODO review this op.
     
     
     
