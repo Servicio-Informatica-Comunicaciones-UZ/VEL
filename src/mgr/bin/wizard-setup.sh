@@ -640,19 +640,19 @@ do
                         if [ $? -ne 0 ] ; then  #If failed
                             action=1
                             $dlg --msgbox $"Error generating Anonimity Service certificate." 0 0
+                        else
+                            #Perform the registration
+                            esurveyRegisterReq
+                            #If failed
+                            [ $? -ne 0 ] && action=1                        
                         fi
-                        
-                        #Perform the registration
-                        esurveyRegisterReq
-                        #If failed
-                        [ $? -ne 0 ] && action=1
                     else
                         #If skipped, generate a generic certificate
                         #for internal usage
-                        SITESEMAIL="-"
+                        SITESEMAIL=""
                         SITESORGSERV="-"
                         SITESNAMEPURP="-"
-                        SITESCOUNTRY="-"
+                        SITESCOUNTRY=""
                         $dlg --infobox $"Generating vote signing certificate" 0 0
                         esurveyGenerateReq
                         if [ $? -ne 0 ] ; then  #Failed

@@ -457,7 +457,10 @@ then
     allowedVars="SHARES THRESHOLD 
                  SSLCERTSTATE 
                  SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL
-                 SSHBAKSERVER SSHBAKPORT SSHBAKUSER SSHBAKPASSWD"     # TODO Define a list of variables that will be writable, once clearance is obtained
+                 SSHBAKSERVER SSHBAKPORT SSHBAKUSER SSHBAKPASSWD
+                 IPMODE HOSTNM DOMNAME IPADDR MASK GATEWAY DNS1 DNS2
+                 MAILRELAY
+                 SITESORGSERV SITESNAMEPURP SITESEMAIL SITESCOUNTRY SITESTOKEN"     # TODO Define a list of variables that will be writable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Set access denied to variable $3. Not during operation, even with clearance"
@@ -487,7 +490,10 @@ then
     allowedVars="HOSTNM DOMNAME 
                  SERVERCN COMPANY DEPARTMENT COUNTRY STATE LOC SERVEREMAIL
                  ADMINNAME ADMREALNAME ADMIDNUM ADMINIP MGREMAIL
-                 SSHBAKSERVER SSHBAKPORT SSHBAKUSER SSHBAKPASSWD"     # TODO Define a list of variables that will be readable, once clearance is obtained
+                 SSHBAKSERVER SSHBAKPORT SSHBAKUSER SSHBAKPASSWD
+                 IPMODE HOSTNM DOMNAME IPADDR MASK GATEWAY DNS1 DNS2
+                 MAILRELAY
+                 SITESORGSERV SITESNAMEPURP SITESEMAIL SITESCOUNTRY"     # TODO Define a list of variables that will be readable, once clearance is obtained
     
     if (! contains "$allowedVars" "$3") ; then
         log "Get access denied to variable $3. Not during operation, even with clearance"

@@ -1271,8 +1271,8 @@ key-renew-key () {
     $dlg --msgbox $"A new cipher key will be generated and shared among usb drives. PLEASE, USE A NEW SET OF USB DRIVES and keep the old ones. If this process fails at any step, old key will still be valid." 0 0
     
     #Read current variable values
-    SHARES=$($PVOPS getPubVar disk  SHARES)
-    THRESHOLD=$($PVOPS getPubVar disk  THRESHOLD)
+    SHARES=$($PVOPS getPubVar usb  SHARES)
+    THRESHOLD=$($PVOPS getPubVar usb  THRESHOLD)
     
     #Allow to change key sharing parameters
     while true ; do
@@ -1285,8 +1285,8 @@ key-renew-key () {
     done
     
     #Store new variable values
-    setVar disk SHARES  "$SHARES"
-    setVar disk THRESHOLD  "$THRESHOLD"
+    setVar usb SHARES "$SHARES"
+    setVar usb THRESHOLD "$THRESHOLD"
     
     
     #Switch slot to generate new key
@@ -1565,88 +1565,136 @@ backup-config () {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+#Update network connection parameters
 config-network () {
-    # TODO     #Get current variable values
-                    while true ; do
-                        networkParams
-                        action=$?
-                        
-                        #User selected to show the menu
-                        [ $action -eq 1 ] && break
-                        
-                        #Setup network and try connectivity
-                        configureNetwork
-                        if [ $? -ne 0 ] ; then
-                            $dlg --yes-label $"Review" --no-label $"Keep" \
-                                 --yesno  $"Network connectivity error. Go on or review the parameters?" 0 0
-                            #Review them, loop again
-                            [ $? -eq 0 ] && continue
-                        fi
-                        break
-                    done
-    $dlg --msgbox $"Not implemented." 0 0
+    
+    #Get current variable values
+    IPMODE=$(getVar disk IPMODE)
+	   HOSTNM=$(getVar disk HOSTNM)
+    DOMNAME=$(getVar disk DOMNAME)
+    IPADDR=$(getVar disk IPADDR)
+	   MASK=$(getVar disk MASK)
+	   GATEWAY=$(getVar disk GATEWAY)
+	   DNS1=$(getVar disk DNS1)
+	   DNS2=$(getVar disk DNS2)
+
+    
+    while true
+    do
+        networkParams
+        [ $? -ne 0 ] && return 1 # Cancel
+        
+        #Setup network and try connectivity
+        configureNetwork
+        if [ $? -ne 0 ] ; then
+            $dlg --msgbox $"Network connectivity error. Please, review the configuration." 0 0
+            continue
+        fi
+        
+        break
+    done
+    
+    #Update hostname related configuration
+    configureHostDomain
+    
+    #Set new variable values to disk
+    setVar disk IPMODE  "$IPMODE"
+	   setVar disk HOSTNM  "$HOSTNM"
+    setVar disk DOMNAME "$DOMNAME"
+    setVar disk IPADDR  "$IPADDR"
+	   setVar disk MASK    "$MASK"
+	   setVar disk GATEWAY "$GATEWAY"
+	   setVar disk DNS1    "$DNS1"
+	   setVar disk DNS2    "$DNS2"
+    
+    $dlg --msgbox $"Network connection successfully updated." 0 0
     return 0
 }
 
+
+
+
+
+#Update mail server configuration
 config-mailer () {
-    # TODO     #Get current variable values, if any
+    
+    #Get current variable value, if any
+    MAILRELAY=$(getVar disk MAILRELAY)
+    
+    #Set new value
     mailerParams
-    $dlg --msgbox $"Not implemented." 0 0
+    [ $? -ne 0 ] &&  return 1 #Cancel
+    
+    
+    #Reconfigure mail server
+    $dlg --infobox $"Configuring mail server..." 0 0
+    
+    $PVOPS mailServer-relay "$MAILRELAY"
+    $PVOPS mailServer-reload
+    if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error reloading mail server." 0 0
+        return 1
+    fi
+    
+    #Update variable on disk
+    setVar disk MAILRELAY "$MAILRELAY"
+    
+    $dlg --msgbox $"Mail server configuration updated successfully." 0 0
     return 0
 }
 
+
+
+
+
+#Performs the registration process so the voting service can relay
+#packages to the anonimity netowrk
 config-anonimity () {
-    $dlg --msgbox $"Not implemented." 0 0
-    #refactor  "10" ) #Anonimity network (optional)
-    $dlg --no-label $"Skip"  --yes-label $"Register" \
-                         --yesno  $"Do you wish to register your voting service to allow using the eSurvey Anonimity Network?""\n"$"(it can be done later at any moment)" 0 0
-                    if [ $? -eq 0 ]
-                    then
-                        lcnRegisterParams
-                        #If go to menu pressed
-                        [ $? -ne 0 ] && action=1 && break
-
-                        #Generate the certificate and key
-                        $dlg --infobox $"Generating signing certificate for the Anonimity Network Central Authority..." 0 0
-                        esurveyGenerateReq
-                        if [ $? -ne 0 ] ; then  #If failed
-                            action=1
-                            $dlg --msgbox $"Error generating Anonimity Service certificate." 0 0
-                        fi
-                        
-                        #Perform the registration
-                        esurveyRegisterReq
-                        #If failed
-                        [ $? -ne 0 ] && action=1
-                    else
-                        #If skipped, generate a generic certificate
-                        #for internal usage
-                        SITESEMAIL="-"
-                        SITESORGSERV="-"
-                        SITESNAMEPURP="-"
-                        SITESCOUNTRY="-"
-                        $dlg --infobox $"Generating vote signing certificate" 0 0
-                        esurveyGenerateReq
-                        if [ $? -ne 0 ] ; then  #Failed
-                            action=1
-                            $dlg --msgbox $"Error generating voting service certificate." 0 0
-                        fi
-                    fi
+    
+    #Get previous values (if any). SITESPWD is not stored.
+    #SITESTOKEN still not available
+    SITESORGSERV=$(getVar disk SITESORGSERV)
+	   SITESNAMEPURP=$(getVar disk SITESNAMEPURP)
+    SITESEMAIL=$(getVar disk SITESEMAIL)
+	   SITESCOUNTRY=$(getVar disk SITESCOUNTRY)
+    
+    
+    #Allow user to input request configuration
+    lcnRegisterParams
+    [ $? -ne 0 ] && return 1 #Cancel
+    
+    #Generate the certificate and key
+    $dlg --infobox $"Generating signing certificate for the Anonimity Network Central Authority..." 0 0
+    esurveyGenerateReq
+    if [ $? -ne 0 ] ; then  #Failed
+        $dlg --msgbox $"Error generating Anonimity Service certificate." 0 0
+        return 2
+    fi
+    
+    #Perform the registration (there are prompted error messages
+    #inside this function)
+    esurveyRegisterReq
+    [ $? -ne 0 ] && return 3 #Failed
+    
+    
+    #Store variables in disk
+    setVar disk SITESORGSERV  "$SITESORGSERV"
+	   setVar disk SITESNAMEPURP "$SITESNAMEPURP"
+	   setVar disk SITESEMAIL    "$SITESEMAIL"
+	   setVar disk SITESCOUNTRY  "$SITESCOUNTRY"
+    setVar disk SITESTOKEN    "$SITESTOKEN"
+    
+    $dlg --msgbox $"Anonimity Network registration successful." 0 0
     return 0
-}
+}  # TODO asegurarme de que sitesemail y sitescountry, en condiciones normales, se guardan en vars de disk al instalar y aquí
+
+
+
+
+
+
+
+
 
 
 
@@ -1656,7 +1704,10 @@ monitor-sys-monit () {
     return 0
 }
 
-monitor-stat-reset () {
+monitor-stat-reset () {  # TODO lo que se implemente aquí, que valga para ser llamado tal cual en el setup, así no hace falta reinstalar los sistemas ya desplegados para activar las stats
+
+    # TODO Añadir auth básica web para las páginas de stats. usar la pwd del mgr web, actualizarla cada vez que se update el admin en la op correspondiente
+    
     $dlg --msgbox $"Not implemented." 0 0
     return 0
 }
