@@ -1740,52 +1740,29 @@ monitor-sys-monit () {
 
 
 
-
-
-
-
-
-
-
-monitor-stat-reset () {  # TODO SEGUIR MAÑANA lo que se implemente aquí, que valga para ser llamado tal cual en el setup, así no hace falta reinstalar los sistemas ya desplegados para activar las stats
-
-    # TODO Añadir auth básica web para las páginas de stats. usar la pwd del mgr web, actualizarla cada vez que se update el admin en la op correspondiente
+#Setup/restart the statistics system and delete all historic
+#information
+monitor-stat-reset () {
     
- 
-            $dlg  --yes-label $"Sí"  --no-label $"No"   --yesno  $"¿Seguro que desea reiniciar la recogida de estaditicas del sistema?" 0 0 
-	           [ "$?" -ne "0" ] && return 1
-            
-	           #Resetemaos las estadísticas
-	           $PVOPS stats-setup
-	           
-	           $dlg --msgbox $"Reinicio completado con éxito." 0 0
-            return 0
-
-
-
-            
-
-             $dlg  --yes-label $"Sí"  --no-label $"No"   --yesno  $"¿Seguro que desea reiniciar la recogida de estaditicas del sistema?" 0 0 
-	[ "$?" -ne "0" ] && return 1
-      
-	#Destruimos las RRD anteriores
-	rm -f /media/eLectionCryptoFS/rrds/* >>$LOGFILE 2>>$LOGFILE
-	
-	#Resetemaos las estadísticas
-	stats.sh startLog
-	
-	#Actualizamos los gráficos
-	stats.sh updateGraphs  >>$LOGFILE 2>>$LOGFILE
-
-
-
-
-     $PVOPS stats-start
-
- 
-
-	$dlg --msgbox $"Reinicio completado con éxito." 0 0
+    $dlg --yes-label $"Yes" --no-label $"No" --yesno \
+         $"Reset the statistic system?" 0 0 
+	   [ $? -ne 0 ] && return 1
+    
+    
+	   #Reset statistics system
+	   $PVOPS stats-setup
+	   if [ $? -ne 0 ] ; then
+        $dlg --msgbox $"Error resetting statistics system." 0 0
+        return 1
+    fi
+    
+    #Start collection process (in case it wasn't)
+    $PVOPS stats-start
+    
+	   $dlg --msgbox $"Statistics system reset successful." 0 0
+    return 0
 }
+
 
 
 

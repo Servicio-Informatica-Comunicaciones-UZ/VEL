@@ -1,32 +1,52 @@
 #!/bin/bash
 
 
-#Desmontamos las locales, ya que porceso salidas de ficheros con localización
+#Common functions for privileged and unprivileged scripts.
+. /usr/local/bin/common.sh
+
+#Common functions for privileged scripts
+. /usr/local/bin/privileged-common.sh
+
+
+###############
+#  Constants  #
+###############
+
+#Make sure locales don't affect indicator collection
 LC_ALL=C
 
 
-#Uso de memoria (%)
+
+
+
+#############
+#  Methods  #
+#############
+
+
+
+
+#Prints the percentage of used system memory.
 memUsage () {
     
-    aux=$(free | grep -Ee "^Mem")
+    local data=$(free | grep -Ee "^Mem")
     
-    totalMem=$(echo $aux | cut -d " " -f 2)
-    usedMem=$(echo $aux | cut -d " " -f 3)
-    diskCache=$(echo $aux | cut -d " " -f 7)
+    local totalMem=$(echo $data  | cut -d " " -f 2)
+    local usedMem=$(echo $data   | cut -d " " -f 3)
+    local buffers=$(echo $data   | cut -d " " -f 6)
+    local diskCache=$(echo $data | cut -d " " -f 7)
     
-    usedMem=$(((usedMem-diskCache)*100/totalMem))
+    local usedMem=$(((usedMem-diskCache-buffers)*100/totalMem))
     
     echo -n "$usedMem"
-    [ "$MODE" == "live" ] && echo -n %
-
-    
     return 0;
 }
 
 
 
 
-#Uso de disco
+
+#Disk usage for all available partitions # TODO SEGUIR MAÑANA que estas funciones sean neutras, nada de indicar el modo
 # 1 -> ruta al dev de la partición o al punto de montaje
 # 2 -> p -> imprime valor porcentual de uso   q -> imprime valor cuantitativo de uso
 partitionUsage () {
@@ -268,7 +288,7 @@ hddModel () {
 
 
 
-#Devuelve temperaturas para todos los sensores disponibles.
+#Return temperature for all CPU cores
 coreTemps () {
     data=$(/usr/local/bin/tempsensor.py temp 2>/dev/null)
     
@@ -278,89 +298,13 @@ coreTemps () {
     return 0
 }
 
-#Devuelve la velocidad de los ventiladores para los sensores disponibles
-hugeMetalFans () {
-    data=$(/usr/local/bin/tempsensor.py fan 2>/dev/null)
-    
-    [ $? -ne 0  ] && return 1
-
-    echo -n "$data"
-    return 0
-}
 
 
 
 
-listUSBs  () {
-
-   USBDEVS=""
-   usbs=$(ls /proc/scsi/usb-storage/ 2>/dev/null) 
-   for f in $usbs
-      do
-      currdev=$(sginfo -l | sed -ne "s/.*=\([^ ]*\).*$f.*/\1/p")
-      USBDEVS="$USBDEVS $currdev"
-   done
-
-   echo -n "$USBDEVS"
-}
-
-listHDDs () {
-    
-    drives=""
-    
-    usbs=''
-#$$$$1    usbs=$(listUSBs)  #La llamada a sginfo -l peta totalmente mi sistema (debian etch stable), pero por suerte no la ubuntu lucid.
-
-    for n in a b c d e f g h i j k l m n o p q r s t u v w x y z 
-      do
-      
-      drivename=/dev/hd$n
-      
-      [ -e $drivename ] && drives="$drives $drivename"
-      
-      drivename=/dev/sd$n
-
-      for usb in $usbs
-	do
-	#Si el drive name es un usb, pasa de él.
-	[ "$drivename" == "$usb" ]   && continue 2
-      done
-
-      
-      [ -e $drivename ] && drives="$drives $drivename"
-      
-    done
-    
-    for mdid in $(seq 0 99) ; do
-	
-	drivename=/dev/md$mdid
-	
-	[ -e $drivename ] && drives="$drives $drivename"
-	
-    done
-    
-    echo "$drives"
-    
-}
 
 
-# 1 -> Drive
-getPartitions () {
-
-    dp=$(/sbin/fdisk -l "$1" 2>/dev/null)
-    
-    thisparts=""
-    if [ "$dp" != "" ] 
-	then
-	thisparts=$(echo "$dp" | grep -Ee "^$1" | cut -d " " -f 1 )
-    fi
-    
-    echo "$thisparts"
-}
-
-
-
-#List active eth interfaces
+#List active eth interfaces  ## TODO check if duplicated on the commons
 getInterfaces () {
 
     ifconfig |  grep eth | sed -re "s/\s+/ /g" | cut -d " " -f 1
@@ -571,8 +515,16 @@ GRAPHPATH="/var/www/statgraphs"
 #     'update':       updateLog + updateGraphs
 
 
+#    [ "$MODE" == "live" ] && echo -n % in live mode, add the units at the end, not inside the functions
+
+
+
 ## TODO on update, if error, mail admin?
 
+    # TODO Añadir auth básica web para las páginas de stats. usar la pwd del mgr web, actualizarla cada vez que se update el admin en la op correspondiente
+
+
+  # TODO SEGUIR MAÑANA lo que se implemente aquí, que valga para ser llamado tal cual en el setup, así no hace falta reinstalar los sistemas ya desplegados para activar las stats
 
 OP="$1"
 
@@ -1314,3 +1266,33 @@ LC_ALL=""
 #rrdtool update prueba.rrd $((1279885468+600)):1.57e-5
 #rrdtool dump prueba.rrd
 #rrdtool graph -a PNG $FILENAME DEF:prueba1=prueba.rrd:prueba:AVERAGE LINE1:prueba1#0000FF:"condemor\l"
+
+
+
+
+# TODO Deleted tempsensor.py, find more standard alternative to get temperatures: sensors y hddtemp /dev/sda
+
+#Pasar del fan speed, coger sólo la tempertatura de los Core X:
+
+
+#coretemp-isa-0000
+#Adapter: ISA adapter
+#Core 0:      +41.0°C  (high = +78.0°C, crit = +100.0°C)  
+#
+#coretemp-isa-0001
+#Adapter: ISA adapter
+#Core 1:      +41.0°C  (high = +78.0°C, crit = +100.0°C)  
+
+
+
+#coretemp-isa-0000
+#Adapter: ISA adapter
+#Core 0:       +43.0°C  (high = +78.0°C, crit = +100.0°C)
+#Core 1:       +46.0°C  (high = +78.0°C, crit = +100.0°C)
+#
+#nouveau-pci-0100
+#Adapter: PCI adapter
+#temp1:        +76.0°C  (high = +95.0°C, hyst =  +3.0°C)
+#                       (crit = +130.0°C, hyst =  +2.0°C)
+#                       (emerg = +135.0°C, hyst =  +5.0°C)
+
