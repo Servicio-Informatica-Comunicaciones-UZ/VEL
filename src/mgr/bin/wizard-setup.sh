@@ -1237,8 +1237,6 @@ do
     
     break
 done #Main action loop
+
 log "wizard maintenance loop script execution failed."
 exit 42
-
-
-# TODO asegurarme de que al ejecutar los scripts no interactivos, el lang siempre es LANG=C, o los greps se pueden romper en ES y Ca

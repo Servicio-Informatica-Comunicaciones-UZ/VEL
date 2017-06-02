@@ -371,7 +371,6 @@ readUsbsRebuildKey () {
 #  DNS2
 #  HOSTNM
 #  DOMNAME
-###TODO depués, los valores establecidos aquí se pasarán al  privil. op adecuado donde se parsearán de nuevo y se establecerán si corresponde. Hacer op para leer y preestablecer los valores de estas variables y usarlas como valores default (para los pwd, obviamente, no)
 networkParams () {
     
     selectIPMode () {
@@ -553,8 +552,8 @@ networkParams () {
     local ret=$?
     
     #<DEBUG>
-	   log "IPMODE: "$IPMODE   # TODO guess where these vars are passed to the privileged part and stored on the config (either drive or usbdevs)
-	   log "IP:   "$IPADDR  # TODO I guess in dhcp mode, this is not set, and it is used in configureHostDomain, extratc the IP from somewhere (use a function I'll create to parse the certificate auth script, getOwnIP)
+	   log "IPMODE: "$IPMODE
+	   log "IP:   "$IPADDR
 	   log "MASK: "$MASK
 	   log "GATE: "$GATEWAY
 	   log "DNS1: "$DNS1
@@ -891,7 +890,7 @@ selectCryptoDriveMode () {
 	           done
             
             #Generate a unique name for the loopback file
-	           CRYPTFILENAME="$CRYPTFILENAMEBASE"$(date +%s) # TODO Do not use as global in functions. make sure it is written in config before gbiulding the ciph part. -Also, try to move this to the privileged part (as they are written there, if I remember well)
+	           CRYPTFILENAME="$CRYPTFILENAMEBASE"$(date +%s)
         fi
         break
 	   done
@@ -1811,9 +1810,9 @@ writeUsbs () {
     do
         writeNextUSB $i $total
         ret=$?
-        [ $ret -eq 1 ] && continue   #Write error: ask for another usb to write the same share
-        [ $ret -eq 2 ] && continue   #Cancelled: ask for another usb to write the same share
-        [ $ret -ne 0 ] && continue # TODO check if this works
+        [ $ret -eq 1 ] && continue #Write error: ask for another usb to write the same share
+        [ $ret -eq 2 ] && continue #Cancelled: ask for another usb to write the same share
+        [ $ret -ne 0 ] && continue
         
         #If write succeeded, go on to the next usb
         i=$((i+1))

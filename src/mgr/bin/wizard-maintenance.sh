@@ -1843,29 +1843,3 @@ $PVOPS clearAuthAdmin
 doLoop
 
 
-
-
-
-
-
-
-# TODO ELIMINAR LA VERSIÓN ESTÁTICA de index.php antes de actualizar
-# el bundle de nuevo
-
-#TODO Asegurarme de que se loguean todas las acciones comprometidas
-#realizadas sobre el servidor y la webapp. Sacar esto en la app? poner
-#un visor web para la comisión? pedirles contraseñas nuevas para que
-#accedan o una genérica? Crear sistema de logs de interés para la
-#comisión y los admins. usar el oplog? un log de app y el oplog para
-#la de mant? otro log para añadir al acta de una elec? añadir a este
-#oplog además de ops realizadas, el etado de privilegio, auths
-#locales, ediciones de usuarios en la BD, bajas de votos y bajas/altas
-#de votantes en una elección una vez está iniciada... ver qué más
-#cosas pueden dejar de ser ejecutadas sólo bajo privilegio a
-#ejecutarse siempre con logs.
-
-# TODO quizá añadir 'admin-priv-grant' a las ops accesibles con pwd
-# local del admin cuando la app notifique y loguee el estado
-# claramente.
-
-
