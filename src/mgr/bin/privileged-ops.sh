@@ -4,8 +4,13 @@
 #This script contains all the actions that need to be executed by root
 #during setup or during operation. They are invoked through
 #calls. During setup they need no authorisation, but after that, they
-#need to find a rebuilt key in order to be executed.
+#need to find a rebuilt key in order to be executed (some of them are
+#free to be executed, and some others get clearance by previously
+#authenticating with the administrator's local password).
 
+#***** WARNING: When adding any operation, make sure it is listed on
+#***** the appropiate clearance list if they need to be authorised
+#***** other than by key rebuilding
 
 
 #### INCLUDES ####
@@ -312,7 +317,7 @@ checkKeyMatch () {
 #    key: The rebuilt shared data ciphering key will be required
 #1 -> operation code
 #RETURN: 0: if got clearance 1: if not allowed
-getClearance () { # TODO fill the lists *-*-
+getClearance () {
     
     #List of operations that can be executed without any authorisation
     local freeOps="getPubVar   isBackupEnabled
@@ -321,22 +326,20 @@ getClearance () { # TODO fill the lists *-*-
                    listUSBDrives   listHDDPartitions   getFilesystemSize   mountUSB
                    storops-resetSlot   storops-resetAllSlots   storops-switchSlot
                    storops-checkKeyClearance   storops-rebuildKey   storops-rebuildKeyAllCombs
-                   storops-testForDeadShares   storops-checkPwd   storops-readKeyShare
+                   storops-testForDeadShares   storops-checkPwd   storops-readKeyShare  storops-readConfigShare
                    removeAdminPrivileges    adminPrivilegeStatus
                    stats  readOpLog
                    suspend   shutdownServer"
     
     #List of operations requiring admin password check only
-    local pwdOps="raiseAdminAuth
+    local pwdOps="raiseAdminAuth  grantAdminPrivileges
                   forceBackup    freezeSystem   unfreezeSystem
                   installSSLCert
                   getComEmails
                   updateUserPassword   userExists
                   stats-setup"
-
-    # TODO decidir si free:  trustSSHServer storops-readConfigShare
-    # TODO decidir si pwd:  mailServer-reload grantAdminPrivileges startApache 
-
+    
+    
     #If no operation code, then reject
     if [ "$1" == "" ] ; then
         log "getClearance: No operation code"
@@ -453,7 +456,7 @@ opLog "Executing operation $1 after clearance verification."
 if [ "$1" == "setVarSafe" ] 
 then
     
-    checkParameterOrDie "$3" "$4" 0  # TODO make sure that in all calls to this op, the var is in checkParameter.
+    checkParameterOrDie "$3" "$4" 0
     
     allowedVars="SHARES THRESHOLD 
                  SSLCERTSTATE 
@@ -461,7 +464,7 @@ then
                  SSHBAKSERVER SSHBAKPORT SSHBAKUSER SSHBAKPASSWD
                  IPMODE HOSTNM DOMNAME IPADDR MASK GATEWAY DNS1 DNS2
                  MAILRELAY
-                 SITESORGSERV SITESNAMEPURP SITESEMAIL SITESCOUNTRY SITESTOKEN"     # TODO Define a list of variables that will be writable, once clearance is obtained
+                 SITESORGSERV SITESNAMEPURP SITESEMAIL SITESCOUNTRY SITESTOKEN"
     
     if (! contains "$allowedVars" "$3") ; then
         log "Set access denied to variable $3. Not during operation, even with clearance"
@@ -494,7 +497,7 @@ then
                  SSHBAKSERVER SSHBAKPORT SSHBAKUSER SSHBAKPASSWD
                  IPMODE HOSTNM DOMNAME IPADDR MASK GATEWAY DNS1 DNS2
                  MAILRELAY
-                 SITESORGSERV SITESNAMEPURP SITESEMAIL SITESCOUNTRY"     # TODO Define a list of variables that will be readable, once clearance is obtained
+                 SITESORGSERV SITESNAMEPURP SITESEMAIL SITESCOUNTRY"
     
     if (! contains "$allowedVars" "$3") ; then
         log "Get access denied to variable $3. Not during operation, even with clearance"
@@ -521,7 +524,7 @@ fi
 # $3 -> variable
 if [ "$1" == "getPubVar" ]
 then
-    # TODO Define list of public variables
+    #List of public access variables
     allowedVars="SSLCERTSTATE  SYSFROZEN  USINGCERTBOT SHARES THRESHOLD"
     
     if (! contains "$allowedVars" "$3") ; then
@@ -532,7 +535,7 @@ then
     getVar "$2" "$3" aux
     echo -n $aux
     exit 0
-fi   # TODO do we need a setPubVar?
+fi
 
 
 
@@ -825,7 +828,7 @@ then
     #Setup permissions on the ciphered partition
     chmod 751  $DATAPATH  >>$LOGFILE 2>>$LOGFILE
     
-    #If new,setup cryptoFS directories, with proper owners and permissions # TODO add here any new directories to persist
+    #If new, setup cryptoFS directories, with proper owners and permissions
     if [ "$2" == 'new' ]
     then
         mkdir -p $DATAPATH/root >>$LOGFILE 2>>$LOGFILE
@@ -850,25 +853,6 @@ then
     exit 0
 fi
 
-
-
-
-
-#Umounts persistent data unit. All parameters are either on the usb,
-#memory or are constants
-if [ "$1" == "umountCryptoPart" ] 
-then
-    
-    getVar usb DRIVEMODE
-    getVar mem CRYPTDEV
-    
-    umountCryptoPart "$DRIVEMODE" "$MOUNTPATH" "$MAPNAME" "$DATAPATH" "$CRYPTDEV"
-    
-    #Reset memory variable
-    setVar CRYPTDEV "" mem
-    
-    exit 0
-fi # TODO I think this op was meant for the inner key change, since we are dropping it, I believe it is not needed anymore (function is called only on the shutdown). At the end, review and if not used, delete
 
 
 
@@ -1127,10 +1111,33 @@ fi
 
 
 
-#Grant privileged admin access to webapp # TODO if logging and reporting, make grant pwdAdmin clearance
+#Grant privileged admin access to webapp. Logged at the oplog to
+#check that the administrator is not trying to cheat.
 if [ "$1" == "grantAdminPrivileges" ] 
 then
+    getVar disk MGREMAIL
+    
     log "giving webapp privileges."
+
+    #Log it in the operations log for transparency
+    opLog "[PRIVILEGES] ADMINISTRATOR OBTAINED PRIVILEGES on "$(date)"."
+    
+    
+    
+    #Mail a warning to all the comission
+    emaillist=$(parseEmailFile $DATAPATH/root/keyComEmails)
+    if [ $? -ne 0 ] ; then
+        log "Error processing e-mail list at $DATAPATH/root/keyComEmails. Aborting."
+        exit 1
+    fi
+    
+    #Send mail
+    mailsubject=$"System administrator has obtained privileges"
+	   mailbody=$"As a member of the key custody comission, you are informed that the system administrator has now privileged access to the web application. If this has happened without your knowledge or without supervision during an election, this could be irregular and a disenfranchisement risk. Please, investigate him. On "" $(date +%d/%m/%Y-%H:%M)"
+    export EMAIL="vtUJI administrator <"$MGREMAIL">"
+	   echo "$mailbody" | mutt -s "$mailsubject" -- $MGREMAIL $emaillist
+    
+    
     
     dbQuery "update eVotDat set mante=1;"
     exit $?
@@ -1140,10 +1147,33 @@ fi
 
 
 
-#Remove privileged admin access to webapp
+#Remove privileged admin access to webapp. Logged at the oplog to
+#check that the administrator is not trying to cheat.
 if [ "$1" == "removeAdminPrivileges" ]
 then
+    getVar disk MGREMAIL
+    
     log "removing webapp privileges."
+
+    #Log it in the operations log for transparency
+    opLog "[PRIVILEGES] ADMINISTRATOR REMOVED PRIVILEGES on "$(date)"."
+    
+    
+    
+    #Mail a warning to all the comission
+    emaillist=$(parseEmailFile $DATAPATH/root/keyComEmails)
+    if [ $? -ne 0 ] ; then
+        log "Error processing e-mail list at $DATAPATH/root/keyComEmails. Aborting."
+        exit 1
+    fi
+    
+    #Send mail
+    mailsubject=$"System administrator has dropped privileges"
+	   mailbody=$"As a member of the key custody comission, you are informed that the system administrator has now lost his privileged access to the web application. It is safe now to perform an election without risk of disenfranchisement. On "" $(date +%d/%m/%Y-%H:%M)"
+    export EMAIL="vtUJI administrator <"$MGREMAIL">"
+	   echo "$mailbody" | mutt -s "$mailsubject" -- $MGREMAIL $emaillist
+    
+    
     
     dbQuery "update eVotDat set mante=0;"
     exit $?
@@ -1176,7 +1206,7 @@ then
 
     #To prevent lockout on systems deployed behind a NAT, we raise the
     #level by two so the admin IP is not relevant to reach the admin level.
-    dbQuery "update  eVotDat set authextra=2;" # TODO verificar que funciona el 2
+    dbQuery "update  eVotDat set authextra=2;"
 	   if [ $? -ne 0 ] ; then
         log "raise admin auth failed: database server not running."
         exit 1
@@ -1544,7 +1574,7 @@ then
     #Key lenght to use on the application (ballot box, and election keys)
     sed -i  -e "s|###\*\*\*klng\*\*\*###|$KEYSIZE|g" /var/www/*.php
     
-    #Stork organisation and service identifiers # TODO still use them?
+    #Stork organisation and service identifiers
     sed -i  -e "s|###\*\*\*organizacion\*\*\*###|$SITESORGSERV|g" /var/www/*.php
     sed -i  -e "s|###\*\*\*proposito\*\*\*###|$SITESNAMEPURP|g" /var/www/*.php
     
@@ -1558,9 +1588,12 @@ then
     sed -i  -e "s|###\*\*\*ver\*\*\*###||g" /var/www/*.php
     
     
-    #Set the local IP for the protection of the certificate auth script
-    ownIP=$(getOwnIP)  # TODO verificar que funciona
-    sed -i  -e "s|###\*\*\*ownIP\*\*\*###|$ownIP|g" /var/www/auth/certAuth/certAuth.php # TODO esto tras NAT funcionará?
+    #Set the local IP for the protection of the certificate auth
+    #script. (It has some problems behind some NAT, because cURL does
+    #not check hosts file and does not translate the domain to the
+    #localhost IP)
+    ownIP=$(getOwnIP)
+    sed -i  -e "s|###\*\*\*ownIP\*\*\*###|$ownIP|g" /var/www/auth/certAuth/certAuth.php
     
     exit 0
 fi
@@ -2399,7 +2432,7 @@ then
     #Launch root terminal (start a scripting session before launching the terminal)
 	   echo $"WRITE exit TO FINISH THE SESION AND GO BACK TO THE MAIN MENU."
 	   #/bin/bash
-    script -e -q $sesslogfile  # TODO test again in a clean system. See if the interactive shell is opened and the session registerdd and sent
+    script -e -q $sesslogfile
     
     
 	   #Once finished, send bash command history to anyone interested
@@ -2407,7 +2440,7 @@ then
 	   mailbody=$"You provided ypour e-mail address to receive the logs of the execution of the maintenance session on a root terminal. Find it on the attached file. Use it to audit the session and detect any fraud."
     
     
-    #Send mail to all recipients # TODO include the list of commission emails
+    #Send mail to all the comission recipients
     export EMAIL="vtUJI administrator <"$MGREMAIL">"
 	   echo "$mailbody" | mutt -s "$mailsubject"  -a "$sesslogfile" -- $MGREMAIL $emaillist
     
@@ -2470,7 +2503,7 @@ then
     
     #Get a Let's Encrypt signed certificate with certbot
     $CERTBOT --standalone certonly -n --agree-tos -m "$SERVEREMAIL" -d "$SERVERCN"  >>$LOGFILE 2>>$LOGFILE
-    ret=$?   ## TODO for the debug env, add the --staging flag , also add the staging root cert in the distro and on the browsers I use
+    ret=$?
     
     if [ "$stoppedApache" -eq 1 ] ; then
         /etc/init.d/apache2 start >>$LOGFILE 2>>$LOGFILE
@@ -2765,27 +2798,11 @@ fi
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #Will print to stdout a set of human readable system health and status
 #information
 if [ "$1" == "stats" ] 
 then
-    /usr/local/bin/stats.sh 2>>$LOGFILE  # TODO SEGUIR MAÑANA revisar este script
+    /usr/local/bin/stats.sh live 2>>$LOGFILE
 	   exit 0
 fi
 
@@ -2793,50 +2810,43 @@ fi
 
 
 
+#Will start statistics collection on the round robin databases
+if [ "$1" == "stats-start" ] 
+then
+    
+    if (! grep /etc/crontab -rEe "stats\.sh")
+    then
+        #Update stats Every 5 minutes
+        echo -e "0,5,10,15,20,25,30,35,40,45,50,55 * * * * "\
+             "root /usr/local/bin/stats.sh update\n\n" >> /etc/crontab
+    fi
+    
+    exit 0
+fi
+
+
+
+
+
+#Setup statistics system: both round robin databases and the visualization webapp
 if [ "$1" == "stats-setup" ] 
 then
-
-
     
-    if [ "$1" == "startLog" ] # TODO fundir las 3 ops.
-	   then
-	       /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
-	       exit 0
+    #Delete former databases, if any
+	   rm -vf $DATAPATH/rrds/* >>$LOGFILE 2>>$LOGFILE
+    
+    #Start statistics database system and visualization webapp
+	   /usr/local/bin/stats.sh start >>$LOGFILE 2>>$LOGFILE
+	   if [ $? -ne 0 ] ; then
+        log "Error starting statistics system"
+        exit 1
     fi
-
     
-    if [ "$1" == "installCron" ] 
-	   then
-	       /usr/local/bin/stats.sh installCron # TODO make sure on reset it does not install twice
-	       exit 0
-    fi
-
+    #Feed the first data to the system and generate the initial graphics
+	   /usr/local/bin/stats.sh update >>$LOGFILE 2>>$LOGFILE
     
-	   #Destruimos las RRD anteriores
-	   rm -f $DATAPATH/rrds/* >>$LOGFILE 2>>$LOGFILE
-
-	   /usr/local/bin/stats.sh startLog >>$LOGFILE 2>>$LOGFILE
-	   
-	   /usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
-
-
-    
-    if [ "$1" == "updateGraphs" ]  #//// Llamar aupdate tras el reset (en install será la instalación.). Desde el cron o lo que sea, que se llame a pelo, no como OP
-	   then
-	       /usr/local/bin/stats.sh updateGraphs >>$LOGFILE 2>>$LOGFILE
-	       exit 0
-    fi
-
-    
-
-	   exit 0
+    exit 0
 fi
-
-#    if [ "$2" == "uninstallCron" ] # TODO hace falta? NO. borrar
-#	   then
-#	       /usr/local/bin/stats.sh uninstallCron
-#	       exit 0
-#    fi
 
 
 

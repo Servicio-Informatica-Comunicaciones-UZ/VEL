@@ -1134,10 +1134,11 @@ do
     $dlg --infobox $"Setting up statistics system..." 0 0
     if [ "$DOINSTALL" -eq 1 ] ; then
 	       #Setup round robin databases, install cron job and create initial graphs
-	       $PVOPS stats-setup 
+	       $PVOPS stats-setup
     fi
     
-    
+    #Start statistics collection
+    $PVOPS stats-start
     
     
     #Reconfigure power management package to fit the specific hardware

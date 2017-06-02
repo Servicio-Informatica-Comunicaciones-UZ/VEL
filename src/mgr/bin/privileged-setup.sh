@@ -143,10 +143,10 @@ privilegedSetupPhase1 () {
 	   mkdir -p  /media/usbdrive  >>$LOGFILE 2>>$LOGFILE
     chmod 755 /media/usbdrive
     
-    #Create root home dir structures
+    #Create root home dir structures (no permissions to others)
     mkdir -p /root/log    >>$LOGFILE 2>>$LOGFILE
     mkdir -p /root/stats  >>$LOGFILE 2>>$LOGFILE
-    mkdir -p /root/tmp    >>$LOGFILE 2>>$LOGFILE  # TODO ver que con el umask, other no tiene permisos.
+    mkdir -p /root/tmp    >>$LOGFILE 2>>$LOGFILE
 
     #Prepare root user tmp dir
     chmod 700 $ROOTTMP/ >>$LOGFILE 2>>$LOGFILE
@@ -213,7 +213,7 @@ moveToRAM () {
     fi
 	   
     #Copy the filesystem to RAM
-	   find /  -xdev -type f -print0 | xargs -0 touch # TODO test if this double copies the CD (through the path /lib/live/mount/ ). Check on a 4GB system before and after
+	   find /  -xdev -type f -print0 | xargs -0 touch # TODO test if this double copies the CD (through the path /lib/live/mount/ ). Yes. Try to avoid it.
     
     #Mark that it was copied
     setVar copyOnRAM "1" mem
@@ -242,7 +242,7 @@ privilegedSetupPhase4 () {
     
     #Test the RAID arrays, if any, and generate a test message for the administrator
     mdadm --monitor  --scan  --oneshot --syslog --mail=root  --test  >>$LOGFILE 2>>$LOGFILE
-    #If RAIDS are found, Warn the admin that he must receive an e-mail with the test  # TODO Make sure mailer is configured by now
+    #If RAIDS are found, Warn the admin that he must receive an e-mail with the test
     mdadm --examine --scan --config=partitions >/tmp/mdadm.conf  2>>$LOGFILE
     if [ "$(cat /tmp/mdadm.conf)" != "" ] 
 	   then
@@ -260,7 +260,6 @@ privilegedSetupPhase4 () {
 
 privilegedSetupPhase5 () {
     
-    # TODO add some more useful info on the e-mail?
     emailAdministrator $"Test" $"This is a test e-mail to check that the messaging system works end to end."
     
     ### Now, neuter the setup scripts to reduce attack vectors ###
@@ -428,9 +427,8 @@ fi
 # $4 -> value
 if [ "$1" == "setVar" ] 
 then
-    # TODO Define a list of variables that won't be writable once system is locked (despite having clearance to execute the operation)
     
-    checkParameterOrDie "$3" "$4" 0  # TODO make sure that in all calls to this op, the var is in checkParameter.
+    checkParameterOrDie "$3" "$4" 0
     setVar "$3" "$4" "$2"
     exit 0
 fi

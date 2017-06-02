@@ -561,45 +561,28 @@ apachePetitions () {
 LOGPATH="/media/crypStorage/rrds"
 GRAPHPATH="/var/www/statgraphs"
 
-LOGPATH="/root/test/" #!!!!1
-GRAPHPATH="./"        #!!!!1
 
 
 
-# 1 -> Modo 'live'         -> imprme tabla de estadísitcas para visualizar
-#           'startLog'     -> realiza las operaciones de creación de las RDD de registro de estadístcas
-#           'updateLog'    -> actualiza los valores en las RDD de registro de estadístcas
-#           'updateGraphs' -> actualiza las gráficas generadas a partir de los datos de registro.
-#           'installCron'  -> instala el actualizado en el cron.
-#           'uninstallCron'-> desinstala el cron.
-
-MODE="$1"
-
-[ "$MODE" == "" ] && MODE=live
+#1 -> 'live':         print a human-readable set of current system metrics and health indicators
+#     'start':        setup databases for stats registry and the visualization webapp
+#     'updateLog':    register a new snapshot of the statistics in the database
+#     'updateGraphs': regenerate graphics for the stats visualization webapp
+#     'update':       updateLog + updateGraphs
 
 
+## TODO on update, if error, mail admin?
 
 
+OP="$1"
 
-
-if [ "$MODE" == "installCron" ]
-    then
-
-    periods=$(seq 0 5 55)
-    periods=$(echo $periods | sed -re "s/\s/,/g")
-    
-    echo -e "$periods * * * * root  /usr/local/bin/stats.sh updateLog >/dev/null 2>/dev/null; /usr/local/bin/stats.sh updateGraphs >/dev/null 2>/dev/null\n\n" >> /etc/crontab
-
-fi
+[ "$OP" == "" ] && OP=live
 
 
 
-if [ "$MODE" == "uninstallCron" ]
-    then
-    
-    sed -i -re "/^.*stats\.sh.*$/d" /etc/crontab
-    
-fi
+## TODO make sure there is no output or expected error output
+
+
 
 
 
@@ -609,7 +592,7 @@ getNumberOfCPUs () {
 }
 
  
-if [ "$MODE" == "startLog" ]
+if [ "$OP" == "startLog" ]
     then
 
     #Calculamos el siguiente alineamiento de cinco minutos respecto a la hora actual
@@ -734,7 +717,7 @@ fi
 
 
 #Update RRDs' Data sources 
-if [ "$MODE" == "updateLog" ]
+if [ "$OP" == "updateLog" ]
     then
     
 
@@ -845,7 +828,7 @@ getNextRGBCode () {
 
 
 
-if [ "$MODE" == "updateGraphs" ]
+if [ "$OP" == "updateGraphs" ]
     then
     
     #Crea el dir de los gráficos
@@ -1208,7 +1191,7 @@ done
      
 fi
 
-if [ "$MODE" == "live" ]
+if [ "$OP" == "live" ]
     then
 
 

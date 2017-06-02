@@ -1,6 +1,14 @@
 #!/bin/bash
 
 
+#***** WARNING: When adding code here, if it calls a privileged op,
+#***** make sure the op is added to the proper clearance method list,
+#***** both here and on the priviñeged-ops script.
+
+#***** Also, if reading or setting privileged variables, make sure
+#***** they are added to the getSafe, setSafe or getFree lists in
+#***** privileged-ops script.
+
 
 ##############
 #  Includes  #
@@ -835,7 +843,7 @@ getClearance () {
 
     #List of operations that can be executed just with administrator
     #local password authentication
-    local pwdOps="admin-usrpwd
+    local pwdOps="admin-usrpwd        admin-priv-grant
                   key-emails-get
                   ssl-csr-read        ssl-cert-install   ssl-key-renew
                   backup-force        backup-freeze      backup-unfreeze
@@ -1748,7 +1756,7 @@ monitor-stat-reset () {  # TODO SEGUIR MAÑANA lo que se implemente aquí, que val
 	           [ "$?" -ne "0" ] && return 1
             
 	           #Resetemaos las estadísticas
-	           $PVOPS stats resetLog
+	           $PVOPS stats-setup
 	           
 	           $dlg --msgbox $"Reinicio completado con éxito." 0 0
             return 0
@@ -1769,6 +1777,12 @@ monitor-stat-reset () {  # TODO SEGUIR MAÑANA lo que se implemente aquí, que val
 	#Actualizamos los gráficos
 	stats.sh updateGraphs  >>$LOGFILE 2>>$LOGFILE
 
+
+
+
+     $PVOPS stats-start
+
+ 
 
 	$dlg --msgbox $"Reinicio completado con éxito." 0 0
 }
