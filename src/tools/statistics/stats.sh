@@ -7,13 +7,21 @@
 #Common functions for privileged scripts
 . /usr/local/bin/privileged-common.sh
 
+#Auxiliary functions for the statistics monitor
+. /usr/local/bin/stats-common.sh
+
+#Functions to gather statistics
+. /usr/local/bin/stats-probes.sh
+
+
+
+
 
 ###############
 #  Constants  #
 ###############
 
-#Make sure locales don't affect indicator collection
-LC_ALL=C
+
 
 
 
@@ -26,217 +34,17 @@ LC_ALL=C
 
 
 
-#Prints the percentage of used system memory.
-memUsage () {
-    
-    local data=$(free | grep -Ee "^Mem")
-    
-    local totalMem=$(echo $data  | cut -d " " -f 2)
-    local usedMem=$(echo $data   | cut -d " " -f 3)
-    local buffers=$(echo $data   | cut -d " " -f 6)
-    local diskCache=$(echo $data | cut -d " " -f 7)
-    
-    local usedMem=$(((usedMem-diskCache-buffers)*100/totalMem))
-    
-    echo -n "$usedMem"
-    return 0;
-}
 
 
 
 
 
-#Disk usage for all available partitions # TODO SEGUIR MAÑANA que estas funciones sean neutras, nada de indicar el modo
-# 1 -> ruta al dev de la partición o al punto de montaje
-# 2 -> p -> imprime valor porcentual de uso   q -> imprime valor cuantitativo de uso
-partitionUsage () {
-    
-    aux=$(df -h | grep "$1" | sed -re "s/ +/ /g")
-    
-    [ "$aux" == "" ] && return 1;
-    
-    
-    [ "$2" == "p" ]  && ret=$(echo $aux | cut -d " " -f 5)
-    
-    [ "$2" == "q" ]  && ret=$(echo $aux | cut -d " " -f 3)/$(echo $aux | cut -d " " -f 2)
-    
-    echo -n "$ret" | sed -re "s/%//g"  
-    
-    [ "$MODE" == "live" -a  "$2" == "p" ] && echo -n %
-    
 
-    return 0;
-}
 
 
 
 
-
-
-#Indica si está recibiendo y enviando
-# 1 -> tx: devuelve 0 si está transmitiendo rx: devuelve 0 si está recibiendo
-# 2 -> interface (eth0, etc...)
-networkStatus () {
-        
-    transmitting=$(echo "$STATGRAB" | grep net.$2.tx | sed -re "s/.*=[^0-9]*([0-9]+)[^0-9]*/\1/g")
-    receiving=$(echo "$STATGRAB" | grep net.$2.rx | sed -re "s/.*=[^0-9]*([0-9]+)[^0-9]*/\1/g")
-    
-    
-    #echo "-->$transmitting"
-    #echo "-->$receiving"
-    
-    [ "$1" == "tx"  -a  "$transmitting" -gt 0 ] && return 0
-    
-    [ "$1" == "rx"  -a  "$receiving" -gt 0 ] && return 0
-    
-    return 1
-}
-
-
-currtimedate () {
-    echo -n $(date +%c)
-}
-
-
-upTime () {
-    echo -n $(uptime | sed -re "s/\s+/ /g" | sed -re "s/^.*up(.+), [0-9]+ users.*$/\1/g")
-                               
-}
-
-
-idleTime () {
-    #Primer valor: segundos encendido 
-    onsecs=$(cat /proc/uptime | grep -Eoe "^[^ ]+")
-    
-    #Segundo valor: segundos inactivo
-    idlesecs=$(cat /proc/uptime | sed -re  "s/^[^ ]+ (.+)/\1/g")
-    
-    echo -n $(python -c "print int(round($idlesecs*100/$onsecs,2))")
-    [ "$MODE" == "live" ] && echo -n %
-}
-
-
-
-
-#Carga media del sistema en los últimos 1min, 5min y 15 min
-loadAverage () {
-    
-    echo -n $(uptime | sed -re "s/.*load average: (.*)$/\1/g")
-    
-}
-
-
-
-
-#Estadísticas de acceso a disco
-# 1 -> unidad sda, sr0, etc
-# 2 -> r -> tasa de lectura, en block/s    w -> tasa de escritura, en block/s
-diskAccess () {
-
-# -d mostrar estadísaticas de discos
-# 1 -> intérvalo en que se dan las estadísticas, en segundos
-# 2 -> número de reports (el primero es histórico desde el encendido, el segundo en el intérvalo de antes)
-# quedarme con read/write blocks per sec.
-#iostat -d "$1" 1 2 | nl | grep -Ee "^\s*5" | sed -re "s/\s+/ /g" | cut -d " " -f $field 
-
-
-#5 read , 6 write
-[ "$2" == "r" ] && field=5
-[ "$2" == "w" ] && field=6
-
-echo -n $( echo $IOSTAT | sed -re "s/\s+/ /g" | cut -d " " -f $field)" blocks/s"
-
-
-}
-
-
-
-
-
-
-cpuUsage () {
-    
-    #kernelTime=$(echo "$STATGRAB" | grep cpu.kernel | sed -re "s/.*=[^0-9]*([0-9]+)\..*/\1/g")
-    #userTime=$(echo "$STATGRAB" | grep cpu.user | sed -re "s/.*=[^0-9]*([0-9]+)\..*/\1/g")
-    #    
-    #echo -n "$((kernelTime+userTime))%"  
-
-    userTime=$(echo $MPSTAT | sed -re "s/\s+/ /g" | cut -d " " -f 3)
-    niceTime=$(echo $MPSTAT | sed -re "s/\s+/ /g" | cut -d " " -f 4)
-    kernTime=$(echo $MPSTAT | sed -re "s/\s+/ /g" | cut -d " " -f 5)
-
-    #echo "user= $userTime"
-    #echo "kern= $niceTime"
-    #echo "nice= $kernTime"
-    if [ "$userTime" != "" -a "$niceTime" != "" -a "$kernTime" != "" ] ; then
-	echo -n $(python -c "print int(round($userTime+$niceTime+$kernTime,2))")%
-    fi
-}
-
-
-
-
-
-
-
-#Gathers all data that needs time to perform differential polls
-gatherData () {
-
-#  $! -> pid of last subprocess
-pids=""
-
-baseFilename=/tmp/aux$RANDOM
-
-#Ejecutarlo una sola vez si uso más estadísticas
-    # -o realiza dos sondeos y devuelve los diferenciales 
-    # -t 0.1 establece un tiempo de 0.1 segundos entre sondeos #Uso 1 porque si no falsea los resultados
-    # -p devuelve los diferenciales de cpu en %
-statgrab -p -t 1 -o > ${baseFilename}1  &
-pids="$pids $!"
-
-
-
-#Ejecutarlo una sola vez 
-    # -b devuelve las estadísticas conjuntas de I/O para todos los devs de bloques
-    # Se ejecuta un sondeo (en realidad dos, pero se muestra el diferencial), de un segundo
-    # Aquí la media no es desde que se inició el sistema, sino desde que se inciió el sondeo. si hay uno sólo, equivalen.
-sar -b 1 1 | grep Average > ${baseFilename}2 &
-pids="$pids $!"
-
-
-#Ejecutarlo una sola vez 
-    #Obtiene el porcentaje de uso del procesador en este período (1 segundo)
-mpstat 1 1 | grep Average > ${baseFilename}3 &
-pids="$pids $!"
-
-
-
-
-wait $pids
-
-
-
-
-
-STATGRAB=$(cat  ${baseFilename}1)
-IOSTAT=$(cat  ${baseFilename}2)
-MPSTAT=$(cat  ${baseFilename}3)
-
-
-
-rm -f  ${baseFilename}1
-rm -f  ${baseFilename}2
-rm -f  ${baseFilename}3
-
-
-
-
-#echo $STATGRAB
-#echo $IOSTAT
-#echo $MPSTAT
-
-}
-
+# TODO Deleted tempsensor.py, find more standard alternative to get temperatures: sensors y hddtemp /dev/sda
 
 
 
@@ -265,26 +73,6 @@ hddTemp () {
 }
 
 
-# 1 -> ruta del dev a medir: ej. /dev/sda
-#Devuelve el modelo de disco duro
-hddModel () {
-
-   
-    line=$(/usr/sbin/hddtemp "$1" -u C 2>/dev/null)
-    
-    #Como no devuelve códigos de error, miramos que la salida acabe en una temperatura
-    goodmsg=$(echo "$line" | grep -Ee "[0-9]+.*?C$")
-    if [ "$goodmsg" == ""  ] ; then
-	return 1;
-    fi
-    
-    #Devolvemos el modelo de disco duro
-    #echo -n $(echo "$line" | sed -re "s/[^:]+: (.+$)/\1/g" | sed -re "s/(.+):\s*[0-9]+\s*C$/\1/g")
-    echo -n "$line" | cut -d ":" -f 2
-    
-    return 0
-
-}
 
 
 
@@ -304,12 +92,6 @@ coreTemps () {
 
 
 
-#List active eth interfaces  ## TODO check if duplicated on the commons
-getInterfaces () {
-
-    ifconfig |  grep eth | sed -re "s/\s+/ /g" | cut -d " " -f 1
-
-}
 
 
 
@@ -317,176 +99,15 @@ getInterfaces () {
 
 
 
-######## Funcs para la recogida de estadísticas  ###############
-
-
-#List all devs we have IO info from, excluding partitions 
-getIODevList () {
-
-
-    devsandparts=$(iostat -d | sed '1,3d'  | cut -d " " -f 1)
-    
-    
-    usbs=''
-#$$$$1    usbs=$(listUSBs)  #La llamada a sginfo -l peta totalmente mi sistema (debian etch stable), pero por suerte no la ubuntu lucid.
-    
-    currdev=""
-    for dv in $devsandparts
-      do
-      
-      for usb in $usbs
-	do
-	#Si el drive name es un usb, pasa de él.
-	[ "$dv" == "$(basename $usb)" ]  && continue 2
-      done
-      
-      if [ "$currdev" == "" ] ; then
-	  currdev=$dv 
-	  echo "$dv"
-	  continue
-      fi
-      
-      #echo "currdev: $currdev"
-
-      #Miramos si el nombre de este dev-or-part es super-cadena del actual (es una partición) o no
-      isPart=$(expr match "$dv" "\($currdev\)")
-
-      #echo "isPart: $isPart"
-
-      #Si no hay match es un dev distinto, no una part
-      if [ "$isPart" == "" ] ; then
-	  currdev=$dv 
-	  echo "$dv"
-	  continue	  
-      fi
-      
-    done
-
-}
-
-
-# 1 -> dev name (not path)
-# 2 -> r -> bloques totales leidos,    w -> bloques totales escritos 
-getAbsoluteIO () {
-
-    IOdata=$(iostat -d | sed '1,3d' | grep -Ee "^$1[^a-zA-Z0-9]" | sed -re "s/\s+/ /g")
-     
-    
-    [ "$2" == "r" ] && (echo $IOdata | cut -d " " -f 5)  
-    
-    [ "$2" == "w" ] && (echo $IOdata | cut -d " " -f 6)  
-}
 
 
 
 
-#Devuelve los bytes Rx o Tx por una interfaz
-# 1 -> Interface i:e: eth0
-# 2 -> Get Received (rx) or Transmitted (tx) amount 
-getAbsoluteNetwork () {
-
-    data=$(statgrab net.$1.$2 2>/dev/null)
-
-    [  "$data" == "" ] && return 1
-
-    value=$(echo $data | grep "=" | sed -re "s/.*=\s+([0-9]+$)/\1/g")
-
-    [  "$value" == "" ] && return 1
-
-    echo "$value"
-
-    return 0
-}
-
-
-loadAverage5min () {
-    echo -n $(uptime | sed -re "s/.*load average: .*,\s+(.*),.*$/\1/g")
-}
-
-
-
-#Percentage of CPU used by apache since uptime
-apacheCPUUsage () {
-    dataline=$(apache2ctl fullstatus | grep -e "CPU load")
-
-    [ "$dataline" == "" ] && echo -n "0"
-    #en los gauge acepta floats en cualquier notación. en derivce y counter acepta sólo en notación .XXXX, no XX.XXX
-    echo -n $(echo $dataline | sed -re 's/.*-\s+([^%]+)%\s+CPU.*/\1/g')   
-}
-
-#Percentage of Memory used by apache processes
-apacheMemUsage () {
-
-    memusageperprocess=$(ps ax -o pmem,comm | grep apache2 | cut -d " " -f 2)
-    
-    #Sumamos el uso de memoria de todas las instancias de apache
-    acumMem=0.0; 
-
-    for usedMem in $memusageperprocess ; do
-	#echo "$acumMem+$usedMem"
-	acumMem=$(python -c "print $acumMem+$usedMem")
-	#echo "--->$acumMem"
-    done
-
-    echo -n $acumMem
-}
-
-
-#Lists HDDs that have temperature sensors
-listSMARTHDDs () {
-
-    currdisks=$(listHDDs)
-    SMARTdisks=""
-    if [ "$currdisks" != "" ] ; then
-	
-	for disk in $currdisks
-	  do
-	  #Si devuelve una temp, lo añadimos a la lista de discos con sensor
-	  hddTemp $disk 2>&1 >/dev/null
-	  [ "$?" -eq "0" ] && SMARTdisks="$SMARTdisks $disk"
-	done
-	
-	[ "$SMARTdisks" == "" ] && return 1
-
-	echo "$SMARTdisks"
-
-    fi
-    
-    return 1
-}
 
 
 
 
-#Convert MB, GB or TB to kB (integer truncated value)
-# 1-> value
-toKiloBytes (){
 
- [ "$1" == "" ] && return 1
-
- python -c "
-import re
-factors={'kB':1, 'KB':1, 'mB':1024,'MB':1024,'gB':1024*1024,'GB':1024*1024,'tB':1024*1024*1024,'TB':1024*1024*1024}
-num,unit = re.compile('([.0-9]+)\s([a-zA-Z]+)').findall('$1')[0]
-print int(float(num)*factors[unit])
-"
- 
- return 0
-}
-
-
-#Kb transfered by server since uptime
-apacheTransferedKb () {
-    #La salida viene en unidades desde el KB hasta... el TB?
-    inputHRvalue=$(apache2ctl fullstatus | grep -e "Total accesses" |sed -re "s/.*Total Traffic:\s+([.0-9]+.*$)/\1/g")
-    
-    toKiloBytes "$inputHRvalue"
-}
-
-#Number of petitions made to apache since uptime
-apachePetitions () {
-    apache2ctl fullstatus | grep -e "Total accesses" | sed -re "s/.*Total accesses:\s+([0-9]+).+/\1/g"
-}
 
 
 
@@ -539,9 +160,6 @@ OP="$1"
 
 
 
-getNumberOfCPUs () {
-    echo -n $(ls /sys/devices/system/cpu/cpu[0-9]* -d | wc -l)
-}
 
  
 if [ "$OP" == "startLog" ]
@@ -603,7 +221,7 @@ if [ "$OP" == "startLog" ]
     
     
     #RRD de I/O acumulada por HD/CD (2 entradas, r y w)
-    labels=$(getIODevList)
+    labels=$(listHDDs)
     if [ "$labels" != "" ] ; then
 	DSS=""
 	for label in $labels
@@ -616,7 +234,7 @@ if [ "$OP" == "startLog" ]
 
 
     #RRD de I/O de red, por interfaz (2 entradas, tx y rx)
-    labels=$(getInterfaces)
+    labels=$(getEthInterfaces)
     if [ "$labels" != "" ] ; then
 	DSS=""
 	for label in $labels
@@ -641,7 +259,7 @@ if [ "$OP" == "startLog" ]
     for disk in $(listHDDs) ; do
 	for par in  $(getPartitions  $disk) ; do  
 	    #Sólo mostramos aquellas particiones que tienen sistema de ficheros válido (swap no, etc)
-	    usageperc=$(partitionUsage $par p)
+	    usageperc=$(partitionUsagePercent $par)
 	    if [ "$usageperc" != "" ] ; then
 		label=$(basename $par)
 		DSS="$DSS DS:$label:GAUGE:600:0:100"
@@ -698,9 +316,9 @@ if [ "$OP" == "updateLog" ]
     [ "$DATA" != "" ] && rrdtool update $LOGPATH/hddtemperatures.rrd N$DATA
     
 
-    #I/O acumulada por HD/CD (2 entradas, r y w)
+    #I/O acumulada por HD/CD (2 entradas, r y w)  # TODO cambiar por el diskReadRate y diskWriteRate
     DATA=""
-    for iodev in $(getIODevList)
+    for iodev in $(listHDDs)
       do
       DATA="$DATA:$(getAbsoluteIO $iodev r):$(getAbsoluteIO $iodev w)"
     done
@@ -709,7 +327,7 @@ if [ "$OP" == "updateLog" ]
 
     #I/O acumulada de ethernet, por interfaz (2 entradas, tx y rx)
     DATA=""
-    for ethif in $(getInterfaces)
+    for ethif in $(getEthInterfaces)
       do
       DATA="$DATA:$(getAbsoluteNetwork $ethif tx):$(getAbsoluteNetwork $ethif rx)"
     done
@@ -729,7 +347,7 @@ if [ "$OP" == "updateLog" ]
     DATA=""
     for disk in $(listHDDs) ; do
 	for par in  $(getPartitions  $disk) ; do  
-	    usageperc=$(partitionUsage $par p)
+	    usageperc=$(partitionUsagePercent $par)
 	    if [ "$usageperc" != "" ] ; then
 		#echo "usage: $usageperc"
 		DATA="$DATA:$usageperc"
@@ -754,25 +372,6 @@ fi
 
 
 
-# 1 -> last (-1 - 14)
-getNextRGBCode () {
-    
-    #echo "Asking for next to $1" >/dev/stderr
-
-    local RGBCodes=(FF0000 00FF00 0000FF FF7700 00C000 330000 330066 666600  FF99CC 000000 FFCC00 99CCFF 339900 666666 9966FF FF0077)
-    local len=${#RGBCodes[@]}
-    local next=$(($1+1))
-    #echo "next: $next len:$len">/dev/stderr
-    if [ $next -lt  $len  ] ; then
-	#echo "Color served: ${RGBCodes[$next]}" >/dev/stderr
-	echo -n ${RGBCodes[$next]}
-	return 0
-    fi
-
-
-
-    return 1
-}
 
 
 
@@ -816,13 +415,14 @@ if [ "$OP" == "updateGraphs" ]
     
     #Para el hourly (por el LAST)
     labels=$(/usr/local/bin/tempsensor.py temp list 2>/dev/null)
-    lastColour=-1
+
+    ## TODO reset the color sequence
     if [ "$labels" != "" ] ; then
 	SENSORS=""
 	for label in $labels
 	  do
-	  colour=$(getNextRGBCode $lastColour)
-	  lastColour=$((lastColour+1))
+	  colour=$(getNextRGBCode)
+
 	  defstr="DEF:$label=$LOGPATH/coretemperatures.rrd:$label:LAST  LINE1:$label#$colour:'$label(C)'"
 	  SENSORS="$SENSORS $defstr"
 	done
@@ -894,7 +494,7 @@ if [ "$OP" == "updateGraphs" ]
     #I/O acumulada por HD/CD (2 entradas, r y w)
 
     #Para el hourly (por el LAST)
-    labels=$(getIODevList)
+    labels=$(listHDDs)
     lastColour=-1
     if [ "$labels" != "" ] ; then
 	SENSORSR=""
@@ -916,7 +516,7 @@ if [ "$OP" == "updateGraphs" ]
     fi
     
     #Para el resto
-    labels=$(getIODevList)
+    labels=$(listHDDs)
     lastColour=-1
     if [ "$labels" != "" ] ; then
 	SENSORSR=""
@@ -945,7 +545,7 @@ if [ "$OP" == "updateGraphs" ]
     
    
     #Para el hourly (por el LAST)
-    labels=$(getInterfaces)
+    labels=$(getEthInterfaces)
     lastColour=-1
     if [ "$labels" != "" ] ; then
 	SENSORSR=""
@@ -967,7 +567,7 @@ if [ "$OP" == "updateGraphs" ]
     fi
     
     #Para el resto
-    labels=$(getInterfaces)
+    labels=$(getEthInterfaces)
     lastColour=-1
     if [ "$labels" != "" ] ; then
 	SENSORSR=""
@@ -1032,7 +632,7 @@ if [ "$OP" == "updateGraphs" ]
     labels=""
     for disk in $(listHDDs) ; do
 	for par in  $(getPartitions  $disk) ; do 
-	    usageperc=$(partitionUsage $par p)
+	    usageperc=$(partitionUsagePercent $par)
 	    if [ "$usageperc" != "" ] ; then
 		label=$(basename $par)
 		labels="$labels $label"
@@ -1147,22 +747,22 @@ if [ "$OP" == "live" ]
     then
 
 
-gatherData
+gatherTimeDifferentialMetrics   2> /dev/null
 
 
 
 #Values
 
-currtimedate; echo ""; echo ""
+currentDateTime; echo ""; echo ""
 echo -n "Up: "; upTime; echo ""
 echo -n "Idle: "; idleTime; echo ""
 echo -n "Load 1m,5m,15m: "; loadAverage; echo ""
-echo -n "CPU: "; cpuUsage; echo ""
+echo -n "CPU: "; processorUsage; echo ""
 echo -n "Memory: "; memUsage; echo ""
 
 
 
-ethlist=$(getInterfaces)
+ethlist=$(getEthInterfaces)
 
 for eth in $ethlist
   do
@@ -1205,26 +805,21 @@ fi
 echo ""
 
 for disk in $(listHDDs) ; do
-    model=$(hddModel $disk)
+
     
-    if [ "$model" == "" ] ; then     
 	echo "*** $disk ***" 
-    else
-	echo "*** $disk ($model) ***"
-    fi
     
-    echo -n "Reads : "; diskAccess $disk r; echo ""
-    echo -n "Writes: "; diskAccess $disk w; echo ""
+    echo -n "Reads : "; diskReadRate  $disk; echo ""
+    echo -n "Writes: "; diskWriteRate $disk; echo ""
     hdtemp=$(hddTemp $disk)
     [ $? -eq 0 ] && echo -n "Temperature: "; echo "$hdtemp"
 
     OUTPUT=""
     for par in  $(getPartitions  $disk) ; do  
-	usageperc=$(partitionUsage $par p)
+	usageperc=$(partitionUsagePercent $par)
 	if [ "$usageperc" != "" ] ;
 	    then 
-	    #echo -n "  $par: "; partitionUsage $par q; echo " ($usageperc)"
-	    usageamount=$(partitionUsage $par q)
+	    usageamount=$(partitionUsageAbsolute $par q)
 	    OUTPUT="$OUTPUT  $par: $usageamount ($usageperc)\n"
 
 	fi
@@ -1239,13 +834,13 @@ echo "Special Partitions Usage"
 echo "------------------------"
 
 #Uso del EncryptedFS	
-usageperc=$(partitionUsage "/dev/mapper/*" p)
-usageamount=$(partitionUsage "/dev/mapper/*" q)
+usageperc=$(partitionUsagePercent "/dev/mapper/*")
+usageamount=$(partitionUsageAbsolute "/dev/mapper/*")
 echo "Encrypted Data Area: $usageamount ($usageperc)"
 
 #Uso del RamFS
-usageperc=$(partitionUsage "aufs" p)
-usageamount=$(partitionUsage "aufs" q)
+usageperc=$(partitionUsagePercent "aufs")
+usageamount=$(partitionUsageAbsolute "aufs")
 echo "RAM filesystem: $usageamount ($usageperc)"
 
 
@@ -1267,32 +862,4 @@ LC_ALL=""
 #rrdtool dump prueba.rrd
 #rrdtool graph -a PNG $FILENAME DEF:prueba1=prueba.rrd:prueba:AVERAGE LINE1:prueba1#0000FF:"condemor\l"
 
-
-
-
-# TODO Deleted tempsensor.py, find more standard alternative to get temperatures: sensors y hddtemp /dev/sda
-
-#Pasar del fan speed, coger sólo la tempertatura de los Core X:
-
-
-#coretemp-isa-0000
-#Adapter: ISA adapter
-#Core 0:      +41.0°C  (high = +78.0°C, crit = +100.0°C)  
-#
-#coretemp-isa-0001
-#Adapter: ISA adapter
-#Core 1:      +41.0°C  (high = +78.0°C, crit = +100.0°C)  
-
-
-
-#coretemp-isa-0000
-#Adapter: ISA adapter
-#Core 0:       +43.0°C  (high = +78.0°C, crit = +100.0°C)
-#Core 1:       +46.0°C  (high = +78.0°C, crit = +100.0°C)
-#
-#nouveau-pci-0100
-#Adapter: PCI adapter
-#temp1:        +76.0°C  (high = +95.0°C, hyst =  +3.0°C)
-#                       (crit = +130.0°C, hyst =  +2.0°C)
-#                       (emerg = +135.0°C, hyst =  +5.0°C)
 

@@ -394,3 +394,12 @@ if [ -e $DATAPATH/webserver/server.key ] ; then
     cp -f $DATAPATH/webserver/* "$archive/"  >>$LOGFILE 2>>$LOGFILE # Only copy the files
     rm -f $DATAPATH/webserver/*              >>$LOGFILE 2>>$LOGFILE # Only remove the files
 fi
+
+
+
+#IOstat
+# -d: show disk statistics
+#  1: time interval during which statistics are gathered (in seconds)
+#  2: number of reports (first one is the historic since startup, second one is the on obtained on the interval specified above)
+# Use the column "read/write blocks per sec."
+#iostat -d "$1" 1 2 | nl | grep -Ee "^\s*5" | sed -re "s/\s+/ /g" | cut -d " " -f $field 

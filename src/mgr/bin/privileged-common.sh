@@ -747,9 +747,9 @@ configureNetwork () {
 	           fi
 	       done
 	       
-        #List eth interfaces (sometimes kernel may not set first interface to eth0)
-	       local interfaces=$(/sbin/ifconfig -s  2>>$LOGFILE  | cut -d " " -f1 | grep -oEe "eth[0-9]+")
-	       
+        #List eth interfaces (sometimes kernel may not set first
+        #interface to eth0)
+	       local interfaces=$(getEthInterfaces)
 	       if [ "$interfaces" == "" ] ; then
 	           log "Error: no eth interfaces available."  
 	           return 11

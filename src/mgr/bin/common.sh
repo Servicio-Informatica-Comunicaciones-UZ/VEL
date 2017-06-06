@@ -836,3 +836,12 @@ getOwnIP () {
         sed -re  "s/^.*inet addr:([^\s]+)\s.*$/\1/g" |
         tr -d "\n "
 }
+
+
+
+
+
+#List active eth interfaces
+getEthInterfaces () {
+    /sbin/ifconfig -s  2>/dev/null  | cut -d " " -f1 | grep -oEe "eth[0-9]+"
+}
