@@ -294,3 +294,37 @@ getAbsoluteNetwork () {
 
 
 
+#Get temperature in Celsius degrees of a SMART enabled disk drive
+#1 -> path of the device (i.e. /dev/sda)
+hddTemp () {
+    
+    local data=$(/usr/sbin/hddtemp "$1" -u C 2>/dev/null)
+    
+    #Check output correctness (as hddtemp always returns zero)
+    if (! echo "$data" | grep -Ee "[0-9]+.*?C$")
+    then
+	       return 1
+    fi
+    
+    #Print the temperature (no units)
+	   echo -n $(echo "$data" | sed -re "s/^.*: ([-0-9]+).*C$/\1/g")
+    return 0
+}
+
+
+
+
+
+#Return temperature for a given CPU core in Celsius degrees
+#1 -> number of core (according to the order of the list returned by getListOfCPUs)
+coreTemp () {
+    
+    local core="$1"
+    
+    #Get the line with the selected core temperature
+    local data=$(sensors | grep -Ee "Core" | nl | grep -Ee "^\s*$core" )
+    
+    #Return the temperature (no units)
+    echo -n $(echo "$data" | sed -re "s/^[^:]*:\s*[-+]?([.0-9]+).*$/\1/g")
+    return 0
+}

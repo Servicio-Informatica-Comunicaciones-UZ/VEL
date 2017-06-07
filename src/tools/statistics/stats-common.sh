@@ -47,6 +47,15 @@ getNumberOfCPUs () {
 
 
 
+
+#Lists the cores existing in the system.
+getListOfCPUs () {
+    #Translate space on the name
+    echo -n $(sensors | grep -oEe "^Core [0-9]+" | tr " " "_")
+}
+
+
+
 #Lists HDD devs that have SMART protocol support
 listSMARTHDDs () {
     smartctl --scan | cut -d " " -f 1
