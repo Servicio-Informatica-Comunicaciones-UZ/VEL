@@ -172,7 +172,7 @@ partitionUsagePercent () {
 #Will print the disk read rate in blocks/s
 #1 -> Disk drive name ('sda', 'sr0', etc.)
 diskReadRate () {
-    echo -n $( echo $IOSTAT | sed -re "s/\s+/ /g" | cut -d " " -f 5)" blocks/s"
+    echo -n $( echo $IOSTAT | sed -re "s/\s+/ /g" | cut -d " " -f 5)
     return 0
 }
 
@@ -185,7 +185,7 @@ diskReadRate () {
 #WARNING: Relays on the call to gatherTimeDifferentialMetrics
 diskWriteRate () {
 
-    echo -n $( echo "$IOSTAT" | sed -re "s/\s+/ /g" | cut -d " " -f 6)" blocks/s"
+    echo -n $( echo "$IOSTAT" | sed -re "s/\s+/ /g" | cut -d " " -f 6)
     return 0
 }
 

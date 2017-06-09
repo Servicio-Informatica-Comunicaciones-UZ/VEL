@@ -490,6 +490,31 @@ listHDDs () {
 
 
 
+#List all of the partitions for a given device
+#1 -> drive path
+#Stdout: list of partitions
+#Return: number of partitions
+getPartitionsForDrive () {
+    
+    [ "$1" == "" ] && return 0
+    
+    local parts=$($fdisk -l "$1" 2>>$LOGFILE | grep -Ee "^$1" | cut -d " " -f 1)
+    local nparts=0
+    
+    for part in $parts ; do
+        nparts=$((nparts+1))
+    done
+    log "Partitions for drive $1 ($nparts): $parts"  
+    
+    #Return
+    echo -n "$parts"
+    return $nparts
+}
+
+
+
+
+
 #If any RAID array, do an online check for health
 checkRAIDs () {
     

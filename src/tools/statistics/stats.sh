@@ -22,7 +22,11 @@
 ###############
 
 
+#Location of the roudn robin databses for statistics
+DBPATH="/media/crypStorage/rrds"
 
+#Location where the stats graphs will be generated
+GRAPHPATH="/var/www/statgraphs"
 
 
 
@@ -33,6 +37,58 @@
 
 
 
+#For the live stats operation
+printNetworkStats () {
+    
+    local ethlist=$(getEthInterfaces)
+    
+    for eth in $ethlist
+    do
+        local status=0
+        status=$(networkStatus $eth)
+        
+        local tx="No"
+        ((status & 2 )) && tx="Yes"
+        
+        local rx="No"
+        ((status & 1 )) && rx="Yes"
+        
+        
+        echo "Interface $eth Transmitting: $tx";
+        echo "Interface $eth Receiving:    $rx"; 
+    done
+}
+
+
+
+#For the live stats operation
+printCoreTemperatures () {
+    
+    local coreList=$(getListOfCPUs)
+    local coreNum=1
+    for core in coreList
+    do
+        echo "$core: "$(coreTemp $coreNum)" C"
+        coreNum=$((coreNum+1))
+    done
+}
+
+
+
+#For the live stats operation
+#1 -> partition path
+#2 -> (optional) tag name
+printPartitionUsage () {
+    
+    local tag="$1"
+    [ "$2" != "" ] && tag="$2"
+    
+    local usageperc=$(partitionUsagePercent $1)"%"
+    local usageamount=$(partitionUsageAbsolute $1)
+	   if [ "$usageperc" != "" ] ; then 
+	       echo "$tag: $usageamount ($usageperc)"
+	   fi
+}
 
 
 
@@ -42,16 +98,11 @@
 
 
 
+##################
+#  Main program  #
+##################
 
-#### MAIN ####
-
-
-LOGPATH="/media/crypStorage/rrds"
-GRAPHPATH="/var/www/statgraphs"
-
-
-
-
+#Operations:
 #1 -> 'live':         print a human-readable set of current system metrics and health indicators
 #     'start':        setup databases for stats registry and the visualization webapp
 #     'updateLog':    register a new snapshot of the statistics in the database
@@ -59,147 +110,194 @@ GRAPHPATH="/var/www/statgraphs"
 #     'update':       updateLog + updateGraphs
 
 
-#SEGUIR
-
-#    [ "$MODE" == "live" ] && echo -n % in live mode, add the units at the end, not inside the functions
-
-
-
-## TODO on update, if error, mail admin?
-
-# TODO Añadir auth básica web para las páginas de stats. usar la pwd del mgr web, actualizarla cada vez que se update el admin en la op correspondiente
-
-
-# TODO SEGUIR MAÑANA lo que se implemente aquí, que valga para ser llamado tal cual en el setup, así no hace falta reinstalar los sistemas ya desplegados para activar las stats
-
-OP="$1"
-
-[ "$OP" == "" ] && OP=live
-
-
-
-## TODO make sure there is no output or expected error output
+OPERATION="$1"
+#Default
+[ "$OPERATION" == "" ] && OPERATION="live"
 
 
 
 
 
 
-
-
-if [ "$OP" == "startLog" ]
+#Prints a screen with several statistics and system health indicators,
+#for human reading
+if [ "$OPERATION" == "live" ]
 then
 
-    #Calculamos el siguiente alineamiento de cinco minutos respecto a la hora actual
-    dt=$(date +%s)
-    dt=$((  dt+(300-(dt%300))  ))
-    STDATE=$dt
-    
+
+    gatherTimeDifferentialMetrics   2> /dev/null # TODO only on live or also on updateLog?
+
 
     
+    ### Print stats screen ###
     
-    #Generar Bases de datos RRD
+    #System
+    echo $(currentDateTime)
+    echo ""
+    echo $"Up:     "$(upTime)
+    echo $"Idle:   "$(idleTime)"%"
+    echo ""
+    echo $"CPU:    "$(processorUsage)"%"
+    echo $"Memory: "$(memUsage)"%"
+    echo $"Load 1m,5m,15m: "$(loadAverage)
+    echo ""
+    
+    #Network
+    printNetworkStats
+    echo ""
+    
+    #Core temperature
+    echo "***"$"CORE TEMPERATURES"":";
+    printCoreTemperatures
+    echo ""
+    
+    #Disk information
+    for disk in $(listHDDs)
+    do    
+	       echo "*** $disk ("$(hddTemp $disk)" C)***"
+        echo $"Reads : "$(diskReadRate  $disk)$" blocks/s"
+        echo $"Writes: "$(diskWriteRate $disk)$" blocks/s"
+        
+        for par in  $(getPartitionsForDrive $disk)
+        do  
+	           printPartitionUsage $par
+        done
+        echo ""
+    done
+    
+    #Special FS usage information
+    echo $"Special Filesystems information"
+    echo  "-------------------------------"
+    #Encrypted FS	
+    printPartitionUsage "/dev/mapper/$MAPNAME"  $"Encrypted Data Area"
+    #RAM FS
+    printPartitionUsage "aufs"  $"RAM filesystem"
+    
+    exit 0
+fi
 
-    #Definimos los RRAs
-    RRAS=""
+
+
+
+
+
+
+
+
+
+
+
+
+#SEGUIR
+
+
+#Setup statistics databases and web application
+if [ "$OPERATION" == "start" ]
+then
+    
+    #Calculate start date (next 5-minute alignment from now)
+    now=$(date +%s)
+    STDATE=$(( now+(300-(now%300)) ))
+    
+    
+    #Define round robin archives
+    RRAS=""    
     RRAS="$RRAS  RRA:LAST:0.5:1:12"       #Hourly  RRA
     RRAS="$RRAS  RRA:AVERAGE:0.5:12:24"   #Daily   RRA
     RRAS="$RRAS  RRA:AVERAGE:0.5:288:7"   #Weekly  RRA
     RRAS="$RRAS  RRA:AVERAGE:0.5:288:31"  #Monthly RRA
     
     
-    
-    #RRD de uso total de memoria del sistema (%)
-    rrdtool create $LOGPATH/sysmem.rrd --start $STDATE  --step 300 DS:sysmem:GAUGE:600:0:100 $RRAS        
-    
-    
-    #RRD de carga del sistema [0.0 - ?     idletime del procesador (%)
-    #La carga es un valor entre 0 y el número de CPUs del sistema. (Un proc con 2 núcleos puede tener una carga entre 0 y 2)
-    rrdtool create $LOGPATH/sysload.rrd --start $STDATE  --step 300 DS:sysload:GAUGE:600:0:$(getNumberOfCPUs) DS:sysidle:GAUGE:600:0:100 $RRAS    
+    #Create RRD: Memory usage (%)
+    rrdtool create $DBPATH/sysmem.rrd --start $STDATE --step 300 \
+            DS:sysmem:GAUGE:600:0:100   $RRAS        
     
     
-    #RRD de temperaturas Core
-    labels=$(/usr/local/bin/tempsensor.py temp list 2>/dev/null) #Parece que devuelve una lista separada por espacios de los nombres de cores
+    #Create RRD: System load [0.0 - number_of_cores], processor idle time (%)
+    rrdtool create $DBPATH/sysload.rrd --start $STDATE --step 300 \
+            DS:sysload:GAUGE:600:0:$(getNumberOfCPUs) \
+            DS:sysidle:GAUGE:600:0:100    $RRAS
+    
+    
+    #Create RRD: Core temperature (ºC)
+    labels=$(getListOfCPUs)
+    dataSources=""
     if [ "$labels" != "" ] ; then
-	       DSS=""
-	       for label in $labels
-	       do
-	           DSS="$DSS DS:$label:GAUGE:600:U:U"
+        for label in $labels ; do
+	           dataSources="$dataSources    DS:$label:GAUGE:600:U:U"
 	       done
-	       
-	       rrdtool create $LOGPATH/coretemperatures.rrd --start $STDATE  --step 300 $DSS $RRAS    
+	       rrdtool create $DBPATH/coretemperatures.rrd --start $STDATE --step 300 \
+                $dataSources    $RRAS    
     fi
     
     
-    #RRD de temperaturas de HD  
+    #Create RRD: Disk drives temperatures  
     labels=$(listSMARTHDDs)
+	   dataSources=""
     if [ "$labels" != "" ] ; then
-	       DSS=""
-	       for label in $labels
-	       do
-	           DSS="$DSS DS:$(basename $label):GAUGE:600:U:U"
+        for label in $labels ; do
+	           dataSources="$dataSources DS:$(basename $label):GAUGE:600:U:U"
 	       done
-	       
-	       rrdtool create $LOGPATH/hddtemperatures.rrd --start $STDATE  --step 300 $DSS $RRAS    
+	       rrdtool create $DBPATH/hddtemperatures.rrd --start $STDATE --step 300 \
+                $dataSources    $RRAS    
     fi
     
     
-    
-    #RRD de I/O acumulada por HD/CD (2 entradas, r y w)
+    #Create RRD: Disk IO acumulada por HD/CD (2 entradas, r y w)  ## SEGUIR usar diskreadrate y writerate, ahora es una medida puntual, no un acumulado, revisar definición de todas las datasources de todas las rrd.
     labels=$(listHDDs)
     if [ "$labels" != "" ] ; then
-	       DSS=""
+	       dataSources=""
 	       for label in $labels
 	       do
-	           DSS="$DSS DS:${label}-r:DERIVE:600:0:U DS:${label}-w:DERIVE:600:0:U"
+	           dataSources="$dataSources DS:${label}-r:DERIVE:600:0:U DS:${label}-w:DERIVE:600:0:U"
 	       done
 	       
-	       rrdtool create $LOGPATH/hddio.rrd --start $STDATE  --step 300 $DSS $RRAS    
+	       rrdtool create $DBPATH/hddio.rrd --start $STDATE  --step 300 $dataSources $RRAS    
     fi
 
 
-    #RRD de I/O de red, por interfaz (2 entradas, tx y rx)
+    #RRD de I/O de red, por interfaz (2 entradas, tx y rx)  ## TODO Usar valor acumulad de tx y rx? supongo que con cada reboot/ifdown se reiniciará este acumulado. ver man rrdtool para ver cómo reaccionará a una caída del acumulado.
     labels=$(getEthInterfaces)
     if [ "$labels" != "" ] ; then
-	       DSS=""
+	       dataSources=""
 	       for label in $labels
 	       do
-	           DSS="$DSS DS:${label}-tx:DERIVE:600:0:U DS:${label}-rx:DERIVE:600:0:U"
+	           dataSources="$dataSources DS:${label}-tx:DERIVE:600:0:U DS:${label}-rx:DERIVE:600:0:U"
 	       done
 	       
-	       rrdtool create $LOGPATH/networkio.rrd --start $STDATE  --step 300 $DSS $RRAS    
+	       rrdtool create $DBPATH/networkio.rrd --start $STDATE  --step 300 $dataSources $RRAS    
     fi
     
     
     #RRD de accesos al servidor apache y Kb transmitidos
-    rrdtool create $LOGPATH/apacheserved.rrd --start $STDATE  --step 300 DS:apachepets:GAUGE:600:0:U DS:apachekbs:GAUGE:600:0:U $RRAS    
+    rrdtool create $DBPATH/apacheserved.rrd --start $STDATE  --step 300 DS:apachepets:GAUGE:600:0:U DS:apachekbs:GAUGE:600:0:U $RRAS    
 
 
     #RRD de uso de memoria y CPU del apache
-    rrdtool create $LOGPATH/apacheload.rrd --start $STDATE  --step 300 DS:apachecpu:GAUGE:600:0:100 DS:apachemem:GAUGE:600:0:100 $RRAS    
+    rrdtool create $DBPATH/apacheload.rrd --start $STDATE  --step 300 DS:apachecpu:GAUGE:600:0:100 DS:apachemem:GAUGE:600:0:100 $RRAS    
 	   
     
     #RRD de uso las particiones de disco (en porcentaje)
-    DSS=""
+    dataSources=""
     for disk in $(listHDDs) ; do
 	       for par in  $(getPartitions  $disk) ; do  
 	           #Sólo mostramos aquellas particiones que tienen sistema de ficheros válido (swap no, etc)
 	           usageperc=$(partitionUsagePercent $par)
 	           if [ "$usageperc" != "" ] ; then
 		              label=$(basename $par)
-		              DSS="$DSS DS:$label:GAUGE:600:0:100"
+		              dataSources="$dataSources DS:$label:GAUGE:600:0:100"
 	           fi
 	       done
     done
 
     #Añadimos el uso del sistema de ficheros encriptado 
-    DSS="$DSS DS:EncryptedFS:GAUGE:600:0:100"
+    dataSources="$dataSources DS:EncryptedFS:GAUGE:600:0:100"
     
     #Añadimos el uso del sistema de ficheros en RAM
-    DSS="$DSS DS:RamFS:GAUGE:600:0:100"
+    dataSources="$dataSources DS:RamFS:GAUGE:600:0:100"
     
-    if [ "$DSS" != "" ] ; then
-	       rrdtool create $LOGPATH/diskusage.rrd --start $STDATE  --step 300 $DSS $RRAS    
+    if [ "$dataSources" != "" ] ; then
+	       rrdtool create $DBPATH/diskusage.rrd --start $STDATE  --step 300 $dataSources $RRAS    
     fi
     
 
@@ -212,19 +310,19 @@ fi
 
 
 #Update RRDs' Data sources 
-if [ "$OP" == "updateLog" ]
+if [ "$OPERATION" == "updateLog" ]
 then
     
 
     #Uso de memoria
-    rrdtool update $LOGPATH/sysmem.rrd N:$(memUsage)
+    rrdtool update $DBPATH/sysmem.rrd N:$(memUsage)
     
     #Carga del sistema y % del tiempo idle
-    rrdtool update $LOGPATH/sysload.rrd N:$(loadAverage5min):$(idleTime)
+    rrdtool update $DBPATH/sysload.rrd N:$(loadAverage5min):$(idleTime)
     
     #Temperaturas core
     values=$(/usr/local/bin/tempsensor.py temp data 2>/dev/null) ## ESto está devolviendo una lista separada por espacios con las temperaturas de cada core, sin más
-    rrdtool update $LOGPATH/coretemperatures.rrd N:$(echo $values | sed -re "s/\s/:/g")
+    rrdtool update $DBPATH/coretemperatures.rrd N:$(echo $values | sed -re "s/\s/:/g")
 
     #Temperaturas de HDD
     DATA=""
@@ -238,7 +336,7 @@ then
 	       fi
     done
     
-    [ "$DATA" != "" ] && rrdtool update $LOGPATH/hddtemperatures.rrd N$DATA
+    [ "$DATA" != "" ] && rrdtool update $DBPATH/hddtemperatures.rrd N$DATA
     
 
     #I/O acumulada por HD/CD (2 entradas, r y w)  # TODO cambiar por el diskReadRate y diskWriteRate
@@ -247,7 +345,7 @@ then
     do
         DATA="$DATA:$(getAbsoluteIO $iodev r):$(getAbsoluteIO $iodev w)"
     done
-    [ "$DATA" != "" ] && rrdtool update $LOGPATH/hddio.rrd N$DATA    
+    [ "$DATA" != "" ] && rrdtool update $DBPATH/hddio.rrd N$DATA    
     
 
     #I/O acumulada de ethernet, por interfaz (2 entradas, tx y rx)
@@ -256,15 +354,15 @@ then
     do
         DATA="$DATA:$(getAbsoluteNetwork $ethif tx):$(getAbsoluteNetwork $ethif rx)"
     done
-    [ "$DATA" != "" ] && rrdtool update $LOGPATH/networkio.rrd N$DATA    
+    [ "$DATA" != "" ] && rrdtool update $DBPATH/networkio.rrd N$DATA    
     
     
     #Accesos al servidor apache y Kb transmitidos
-    rrdtool update $LOGPATH/apacheserved.rrd N:$(apachePetitions):$(apacheTransferedKb)
+    rrdtool update $DBPATH/apacheserved.rrd N:$(apachePetitions):$(apacheTransferedKb)
     
     
     #Uso de memoria y CPU del apache
-    rrdtool update $LOGPATH/apacheload.rrd N:$(apacheCPUUsage):$(apacheMemUsage)
+    rrdtool update $DBPATH/apacheload.rrd N:$(apacheCPUUsage):$(apacheMemUsage)
 
     
     
@@ -289,7 +387,7 @@ then
 
     #echo "diskusage: $DATA";
 
-    [ "$DATA" != "" ] && rrdtool update $LOGPATH/diskusage.rrd N$DATA
+    [ "$DATA" != "" ] && rrdtool update $DBPATH/diskusage.rrd N$DATA
     
 fi
 
@@ -304,7 +402,7 @@ fi
 
 
 
-if [ "$OP" == "updateGraphs" ]
+if [ "$OPERATION" == "updateGraphs" ]
 then
     
     #Crea el dir de los gráficos
@@ -323,16 +421,16 @@ then
     MONTHLY="--start now-31d --end now --step 86400" # Datos cada 24 horas
 
     #Uso de memoria del sistema
-    rrdtool graph $OPTS $HOURLY  $GRAPHPATH/sysmem-hourly.png  DEF:sysmem=$LOGPATH/sysmem.rrd:sysmem:LAST    LINE1:sysmem#FF0000:"System memory usage (%)"
-    rrdtool graph $OPTS $DAILY   $GRAPHPATH/sysmem-daily.png   DEF:sysmem=$LOGPATH/sysmem.rrd:sysmem:AVERAGE LINE1:sysmem#FF0000:"System memory usage (%)"
-    rrdtool graph $OPTS $WEEKLY  $GRAPHPATH/sysmem-weekly.png  DEF:sysmem=$LOGPATH/sysmem.rrd:sysmem:AVERAGE LINE1:sysmem#FF0000:"System memory usage (%)"
-    rrdtool graph $OPTS $MONTHLY $GRAPHPATH/sysmem-monthly.png DEF:sysmem=$LOGPATH/sysmem.rrd:sysmem:AVERAGE LINE1:sysmem#FF0000:"System memory usage (%)"
+    rrdtool graph $OPTS $HOURLY  $GRAPHPATH/sysmem-hourly.png  DEF:sysmem=$DBPATH/sysmem.rrd:sysmem:LAST    LINE1:sysmem#FF0000:"System memory usage (%)"
+    rrdtool graph $OPTS $DAILY   $GRAPHPATH/sysmem-daily.png   DEF:sysmem=$DBPATH/sysmem.rrd:sysmem:AVERAGE LINE1:sysmem#FF0000:"System memory usage (%)"
+    rrdtool graph $OPTS $WEEKLY  $GRAPHPATH/sysmem-weekly.png  DEF:sysmem=$DBPATH/sysmem.rrd:sysmem:AVERAGE LINE1:sysmem#FF0000:"System memory usage (%)"
+    rrdtool graph $OPTS $MONTHLY $GRAPHPATH/sysmem-monthly.png DEF:sysmem=$DBPATH/sysmem.rrd:sysmem:AVERAGE LINE1:sysmem#FF0000:"System memory usage (%)"
 
     #Carga del sistema
-    rrdtool graph $OPTS $HOURLY  $GRAPHPATH/sysload-hourly.png  DEF:sysload=$LOGPATH/sysload.rrd:sysload:LAST    LINE1:sysload#FF0000:"System load (0-$(getNumberOfCPUs))"
-    rrdtool graph $OPTS $DAILY   $GRAPHPATH/sysload-daily.png   DEF:sysload=$LOGPATH/sysload.rrd:sysload:AVERAGE LINE1:sysload#FF0000:"System load (0-$(getNumberOfCPUs))"
-    rrdtool graph $OPTS $WEEKLY  $GRAPHPATH/sysload-weekly.png  DEF:sysload=$LOGPATH/sysload.rrd:sysload:AVERAGE LINE1:sysload#FF0000:"System load (0-$(getNumberOfCPUs))"
-    rrdtool graph $OPTS $MONTHLY $GRAPHPATH/sysload-monthly.png DEF:sysload=$LOGPATH/sysload.rrd:sysload:AVERAGE LINE1:sysload#FF0000:"System load (0-$(getNumberOfCPUs))"
+    rrdtool graph $OPTS $HOURLY  $GRAPHPATH/sysload-hourly.png  DEF:sysload=$DBPATH/sysload.rrd:sysload:LAST    LINE1:sysload#FF0000:"System load (0-$(getNumberOfCPUs))"
+    rrdtool graph $OPTS $DAILY   $GRAPHPATH/sysload-daily.png   DEF:sysload=$DBPATH/sysload.rrd:sysload:AVERAGE LINE1:sysload#FF0000:"System load (0-$(getNumberOfCPUs))"
+    rrdtool graph $OPTS $WEEKLY  $GRAPHPATH/sysload-weekly.png  DEF:sysload=$DBPATH/sysload.rrd:sysload:AVERAGE LINE1:sysload#FF0000:"System load (0-$(getNumberOfCPUs))"
+    rrdtool graph $OPTS $MONTHLY $GRAPHPATH/sysload-monthly.png DEF:sysload=$DBPATH/sysload.rrd:sysload:AVERAGE LINE1:sysload#FF0000:"System load (0-$(getNumberOfCPUs))"
     
     
     
@@ -348,7 +446,7 @@ then
 	       do
 	           colour=$(getNextRGBCode)
 
-	           defstr="DEF:$label=$LOGPATH/coretemperatures.rrd:$label:LAST  LINE1:$label#$colour:'$label(C)'"
+	           defstr="DEF:$label=$DBPATH/coretemperatures.rrd:$label:LAST  LINE1:$label#$colour:'$label(C)'"
 	           SENSORS="$SENSORS $defstr"
 	       done
 	       
@@ -364,7 +462,7 @@ then
 	       do
 	           colour=$(getNextRGBCode $lastColour)
 	           lastColour=$((lastColour+1))
-	           defstr="DEF:$label=$LOGPATH/coretemperatures.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(C)'"
+	           defstr="DEF:$label=$DBPATH/coretemperatures.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(C)'"
 	           SENSORS="$SENSORS $defstr"
 	       done
 	       
@@ -387,7 +485,7 @@ then
 	           label=$(basename $label)
 	           colour=$(getNextRGBCode $lastColour)
 	           lastColour=$((lastColour+1))
-	           defstr="DEF:$label=$LOGPATH/hddtemperatures.rrd:$label:LAST  LINE1:$label#$colour:'$label(C)'"
+	           defstr="DEF:$label=$DBPATH/hddtemperatures.rrd:$label:LAST  LINE1:$label#$colour:'$label(C)'"
 	           SENSORS="$SENSORS $defstr"
 	       done
 	       
@@ -404,7 +502,7 @@ then
 	           label=$(basename $label)
 	           colour=$(getNextRGBCode $lastColour)
 	           lastColour=$((lastColour+1))
-	           defstr="DEF:$label=$LOGPATH/hddtemperatures.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(C)'"
+	           defstr="DEF:$label=$DBPATH/hddtemperatures.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(C)'"
 	           SENSORS="$SENSORS $defstr"
 	       done
 	       
@@ -430,8 +528,8 @@ then
 	           lastColour=$((lastColour+1))
 	           labelr=$label-r
 	           labelw=$label-w
-	           defstrR="DEF:$labelr=$LOGPATH/hddio.rrd:$labelr:LAST  LINE1:$labelr#$colour:'$label(Blocks-read)'"
-	           defstrW="DEF:$labelw=$LOGPATH/hddio.rrd:$labelw:LAST  LINE1:$labelw#$colour:'$label(Blocks-written)'"
+	           defstrR="DEF:$labelr=$DBPATH/hddio.rrd:$labelr:LAST  LINE1:$labelr#$colour:'$label(Blocks-read)'"
+	           defstrW="DEF:$labelw=$DBPATH/hddio.rrd:$labelw:LAST  LINE1:$labelw#$colour:'$label(Blocks-written)'"
 	           SENSORSR="$SENSORSR $defstrR"
 	           SENSORSW="$SENSORSW $defstrW"
 	       done
@@ -452,8 +550,8 @@ then
 	           lastColour=$((lastColour+1))
 	           labelr=$label-r
 	           labelw=$label-w
-	           defstrR="DEF:$labelr=$LOGPATH/hddio.rrd:$labelr:AVERAGE  LINE1:$labelr#$colour:'$label(Blocks-read)'"
-	           defstrW="DEF:$labelw=$LOGPATH/hddio.rrd:$labelw:AVERAGE  LINE1:$labelw#$colour:'$label(Blocks-written)'"
+	           defstrR="DEF:$labelr=$DBPATH/hddio.rrd:$labelr:AVERAGE  LINE1:$labelr#$colour:'$label(Blocks-read)'"
+	           defstrW="DEF:$labelw=$DBPATH/hddio.rrd:$labelw:AVERAGE  LINE1:$labelw#$colour:'$label(Blocks-written)'"
 	           SENSORSR="$SENSORSR $defstrR"
 	           SENSORSW="$SENSORSW $defstrW"
 	       done
@@ -481,8 +579,8 @@ then
 	           lastColour=$((lastColour+1))
 	           labelr=$label-rx
 	           labelw=$label-tx
-	           defstrR="DEF:$labelr=$LOGPATH/networkio.rrd:$labelr:LAST  LINE1:$labelr#$colour:'$label(Bytes-Rx)'"
-	           defstrW="DEF:$labelw=$LOGPATH/networkio.rrd:$labelw:LAST  LINE1:$labelw#$colour:'$label(Bytes-Tx)'"
+	           defstrR="DEF:$labelr=$DBPATH/networkio.rrd:$labelr:LAST  LINE1:$labelr#$colour:'$label(Bytes-Rx)'"
+	           defstrW="DEF:$labelw=$DBPATH/networkio.rrd:$labelw:LAST  LINE1:$labelw#$colour:'$label(Bytes-Tx)'"
 	           SENSORSR="$SENSORSR $defstrR"
 	           SENSORSW="$SENSORSW $defstrW"
 	       done
@@ -503,8 +601,8 @@ then
 	           lastColour=$((lastColour+1))
 	           labelr=$label-rx
 	           labelw=$label-tx
-	           defstrR="DEF:$labelr=$LOGPATH/networkio.rrd:$labelr:AVERAGE  LINE1:$labelr#$colour:'$label(Bytes-Rx)'"
-	           defstrW="DEF:$labelw=$LOGPATH/networkio.rrd:$labelw:AVERAGE  LINE1:$labelw#$colour:'$label(Bytes-Tx)'"
+	           defstrR="DEF:$labelr=$DBPATH/networkio.rrd:$labelr:AVERAGE  LINE1:$labelr#$colour:'$label(Bytes-Rx)'"
+	           defstrW="DEF:$labelw=$DBPATH/networkio.rrd:$labelw:AVERAGE  LINE1:$labelw#$colour:'$label(Bytes-Tx)'"
 	           SENSORSR="$SENSORSR $defstrR"
 	           SENSORSW="$SENSORSW $defstrW"
 	       done
@@ -521,35 +619,35 @@ then
 
     #Accesos al servidor apache y Kb transmitidos
     rrdtool graph $OPTS $HOURLY  $GRAPHPATH/apachedata-hourly.png  \
-	           DEF:apachepets=$LOGPATH/apacheserved.rrd:apachepets:LAST    LINE1:apachepets#FF0000:"Petitions served by Apache" \
-            DEF:apachekbs=$LOGPATH/apacheserved.rrd:apachekbs:LAST    LINE1:apachekbs#00FF00:"KB served by Apache"
+	           DEF:apachepets=$DBPATH/apacheserved.rrd:apachepets:LAST    LINE1:apachepets#FF0000:"Petitions served by Apache" \
+            DEF:apachekbs=$DBPATH/apacheserved.rrd:apachekbs:LAST    LINE1:apachekbs#00FF00:"KB served by Apache"
     
 
     rrdtool graph $OPTS $DAILY   $GRAPHPATH/apachedata-daily.png   \
-	           DEF:apachepets=$LOGPATH/apacheserved.rrd:apachepets:AVERAGE    LINE1:apachepets#FF0000:"Petitions served by Apache" \
-            DEF:apachekbs=$LOGPATH/apacheserved.rrd:apachekbs:AVERAGE    LINE1:apachekbs#00FF00:"KB served by Apache"
+	           DEF:apachepets=$DBPATH/apacheserved.rrd:apachepets:AVERAGE    LINE1:apachepets#FF0000:"Petitions served by Apache" \
+            DEF:apachekbs=$DBPATH/apacheserved.rrd:apachekbs:AVERAGE    LINE1:apachekbs#00FF00:"KB served by Apache"
     rrdtool graph $OPTS $WEEKLY  $GRAPHPATH/apachedata-weekly.png  \
-	           DEF:apachepets=$LOGPATH/apacheserved.rrd:apachepets:AVERAGE    LINE1:apachepets#FF0000:"Petitions served by Apache" \
-            DEF:apachekbs=$LOGPATH/apacheserved.rrd:apachekbs:AVERAGE    LINE1:apachekbs#00FF00:"KB served by Apache"
+	           DEF:apachepets=$DBPATH/apacheserved.rrd:apachepets:AVERAGE    LINE1:apachepets#FF0000:"Petitions served by Apache" \
+            DEF:apachekbs=$DBPATH/apacheserved.rrd:apachekbs:AVERAGE    LINE1:apachekbs#00FF00:"KB served by Apache"
     rrdtool graph $OPTS $MONTHLY $GRAPHPATH/apachedata-monthly.png \
-	           DEF:apachepets=$LOGPATH/apacheserved.rrd:apachepets:AVERAGE    LINE1:apachepets#FF0000:"Petitions served by Apache" \
-            DEF:apachekbs=$LOGPATH/apacheserved.rrd:apachekbs:AVERAGE    LINE1:apachekbs#00FF00:"KB served by Apache"
+	           DEF:apachepets=$DBPATH/apacheserved.rrd:apachepets:AVERAGE    LINE1:apachepets#FF0000:"Petitions served by Apache" \
+            DEF:apachekbs=$DBPATH/apacheserved.rrd:apachekbs:AVERAGE    LINE1:apachekbs#00FF00:"KB served by Apache"
 
 
     #Uso de memoria y CPU del apache
     rrdtool graph $OPTS $HOURLY  $GRAPHPATH/apacheresusage-hourly.png  \
-	           DEF:apachecpu=$LOGPATH/apacheload.rrd:apachecpu:LAST    LINE1:apachecpu#FF0000:"CPU used by Apache (%)" \
-            DEF:apachemem=$LOGPATH/apacheload.rrd:apachemem:LAST    LINE1:apachemem#00FF00:"Memory used by Apache (%)"
+	           DEF:apachecpu=$DBPATH/apacheload.rrd:apachecpu:LAST    LINE1:apachecpu#FF0000:"CPU used by Apache (%)" \
+            DEF:apachemem=$DBPATH/apacheload.rrd:apachemem:LAST    LINE1:apachemem#00FF00:"Memory used by Apache (%)"
 
     rrdtool graph $OPTS $DAILY   $GRAPHPATH/apacheresusage-daily.png   \
-	           DEF:apachecpu=$LOGPATH/apacheload.rrd:apachecpu:AVERAGE    LINE1:apachecpu#FF0000:"CPU used by Apache (%)" \
-            DEF:apachemem=$LOGPATH/apacheload.rrd:apachemem:AVERAGE    LINE1:apachemem#00FF00:"Memory used by Apache (%)"
+	           DEF:apachecpu=$DBPATH/apacheload.rrd:apachecpu:AVERAGE    LINE1:apachecpu#FF0000:"CPU used by Apache (%)" \
+            DEF:apachemem=$DBPATH/apacheload.rrd:apachemem:AVERAGE    LINE1:apachemem#00FF00:"Memory used by Apache (%)"
     rrdtool graph $OPTS $WEEKLY  $GRAPHPATH/apacheresusage-weekly.png  \
-	           DEF:apachecpu=$LOGPATH/apacheload.rrd:apachecpu:AVERAGE    LINE1:apachecpu#FF0000:"CPU used by Apache (%)" \
-            DEF:apachemem=$LOGPATH/apacheload.rrd:apachemem:AVERAGE    LINE1:apachemem#00FF00:"Memory used by Apache (%)"
+	           DEF:apachecpu=$DBPATH/apacheload.rrd:apachecpu:AVERAGE    LINE1:apachecpu#FF0000:"CPU used by Apache (%)" \
+            DEF:apachemem=$DBPATH/apacheload.rrd:apachemem:AVERAGE    LINE1:apachemem#00FF00:"Memory used by Apache (%)"
     rrdtool graph $OPTS $MONTHLY $GRAPHPATH/apacheresusage-monthly.png \
-	           DEF:apachecpu=$LOGPATH/apacheload.rrd:apachecpu:AVERAGE    LINE1:apachecpu#FF0000:"CPU used by Apache (%)" \
-            DEF:apachemem=$LOGPATH/apacheload.rrd:apachemem:AVERAGE    LINE1:apachemem#00FF00:"Memory used by Apache (%)"
+	           DEF:apachecpu=$DBPATH/apacheload.rrd:apachecpu:AVERAGE    LINE1:apachecpu#FF0000:"CPU used by Apache (%)" \
+            DEF:apachemem=$DBPATH/apacheload.rrd:apachemem:AVERAGE    LINE1:apachemem#00FF00:"Memory used by Apache (%)"
 
 
     
@@ -577,7 +675,7 @@ then
 	       do
 	           colour=$(getNextRGBCode $lastColour)
 	           lastColour=$((lastColour+1))
-	           defstr="DEF:$label=$LOGPATH/diskusage.rrd:$label:LAST  LINE1:$label#$colour:'$label(%-in-use)'"
+	           defstr="DEF:$label=$DBPATH/diskusage.rrd:$label:LAST  LINE1:$label#$colour:'$label(%-in-use)'"
 	           PUSAGE="$PUSAGE $defstr"
 	       done
 	       
@@ -592,7 +690,7 @@ then
 	       do
 	           colour=$(getNextRGBCode $lastColour)
 	           lastColour=$((lastColour+1))
-	           defstr="DEF:$label=$LOGPATH/diskusage.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(%-in-use)'"
+	           defstr="DEF:$label=$DBPATH/diskusage.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(%-in-use)'"
 	           PUSAGE="$PUSAGE $defstr"
 	       done
 	       
@@ -668,111 +766,14 @@ then
     
 fi
 
-if [ "$OP" == "live" ]
+
+
+
+
+if [ "$OPERATION" == "update" ]
 then
-
-
-    gatherTimeDifferentialMetrics   2> /dev/null
-
-
-
-    #Values
-
-    currentDateTime; echo ""; echo ""
-    echo -n "Up: "; upTime; echo ""
-    echo -n "Idle: "; idleTime; echo ""
-    echo -n "Load 1m,5m,15m: "; loadAverage; echo ""
-    echo -n "CPU: "; processorUsage; echo ""
-    echo -n "Memory: "; memUsage; echo ""
-
-
-
-    ethlist=$(getEthInterfaces)
-
-    for eth in $ethlist
-    do
-        echo -n "Interface $eth Transmitting: "; 
-        if $(networkStatus tx $eth) ; 
-        then  
-            echo -n "Yes"; 
-        else 
-            echo -n "No"  
-        fi;
-        echo ""
-        echo -n "Interface $eth Receiving:    "; 
-        if $(networkStatus rx $eth) ; 
-        then  
-            echo -n "Yes"; 
-        else
-            echo -n "No" 
-        fi; 
-        echo ""
-    done
-
-    echo ""
-
-
-    coreTemps=$(coreTemps)
-    if [ $? -eq 0 ]
-    then
-        echo -e "*** System Temperature sensors: ***";
-        echo "$coreTemps"
-        echo ""
-    fi
-
-    fanspeed=$(hugeMetalFans)
-    if [ $? -eq 0 ]
-    then
-        echo -e "*** Fan Speeds: ***";
-        echo "$fanspeed"
-    fi
-
-    echo ""
-
-    for disk in $(listHDDs) ; do
-
-        
-	       echo "*** $disk ***" 
-        
-        echo -n "Reads : "; diskReadRate  $disk; echo ""
-        echo -n "Writes: "; diskWriteRate $disk; echo ""
-        hdtemp=$(hddTemp $disk)
-        [ $? -eq 0 ] && echo -n "Temperature: "; echo "$hdtemp"
-
-        OUTPUT=""
-        for par in  $(getPartitions  $disk) ; do  
-	           usageperc=$(partitionUsagePercent $par)
-	           if [ "$usageperc" != "" ] ;
-	           then 
-	               usageamount=$(partitionUsageAbsolute $par q)
-	               OUTPUT="$OUTPUT  $par: $usageamount ($usageperc)\n"
-
-	           fi
-        done
-        [ "$OUTPUT" != "" ] && echo -e "Disk Usage:\n$OUTPUT"
-
-    done
-
-
-    #Usage de los FS especiales
-    echo "Special Partitions Usage"
-    echo "------------------------"
-
-    #Uso del EncryptedFS	
-    usageperc=$(partitionUsagePercent "/dev/mapper/*")
-    usageamount=$(partitionUsageAbsolute "/dev/mapper/*")
-    echo "Encrypted Data Area: $usageamount ($usageperc)"
-
-    #Uso del RamFS
-    usageperc=$(partitionUsagePercent "aufs")
-    usageamount=$(partitionUsageAbsolute "aufs")
-    echo "RAM filesystem: $usageamount ($usageperc)"
-
-
-
-
+    :
 fi
-
 
 
 
@@ -782,9 +783,18 @@ LC_ALL=""
 
 
 
+
+# TODO Añadir auth básica web para las páginas de stats. usar la pwd del mgr web, actualizarla cada vez que se update el admin en la op correspondiente
+
+# TODO SEGUIR MAÑANA lo que se implemente aquí, que valga para ser llamado tal cual en el setup, así no hace falta reinstalar los sistemas ya desplegados para activar las stats
+
+## TODO make sure there is no output or expected error output
+
+
+
+
+
 #rrdtool create prueba.rrd --start $(date +%s) --step 300 DS:prueba:GAUGE:600:U:U RRA:AVERAGE:0.5:2:4
 #rrdtool update prueba.rrd $((1279885468+600)):1.57e-5
 #rrdtool dump prueba.rrd
 #rrdtool graph -a PNG $FILENAME DEF:prueba1=prueba.rrd:prueba:AVERAGE LINE1:prueba1#0000FF:"condemor\l"
-
-
