@@ -552,6 +552,7 @@ a2enmod ssl
 a2enmod php5
 a2enmod rewrite
 a2enmod headers
+a2enmod auth_digest
 a2dismod status
 a2enconf security
 a2disconf apache2-doc

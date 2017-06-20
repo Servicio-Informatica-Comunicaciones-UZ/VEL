@@ -30,10 +30,12 @@ gatherTimeDifferentialMetrics () {
     
     #Gets aggregated block devices read and write rates
     # -b: return aggregated IO statistics for all block devices
+    # -d: return IO statistics per block device
+    # -p: print dev name for each block device instead of internal name
     #  1: time lapse between probings, 1 second 
     #  1: number of probings, 1 (besides the initial one, of course)
     #(as there is only one probe, average row equals the single probe row)
-    sar -b 1 1 | grep Average > /tmp/iostat.$suffix &
+    sar -dp 1 1 | grep Average > /tmp/iostat.$suffix &
     pids="$pids $!"
 
     #Gets processor usage stats
@@ -169,10 +171,13 @@ partitionUsagePercent () {
 
 
 
-#Will print the disk read rate in blocks/s
-#1 -> Disk drive name ('sda', 'sr0', etc.)
+#Will print the disk read rate in blocks/s at the moment
+#1 -> Disk drive name ('sda', 'sr0', etc.) or path
+#WARNING: Relays on the call to gatherTimeDifferentialMetrics
 diskReadRate () {
-    echo -n $( echo $IOSTAT | sed -re "s/\s+/ /g" | cut -d " " -f 5)
+    [ "$1" == "" ] && return 1
+    drive=$(basename "$1")
+    echo -n $( echo "$IOSTAT" | grep "$drive" | sed -re "s/\s+/ /g" | cut -d " " -f 4)
     return 0
 }
 
@@ -180,12 +185,13 @@ diskReadRate () {
 
 
 
-#Will print the disk write rate in blocks/s
-#1 -> Disk drive name ('sda', 'sr0', etc.)
+#Will print the disk write rate in blocks/s at the moment
+#1 -> Disk drive name ('sda', 'sr0', etc.) or path
 #WARNING: Relays on the call to gatherTimeDifferentialMetrics
 diskWriteRate () {
-
-    echo -n $( echo "$IOSTAT" | sed -re "s/\s+/ /g" | cut -d " " -f 6)
+        [ "$1" == "" ] && return 1
+    drive=$(basename "$1")
+    echo -n $( echo "$IOSTAT" | grep "$drive" | sed -re "s/\s+/ /g" | cut -d " " -f 5)
     return 0
 }
 

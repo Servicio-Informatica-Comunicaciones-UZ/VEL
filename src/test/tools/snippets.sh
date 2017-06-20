@@ -403,3 +403,36 @@ fi
 #  2: number of reports (first one is the historic since startup, second one is the on obtained on the interval specified above)
 # Use the column "read/write blocks per sec."
 #iostat -d "$1" 1 2 | nl | grep -Ee "^\s*5" | sed -re "s/\s+/ /g" | cut -d " " -f $field 
+
+
+
+
+
+
+
+
+
+
+#Secure stats webapp dir  # TODO read the admin database pwd and put it in apache auth
+
+
+# TODO the building of this, to an aux function 
+#Get admin user password and username
+password="1234"
+user="admin"
+
+#Create password file
+realm="server-stats"
+echo -n "$user:$realm:" > $DBPATH/.htpasswd  # TODO see if the .htaccess can be read by root only and not by www-data, otherwise, put it elsewhere
+digest=$(echo -n "$user:$realm:$password" | md5sum | cut -d " " -f 1)
+echo "$digest" >> $DBPATH/.htpasswd
+
+   
+
+
+
+
+#rrdtool create prueba.rrd --start $(date +%s) --step 300 DS:prueba:GAUGE:600:U:U RRA:AVERAGE:0.5:2:4
+#rrdtool update prueba.rrd $((1279885468+600)):1.57e-5
+#rrdtool dump prueba.rrd
+#rrdtool graph -a PNG $FILENAME DEF:prueba1=prueba.rrd:prueba:AVERAGE LINE1:prueba1#0000FF:"condemor\l"

@@ -473,7 +473,7 @@ listHDDs () {
       drivename=/dev/hd$n 
       [ -e $drivename ] && drives="$drives $drivename"
 
-      #All existing serial drives not conneted through USB are added
+      #All existing serial drives not connected through USB are added
       drivename=/dev/sd$n
       for usb in $usbs
 	     do

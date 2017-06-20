@@ -2810,9 +2810,6 @@ fi
 if [ "$1" == "stats-setup" ] 
 then
     
-    #Delete former databases, if any
-	   rm -vf $DATAPATH/rrds/* >>$LOGFILE 2>>$LOGFILE
-    
     #Start statistics database system and visualization webapp
 	   /usr/local/bin/stats.sh start >>$LOGFILE 2>>$LOGFILE
 	   if [ $? -ne 0 ] ; then
