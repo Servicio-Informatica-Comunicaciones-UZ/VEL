@@ -795,6 +795,13 @@ ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 EOF
 
+
+
+#Delete letsencrypt directory, as it is sometimes created by the
+#package installer and the app expects it not to exist before setup.
+rmdir -v /etc/letsencrypt/
+
+
 #Clean useless or potentially dangerous files or interfering files
 ctell "***** Deleting useless files"
 #rm -f /root/.bash_history  # TODO see what we uncomment 

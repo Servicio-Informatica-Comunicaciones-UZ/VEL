@@ -34,6 +34,7 @@ GRAPHPATH="/var/www/statgraphs"
 
 
 
+
 #############
 #  Methods  #
 #############
@@ -157,8 +158,8 @@ createStatsDatabases () {
     dataSources=""
     if [ "$labels" != "" ] ; then
 	       for label in $labels ; do
-	           dataSources="$dataSources  DS:${label}-read:GAUGE:600:0:U
-                                       DS:${label}-write:GAUGE:600:0:U"
+	           dataSources="$dataSources  DS:"$(basename $label)"-read:GAUGE:600:0:U
+                                       DS:"$(basename $label)"-write:GAUGE:600:0:U"
 	       done
 	       rrdtool create $DBPATH/hddio.rrd --start $stdate  --step 300 \
                 $dataSources    $rrArchives    
@@ -233,22 +234,22 @@ updateLog () {
     values="N"
     for core in $(getListOfCPUs)
     do
-        value=$(coreTemp $core  2>>$LOGFILE)
+        value=$(coreTemp $core  2>>$STATLOG)
         [ "$value" == "" ] && value="U" #If none, input 'Unknown'
         values="$values:$value"
     done
-    [ "$values" != "" ] && rrdtool update $DBPATH/coretemperatures.rrd "$values"
+    [ "$values" != "N" ] && rrdtool update $DBPATH/coretemperatures.rrd "$values"
     
     
     #SMART HDDs temperature (C degrees)
     values="N"
     for disk in $(listSMARTHDDs)
     do
-        value=$(hddTemp $disk  2>>$LOGFILE)
+        value=$(hddTemp $disk  2>>$STATLOG)
         [ "$value" == "" ] && value="U" #If none, input 'Unknown'
         values="$values:$value"
     done
-    [ "$values" != "" ] && rrdtool update $DBPATH/hddtemperatures.rrd "$values"
+    [ "$values" != "N" ] && rrdtool update $DBPATH/hddtemperatures.rrd "$values"
     
     
     #Sampled HDD read/write rate (blocks/s)
@@ -257,7 +258,7 @@ updateLog () {
     do
         values="$values":$(diskReadRate $disk):$(diskWriteRate $disk)
     done
-    [ "$values" != "" ] && rrdtool update $DBPATH/hddio.rrd "$values"
+    [ "$values" != "N" ] && rrdtool update $DBPATH/hddio.rrd "$values"
     
 
     #Accumulated Ethernet I/O per interface (bytes)
@@ -266,7 +267,7 @@ updateLog () {
     do
         values="$values":$(getAbsoluteNetwork $ethif tx):$(getAbsoluteNetwork $ethif rx)
     done
-    [ "$values" != "" ] && rrdtool update $DBPATH/networkio.rrd "$values"
+    [ "$values" != "N" ] && rrdtool update $DBPATH/networkio.rrd "$values"
     
     
     #Apache CPU (%) and memory (%) usage
@@ -277,11 +278,10 @@ updateLog () {
     values="N"
     for disk in $(listHDDs)
     do
-	       for par in  $(getPartitions  $disk)
+	       for par in  $(getPartitionsForDrive  $disk)
         do  
 	           value=$(partitionUsagePercent $par)
-	           [ "$value" == "" ] && value="U" #If none, input 'Unknown'
-            values="$values:$value"
+	           [ "$value" != "" ] && values="$values:$value"
 	       done
     done
     #Encrypted filesystem usage
@@ -289,7 +289,7 @@ updateLog () {
     #RAM filesystem usage
     values="$values:"$(partitionUsagePercent aufs)
     
-    [ "$values" != "" ] && rrdtool update $DBPATH/diskusage.rrd  "$values"
+    [ "$values" != "N" ] && rrdtool update $DBPATH/diskusage.rrd  "$values"
 
     return 0
 }
@@ -409,6 +409,7 @@ generateGraphs () {
         local linesWrite=""
 	       for label in $labels
 	       do
+            label=$(basename $label)
 	           local colour=$(getNextRGBCode)
             local labelRead=$label"-read"
             local labelWrite=$label"-write"
@@ -428,6 +429,7 @@ generateGraphs () {
         local linesWrite=""
 	       for label in $labels
 	       do
+            label=$(basename $label)
 	           local colour=$(getNextRGBCode)
             local labelRead=$label"-read"
             local labelWrite=$label"-write"
@@ -526,7 +528,7 @@ generateGraphs () {
     #Disk partition usage
     local labels=""
     for disk in $(listHDDs) ; do
-	       for par in  $(getPartitions  $disk) ; do 
+	       for par in  $(getPartitionsForDrive  $disk) ; do 
 	           local usageperc=$(partitionUsagePercent $par)
 	           if [ "$usageperc" != "" ] ; then
 		              label=$(basename $par)
@@ -581,11 +583,11 @@ generateStatsPages () {
     
     
     #Grab all the graph filenames
-    local graphFiles=$(ls "$GRAPHPATH/*.png")
+    local graphFiles=$(ls $GRAPHPATH/*.png)
     
     #Tab pages to be generated
     local pages="hourly daily weekly monthly"
-
+    
     
     for page in $pages ; do
 
@@ -606,8 +608,8 @@ generateStatsPages () {
         
         echo "    <h1>Server Statistics</h1>
                   <h3>$(hostname -f)</h3>
-                  Period: $page
-                  Current time: $(date)
+                  <b>Period</b>: $page <br/>
+                  <b>Current time</b>: <script>var date = new Date(); document.write(date.toISOString());</script> <br/>
                   <br/>
                   <br/>" >> $filepath
 
@@ -635,8 +637,11 @@ generateStatsPages () {
     done
     
     
-    #Link the hourly tab as the entry point
-    ln -s $GRAPHPATH/hourly.html $GRAPHPATH/index.html
+    #Copy the hourly tab as the entry point (can't link due to
+    #NofollowSymLink policy)
+    cp -f $GRAPHPATH/hourly.html $GRAPHPATH/index.html  >>$STATLOG 2>>$STATLOG
+    chmod 740 $GRAPHPATH/index.html                     >>$STATLOG 2>>$STATLOG
+    chown root:www-data $GRAPHPATH/index.html           >>$STATLOG 2>>$STATLOG
     
     return 0
 }
@@ -650,16 +655,16 @@ generateStatsPages () {
 updateGraphs () {
     
     #Delete former graphs, if any
-	   rm -vf "$GRAPHPATH"/*  >>$LOGFILE 2>>$LOGFILE
+	   rm -vf "$GRAPHPATH"/*  >>$STATLOG 2>>$STATLOG
     
     #Create directory, in case it doesn't exist
-    mkdir -p  "$GRAPHPATH"  >>$LOGFILE 2>>$LOGFILE
-    chmod 750 "$GRAPHPATH"  >>$LOGFILE 2>>$LOGFILE
-    chown root:www-data "$GRAPHPATH"  >>$LOGFILE 2>>$LOGFILE
+    mkdir -p  "$GRAPHPATH"  >>$STATLOG 2>>$STATLOG
+    chmod 750 "$GRAPHPATH"  >>$STATLOG 2>>$STATLOG
+    chown root:www-data "$GRAPHPATH"  >>$STATLOG 2>>$STATLOG
 
     
     #Build the udated graphs
-    generateGraphs
+    generateGraphs   >>$STATLOG 2>>$STATLOG
     
     
     #Build the pages
@@ -708,7 +713,7 @@ OPERATION="$1"
 if [ "$OPERATION" == "live" ]
 then
     
-    gatherTimeDifferentialMetrics   2> /dev/null
+    gatherTimeDifferentialMetrics   2>>$STATLOG
     
     
     ### Print stats screen ###
@@ -768,10 +773,10 @@ if [ "$OPERATION" == "start" ]
 then
     
     #Delete former databases, if any contents
-	   rm -vf $DBPATH/*     >>$LOGFILE 2>>$LOGFILE
+	   rm -vf $DBPATH/*     >>$STATLOG 2>>$STATLOG
     #Create directory, in case it doesn't exist 
-    mkdir -vp "$DBPATH"   >>$LOGFILE 2>>$LOGFILE
-    chmod 750 "$DBPATH"   >>$LOGFILE 2>>$LOGFILE
+    mkdir -vp "$DBPATH"   >>$STATLOG 2>>$STATLOG
+    chmod 750 "$DBPATH"   >>$STATLOG 2>>$STATLOG
     
     #Create databases
     createStatsDatabases
@@ -786,7 +791,7 @@ fi
 #Feed the stats databases and regenerate the graphs
 if [ "$OPERATION" == "update" ]
 then
-    gatherTimeDifferentialMetrics   2> /dev/null
+    gatherTimeDifferentialMetrics   2>>$STATLOG
     
     updateLog
     
@@ -802,7 +807,7 @@ fi
 #Feed the stats databases
 if [ "$OPERATION" == "updateLog" ]
 then
-    gatherTimeDifferentialMetrics   2> /dev/null
+    gatherTimeDifferentialMetrics   2>>$STATLOG
     
     updateLog
     exit 0

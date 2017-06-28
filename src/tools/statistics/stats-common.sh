@@ -13,7 +13,15 @@
 LC_ALL=C
 
 
-
+#Destination of all the output. Different from the wizard log as this
+#generates a huge amount of output. Recommended values:
+# In production: /dev/null
+# To receive e-mails on updates: /dev/stdout
+# To log on a file: /tmp/statsLog
+STATLOG=/dev/null
+#<DEBUG>
+STATLOG=/tmp/statsLog
+#</DEBUG>
 
 
 ######################

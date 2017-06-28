@@ -56,9 +56,9 @@ gatherTimeDifferentialMetrics () {
     MPSTAT=$(cat /tmp/mpstat.$suffix)
     
     #Remove the buffer files
-    rm -f /tmp/statgrab.$suffix 2>/dev/null
-    rm -f /tmp/iostat.$suffix 2>/dev/null
-    rm -f /tmp/mpstat.$suffix 2>/dev/null
+    rm -f /tmp/statgrab.$suffix 2>>$STATLOG
+    rm -f /tmp/iostat.$suffix 2>>$STATLOG
+    rm -f /tmp/mpstat.$suffix 2>>$STATLOG
     
     return 0
 }
@@ -286,7 +286,7 @@ networkStatus () {
 #2-> 'rx' to get the received value, 'tx' to get the transmitted value
 getAbsoluteNetwork () {
     
-    local data=$(statgrab net.$1.$2 2>/dev/null)
+    local data=$(statgrab net.$1.$2 2>>$STATLOG)
     [  "$data" == "" ] && return 1
     
     local value=$(echo $data | grep "=" | sed -re "s/.*=\s+([0-9]+$)/\1/g")
@@ -304,10 +304,10 @@ getAbsoluteNetwork () {
 #1 -> path of the device (i.e. /dev/sda)
 hddTemp () {
     
-    local data=$(/usr/sbin/hddtemp "$1" -u C 2>/dev/null)
+    local data=$(/usr/sbin/hddtemp "$1" -u C 2>>$STATLOG)
     
     #Check output correctness (as hddtemp always returns zero)
-    if (! echo "$data" | grep -Ee "[0-9]+.*?C$")
+    if (! echo "$data" | grep -Ee "[0-9]+.*?C$" >>$STATLOG 2>>$STATLOG )
     then
 	       return 1
     fi
@@ -328,7 +328,7 @@ coreTemp () {
     local core="$1"
     
     #Get the line with the selected core temperature
-    local data=$(sensors | grep -Ee "Core" | nl | grep -Ee "^\s*$core" )
+    local data=$(sensors 2>>$STATLOG | grep -Ee "Core" | nl | grep -Ee "^\s*$core" )
     
     #Return the temperature (no units)
     echo -n $(echo "$data" | sed -re "s/^[^:]*:\s*[-+]?([.0-9]+).*$/\1/g")

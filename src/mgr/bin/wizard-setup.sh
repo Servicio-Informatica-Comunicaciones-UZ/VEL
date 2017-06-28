@@ -398,11 +398,12 @@ if [ "$1" == "" ]
         do
             lan=$($dlg --no-cancel --no-tags \
                        --menu "Select Language:" 0 40  3  \
-	                      "es_ES" "Español" \
-	                      "ca_ES" "Català" \
 	                      "en_US" "English" \
 	                      2>&1 >&4)
         done
+        #TODO put back these languages when l10n is implemented
+        # "es_ES" "Español" \
+	       # "ca_ES" "Català" \
         export LANGUAGE="$lan.UTF-8"
         export LANG="$lan.UTF-8" 
         export LC_ALL=""
@@ -504,7 +505,7 @@ do
     #On fresh install, show EULA
     if [ "$DOINSTALL" -eq 1 ] ; then
         $dlg --extra-button --extra-label $"I do not agree" --no-cancel \
-             --ok-label $"I agree"  --textbox /usr/share/doc/License.$LANGUAGE 40 80
+             --ok-label $"I agree"  --textbox "/usr/share/doc/License.$LANGUAGE" 40 80
         #Does not accept EULA, halt
         [ $? -eq 3 ] && shutdownServer "h"
     fi

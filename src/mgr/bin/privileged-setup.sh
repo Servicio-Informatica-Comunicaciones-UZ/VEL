@@ -99,7 +99,8 @@ privilegedSetupPhase1 () {
     setupFirewall >>$LOGFILE 2>>$LOGFILE
     
     
-    #Configure lm-sensors sensors. Detect modules to be loaded and load them
+    #Configure lm-sensors sensors to gather statistics. Detect modules
+    #to be loaded and load them
     modsToLoad=$(echo -e "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n" | sensors-detect | sed -re "1, /^# Chip drivers$/ d" -e "/#----cut here----/,$ d")
     for module in $modsToLoad; do modprobe $module; done;
     log "Loaded sensor modules: $modsToLoad"
