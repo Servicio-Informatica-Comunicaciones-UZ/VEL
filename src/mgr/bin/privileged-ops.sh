@@ -251,7 +251,7 @@ checkKeyMatch () {
         [ "$1" -ge 1 ] && slots="$1"
     fi
     
-    local checked=0
+    local ret=1
     for num in $slots ; do
         
         #Get the challenging key in the slot
@@ -271,7 +271,7 @@ checkKeyMatch () {
         if [ "$chal" == "$base"  ] ; then
             log "checkKeyMatch: slot $num matched actual key"
             #Matched, leave
-            checked=1
+            ret=0
             break
         fi
         
@@ -279,7 +279,7 @@ checkKeyMatch () {
         log "checkKeyMatch: slot $num doesn't match actual key"
     done
     
-    return $checked
+    return $ret
 }
 
 
@@ -1845,7 +1845,7 @@ then
 	   getVar mem CURRENTSLOT
     
 	   checkKeyMatch $CURRENTSLOT
-	   ret="$?"
+	   ret=$?
 	   
 	   exit $ret
 fi

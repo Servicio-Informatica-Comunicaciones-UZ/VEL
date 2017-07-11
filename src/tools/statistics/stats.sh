@@ -342,22 +342,24 @@ generateGraphs () {
     local labels=$(getListOfCPUs)
     if [ "$labels" != "" ] ; then
         #Hourly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
 	       local lines=""
 	       for label in $labels
 	       do
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local line="DEF:$label=$DBPATH/coretemperatures.rrd:$label:LAST  LINE1:$label#$colour:'$label(C)'"
 	           lines="$lines $line"
 	       done
 	       $rrdgraph $hourly  $GRAPHPATH/coretemps-hourly.png  $lines
         
         #Daily/Weekly/Monthly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
         local lines=""
 	       for label in $labels
 	       do
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local line="DEF:$label=$DBPATH/coretemperatures.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(C)'"
 	           lines="$lines $line"
 	       done
@@ -372,24 +374,26 @@ generateGraphs () {
     local labels=$(listSMARTHDDs)
     if [ "$labels" != "" ] ; then
         #Hourly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
 	       local lines=""
 	       for label in $labels
 	       do
             label=$(basename $label)
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local line="DEF:$label=$DBPATH/hddtemperatures.rrd:$label:LAST  LINE1:$label#$colour:'$label(C)'"
 	           lines="$lines $line"
 	       done
 	       $rrdgraph $hourly  $GRAPHPATH/hddtemps-hourly.png  $lines
         
         #Daily/Weekly/Monthly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
         local lines=""
 	       for label in $labels
 	       do
             label=$(basename $label)
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local line="DEF:$label=$DBPATH/hddtemperatures.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(C)'"
 	           lines="$lines $line"
 	       done
@@ -404,13 +408,14 @@ generateGraphs () {
     local labels=$(listHDDs)
     if [ "$labels" != "" ] ; then
         #Hourly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
 	       local linesRead=""
         local linesWrite=""
 	       for label in $labels
 	       do
             label=$(basename $label)
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local labelRead=$label"-read"
             local labelWrite=$label"-write"
             local lineRead="DEF:$labelRead=$DBPATH/hddio.rrd:$labelRead:LAST  
@@ -424,13 +429,14 @@ generateGraphs () {
 	       $rrdgraph $hourly  $GRAPHPATH/hddiow-hourly.png  $linesWrite
         
         #Daily/Weekly/Monthly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
 	       local linesRead=""
         local linesWrite=""
 	       for label in $labels
 	       do
             label=$(basename $label)
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local labelRead=$label"-read"
             local labelWrite=$label"-write"
             local lineRead="DEF:$labelRead=$DBPATH/hddio.rrd:$labelRead:AVERAGE  
@@ -454,12 +460,13 @@ generateGraphs () {
     local labels=$(getEthInterfaces)
     if [ "$labels" != "" ] ; then
         #Hourly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
 	       local linesRead=""
         local linesWrite=""
 	       for label in $labels
 	       do
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local labelRead=$label"-rx"
             local labelWrite=$label"-tx"
             local lineRead="DEF:$labelRead=$DBPATH/networkio.rrd:$labelRead:LAST  
@@ -473,12 +480,13 @@ generateGraphs () {
 	       $rrdgraph $hourly  $GRAPHPATH/networkiotx-hourly.png  $linesWrite
         
         #Daily/Weekly/Monthly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
 	       local linesRead=""
         local linesWrite=""
 	       for label in $labels
 	       do
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local labelRead=$label"-rx"
             local labelWrite=$label"-tx"
             local lineRead="DEF:$labelRead=$DBPATH/networkio.rrd:$labelRead:AVERAGE  
@@ -542,22 +550,24 @@ generateGraphs () {
     
     if [ "$labels" != "" ] ; then
         #Hourly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
 	       local lines=""
 	       for label in $labels
 	       do
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local line="DEF:$label=$DBPATH/diskusage.rrd:$label:LAST  LINE1:$label#$colour:'$label(%-in-use)'"
 	           lines="$lines $line"
 	       done
 	       $rrdgraph $hourly  $GRAPHPATH/diskusage-hourly.png  $lines
         
         #Daily/Weekly/Monthly
-        LASTRGBCODE=-1 #Reset the color sequence
+        local nextColour=0 #Reset the color sequence
         local lines=""
 	       for label in $labels
 	       do
-	           local colour=$(getNextRGBCode)
+	           local colour=$(getRGBCode $nextColour)
+            nextColour=$((nextColour+1))
             local line="DEF:$label=$DBPATH/diskusage.rrd:$label:AVERAGE  LINE1:$label#$colour:'$label(%-in-use)'"
 	           lines="$lines $line"
 	       done

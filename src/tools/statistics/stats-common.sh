@@ -28,8 +28,6 @@ STATLOG=/tmp/statsLog
 #  Global variables  #
 ######################
 
-#On the color code sequence, the current status
-LASTRGBCODE=-1
 
 
 
@@ -70,38 +68,26 @@ listSMARTHDDs () {
 }
 
 
-
-
-
-#Will print a different color code following a determined sequence,
-# will keepthe sequence on a global variable. To be used for
-# multi-line graphing
-#1 -> 'reset': restar sequence
-#Expects the following globals:
-# LASTRGBCODE
-getNextRGBCode () {
     
-    #Reset the color sequence, don't print any
-    if [ "$1" == "reset" ] ; then
-        LASTRGBCODE=-1 #Values: (0 - 15)
-        return 0
-    fi
+#Will print a different color code following a determined sequence
+#based on the input integer. To be used for multi-line graphing
+#1 -> color position
+getRGBCode () {
+    
+    local position="$1"
+    [ "$position" ==  ""  ] && position=0
     
     #The sequence of colors (16)
     local RGBCodes=(FF0000 00FF00 0000FF FF7700 00C000 330000 330066 666600 \
                            FF99CC 000000 FFCC00 99CCFF 339900 666666 9966FF FF0077)
     local len=${#RGBCodes[@]}
     
-    
-    #Increment the sequence
-	   LASTRGBCODE=$((LASTRGBCODE+1))
-    
     #Wrap it around if overflowed (unlikely, but well)
-    if [ $LASTRGBCODE -ge  $len  ] ; then
-	       LASTRGBCODE=0
+    if [ $position -ge  $len  -o  $position -lt 0 ] ; then
+	       position=$((position%len))
     fi
     
-    #Print the next color code
-	   echo -n ${RGBCodes[$LASTRGBCODE]}
-	   return 0
+    #Print the requested color code
+	   echo -n ${RGBCodes[$position]}
+    return 0
 }

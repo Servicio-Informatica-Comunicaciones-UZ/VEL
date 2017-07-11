@@ -325,10 +325,10 @@ hddTemp () {
 #1 -> number of core (according to the order of the list returned by getListOfCPUs)
 coreTemp () {
     
-    local core="$1"
+    local core=$(echo "$1" | tr "_" " ")
     
     #Get the line with the selected core temperature
-    local data=$(sensors 2>>$STATLOG | grep -Ee "Core" | nl | grep -Ee "^\s*$core" )
+    local data=$(sensors 2>>$STATLOG | grep -Ee "Core" | grep -Ee "^\s*$core" )
     
     #Return the temperature (no units)
     echo -n $(echo "$data" | sed -re "s/^[^:]*:\s*[-+]?([.0-9]+).*$/\1/g")
