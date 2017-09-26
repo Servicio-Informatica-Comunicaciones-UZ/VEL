@@ -13,6 +13,9 @@
 #wget http://dwnl.nisu.org/dwnl/ivot.php.zip -O - | funzip > src/webapp/bundle/ivot.php
 ## TODO ELIMINAR LA VERSIÓN ESTÁTICA de index.php antes de actualizar el bundle de nuevo
 
+#Dependencies: 
+#debootstrap, squashfs-tools (mksquashfs), genisoimage
+
 
 . src/build/build-tools.sh
 . src/build/build-config.sh
