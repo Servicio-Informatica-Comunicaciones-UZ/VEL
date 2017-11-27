@@ -5,7 +5,8 @@
 
 
 
-import re 
+from __future__ import print_function
+import re
 import sys
 
 
@@ -18,7 +19,7 @@ a=sys.stdin.read()
 
 p  = re.compile('(//!.*?)\n(.*?)\$(.*?)=.*?\n', re.S|re.M)
 
-sys.stdout.write( re.sub(p,"\g<1>\n\g<2>$\g<3>='###***\g<3>***###';\n",a)) #No uso print pq añade un \n al final que me fastidia los scripts php
+print(re.sub(p, "\g<1>\n\g<2>$\g<3>='###***\g<3>***###';\n", a), end='')
 
 
 '''
